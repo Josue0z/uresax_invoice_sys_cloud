@@ -159,7 +159,7 @@ class _MyAppState extends State<MyApp> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.warning, size: 90),
+              Icon(Icons.warning, size: 91),
               SizedBox(
                 height: kDefaultPadding,
               ),
