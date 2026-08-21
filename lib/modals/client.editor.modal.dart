@@ -43,11 +43,11 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
       try {
 
       
-        widget.client.name = name.text;
-        widget.client.identification = identification.text;
-        widget.client.email = email.text.isEmpty ? null : email.text;
-        widget.client.phone = phone.text.isEmpty ? null : phone.text;
-        widget.client.address = address.text.isEmpty ? null : address.text;
+        widget.client.name = name.text.trim();
+        widget.client.identification = identification.text.trim();
+        widget.client.email = email.text.isEmpty ? null : email.text.trim();
+        widget.client.phone = phone.text.isEmpty ? null : phone.text.trim();
+        widget.client.address = address.text.isEmpty ? null : address.text.trim();
 
         if (!widget.editing) {
           await widget.client.create();

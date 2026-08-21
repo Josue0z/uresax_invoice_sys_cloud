@@ -68,7 +68,7 @@ class _ReportsSalesPageState extends State<ReportsSalesPage> {
   }
 
   _showReportBoxesByHour() async {
-    showLoader(context);
+    /*showLoader(context);
     try {
       var result = await createTicketReportBoxesByHour(
           startDate: dates.first!,
@@ -83,7 +83,7 @@ class _ReportsSalesPageState extends State<ReportsSalesPage> {
     } catch (e) {
       Navigator.pop(context);
       showTopSnackBar(context, message: e.toString(), color: Colors.red);
-    }
+    }*/
   }
 
   _onSelectedOption(int? option) async {

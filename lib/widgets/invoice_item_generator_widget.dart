@@ -391,7 +391,6 @@ class _InvoiceItemGeneratorWidgetState
     total.text = widget.saleItem.total?.toStringAsFixed(2) ?? '0.00';
     totalToPay.text = amountPaid.toStringAsFixed(2);
 
- 
     widget.onChanged(widget.saleItem);
   }
 
@@ -698,13 +697,14 @@ class _InvoiceItemGeneratorWidgetState
                 onChanged: (element, isEditing) {
                   setState(() {
                     el = element;
-                    priceSuite.value = priceSuiteFormatter.formatEditUpdate(TextEditingValue.empty, TextEditingValue(
-                      text: el?.priceSuite?.toStringAsFixed(2) ?? '0.00'
-                    ));
-                     widget.saleItem.priceSuite =
-                          priceSuiteFormatter.doubleValue;
+                    priceSuite.value = priceSuiteFormatter.formatEditUpdate(
+                        TextEditingValue.empty,
+                        TextEditingValue(
+                            text:
+                                el?.priceSuite?.toStringAsFixed(2) ?? '0.00'));
+                    widget.saleItem.priceSuite =
+                        priceSuiteFormatter.doubleValue;
 
-         
                     if (el?.discountId != null) {
                       discountEl = Discount(
                         id: el?.discountId,
@@ -928,7 +928,6 @@ class _InvoiceItemGeneratorWidgetState
                         widget.esMenor ||
                         widget.saleItem is CreditNoteProduct ||
                         widget.saleItem is CreditNoteService ||
-                        widget.isProForma ||
                         (widget.editing &&
                             widget.saleItem.retentionTaxId != null) ||
                         (widget.sale.retentionTax != null &&
@@ -973,7 +972,6 @@ class _InvoiceItemGeneratorWidgetState
                         widget.esMenor ||
                         widget.saleItem is CreditNoteProduct ||
                         widget.saleItem is CreditNoteService ||
-                        widget.isProForma ||
                         (widget.editing &&
                             widget.saleItem.retentionIsrId != null) ||
                         (widget.sale.retentionIsr != null &&

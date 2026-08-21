@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
@@ -6,14 +7,17 @@ import 'package:amount_input_formatter/amount_input_formatter.dart';
 import 'package:ecf_dgii/ecf_dgii.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:localstorage/localstorage.dart';
 import 'package:moment_dart/moment_dart.dart';
 import 'package:open_file/open_file.dart';
 import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart';
 import 'package:uresax_invoice_sys_cloud/apis/printers.handler.dart';
 import 'package:uresax_invoice_sys_cloud/modals/element.selector.widget.dart';
 import 'package:uresax_invoice_sys_cloud/modals/ncfs.selector.modal.dart';
+import 'package:uresax_invoice_sys_cloud/modals/open.shift.modal.dart';
 import 'package:uresax_invoice_sys_cloud/modals/payment.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/modals/pre.confirm.invoice.modal.dart';
+import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/client.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.item.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.item.service.dart';
@@ -669,33 +673,37 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
     });
   }
 
-void deleteRow(int rowIndex) {
-  if (rowIndex > 0 && rowIndex < widget.items.length) {
-    setState(() {
-      widget.items.removeAt(rowIndex);
+  void deleteRow(int rowIndex) {
+    if (rowIndex > 0 && rowIndex < widget.items.length) {
+      setState(() {
+        widget.items.removeAt(rowIndex);
 
-      if (rowIndex < controllers.length) {
-        controllers[rowIndex].forEach((c) => c.dispose());
-        controllers.removeAt(rowIndex);
-      }
+        if (rowIndex < controllers.length) {
+          controllers[rowIndex].forEach((c) => c.dispose());
+          controllers.removeAt(rowIndex);
+        }
 
-      if (rowIndex < focusNodes.length) {
-        focusNodes[rowIndex].forEach((f) => f.dispose());
-        focusNodes.removeAt(rowIndex);
-      }
+        if (rowIndex < focusNodes.length) {
+          focusNodes[rowIndex].forEach((f) => f.dispose());
+          focusNodes.removeAt(rowIndex);
+        }
 
-      x = (widget.items.isEmpty) ? -1 : min(rowIndex, widget.items.length - 1);
+        x = (widget.items.isEmpty)
+            ? -1
+            : min(rowIndex, widget.items.length - 1);
 
-      offsets[0] = x;
-      offsets[1] = y;
+        offsets[0] = x;
+        offsets[1] = y;
 
-      if (x >= 0 && x < focusNodes.length &&
-          y >= 0 && y < focusNodes[x].length) {
-        focusNodes[x][y].requestFocus();
-      }
-    });
+        if (x >= 0 &&
+            x < focusNodes.length &&
+            y >= 0 &&
+            y < focusNodes[x].length) {
+          focusNodes[x][y].requestFocus();
+        }
+      });
+    }
   }
-}
 
   void cleanUnassignedRows() {
     if (widget.items.length == 1) return;
@@ -764,8 +772,6 @@ void deleteRow(int rowIndex) {
         x = (x <= 0) ? maxOffsetX : x - 1;
         offsets[0] = x;
         focusNodes[x][y].requestFocus();
-      } else if (event.logicalKey == LogicalKeyboardKey.shiftLeft) {
-        addRow();
       } else if (event.logicalKey == LogicalKeyboardKey.delete) {
         deleteRow(offsets[0]); // usa x como fila actual
       }
@@ -803,11 +809,7 @@ void deleteRow(int rowIndex) {
         _focusCommands.requestFocus();
       }
 
-      if (event.logicalKey == LogicalKeyboardKey.f1 ||
-          event.logicalKey == LogicalKeyboardKey.numpadSubtract ||
-          (HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.controlLeft) &&
-              event.logicalKey == LogicalKeyboardKey.minus)) {
+      if (event.logicalKey == LogicalKeyboardKey.f1) {
         _reset();
       }
 
@@ -888,9 +890,75 @@ void deleteRow(int rowIndex) {
     setState(() {});
   }
 
+  bool isDialogOpen = false;
+  Timer? timer;
+
+  String? get currentTurnoId {
+    return localStorage.getItem('currentTurnoId');
+  }
+
+int getPeriodIdByHour(DateTime now) {
+  if (now.hour >= 6 && now.hour < 11) {
+    return 1; // Mañana
+  } else if (now.hour >= 11 && now.hour < 19) {
+    return 2; // Tarde
+  } else {
+    return 3; // Noche
+  }
+}
+
+  Future<void> validatePeriod() async {
+    var cashshift = CashShiftModel(
+      createdBy: currentUser?.id,
+      boxId: currentUser?.boxId
+    );
+    int currentPeriodId = getPeriodIdByHour(DateTime.now());
+
+    int oldPeriodId = int.tryParse(localStorage.getItem('oldPeriodId') ?? 'x') ?? -1;
+
+    if (currentPeriodId != oldPeriodId) {
+      // Evitar conflicto si ya hay otro modal abierto (ej. loader)
+      if (!isDialogOpen) {
+        isDialogOpen = true;
+     
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => OpenShiftModal(
+            periodId: currentPeriodId,
+            onConfirm: (openingAmount, description) async {
+              try{
+                 // Cerrar turno anterior y abrir nuevo
+              showLoader(context);
+            
+              await CashShiftModel.closeCashShiftTurno(
+                  id: currentTurnoId ?? 'x');
+              cashshift.periodId = currentPeriodId;
+              cashshift.description = description;
+              cashshift.openingAmount = openingAmount;
+              cashshift.createdAt = DateTime.now();
+              var newCashShift = await cashshift.openCashShift();
+              localStorage.setItem('currentTurnoId', newCashShift?.id ?? '');
+              localStorage.setItem('oldPeriodId', currentPeriodId.toString());
+              Navigator.pop(context);
+              Navigator.pop(context);
+              showTopSnackBar(context, message: 'TURNO ${newCashShift?.cashShiftNumber} CREADO!',color: Colors.green);
+              isDialogOpen = false;
+              }catch(e){
+                 Navigator.pop(context);
+                 showTopSnackBar(context, message: e.toString(),color: Colors.red);
+              }
+            },
+          ),
+        ).then((_) => isDialogOpen = false);
+      }
+    }
+  }
+
   @override
   void initState() {
     if (!mounted) return;
+  
     var now = DateTime.now();
     var dateLocal = now;
 
@@ -1041,11 +1109,29 @@ void deleteRow(int rowIndex) {
         }
       }
     }
+
     setState(() {
       _initAsync();
     });
+
+    Future.delayed(const Duration(milliseconds: 660),(){
+      validatePeriod();
+    });
+
+    timer =  Timer.periodic(Duration(minutes: 5), (timer) {
+      validatePeriod();
+    });
+
     super.initState();
   }
+  
+  @override
+  void dispose(){
+    timer?.cancel();
+    super.dispose();
+  }
+
+  
 
   double get montoAPagarReferencia {
     return (_calc['paidAmount'] ?? 0);
@@ -1212,6 +1298,7 @@ void deleteRow(int rowIndex) {
         createdAt = now;
 
         widget.sale.ncfTypeId = currentNcfTypeId;
+        widget.sale.cashShiftId = currentTurnoId;
         widget.sale.items = widget.items;
         widget.sale.net = _calc['net'];
         widget.sale.discount = _calc['discount'];
@@ -1273,9 +1360,9 @@ void deleteRow(int rowIndex) {
           amount = 0;
         }
 
-        if(currentNcfTypeId == '60' ||  currentNcfTypeId == '50'){
-           amountx = 0;
-           amount = 0;
+        if (currentNcfTypeId == '60' || currentNcfTypeId == '50') {
+          amountx = 0;
+          amount = 0;
         }
 
         if (rate.text.isNotEmpty) {
@@ -1295,6 +1382,8 @@ void deleteRow(int rowIndex) {
         if (widget.sale is SaleProduct) {
           widget.sale.invoiceTypeId = 2;
         }
+
+        //cleanUnassignedRows();
 
         widget.items = widget.items.where((e) => e.enabled == true).toList();
         widget.sale.items = widget.items;
@@ -1370,11 +1459,11 @@ void deleteRow(int rowIndex) {
         }
 
         if (widget.sale.paid != null) {
-            widget.sale.paid = widget.sale.paid! + amount;
-          } else {
-            widget.sale.paid = amount;
-          }
-          widget.sale.paidInvoice = amountx;
+          widget.sale.paid = widget.sale.paid! + amount;
+        } else {
+          widget.sale.paid = amount;
+        }
+        widget.sale.paidInvoice = amountx;
 
         if (debt < 0) {
           widget.sale.coinBack = debt.abs();
@@ -1891,14 +1980,10 @@ void deleteRow(int rowIndex) {
   }
 
   _onHandlerCode(String code, int rowIndex) async {
-
-
     var count = controllers[rowIndex][2];
     var price = controllers[rowIndex][3];
     SaleElement? element;
     try {
-   
-
       count.text = '1.00';
 
       if (code.length >= 3) {
@@ -2111,16 +2196,13 @@ void deleteRow(int rowIndex) {
           title: Text(title),
           toolbarHeight: kToolbarHeight + kDefaultPadding,
           actions: [
-
-          Container(
-            alignment: Alignment.centerRight,
-            margin: EdgeInsets.only(
-              right: kDefaultPadding
-            ),
-            child:Text(currentUser?.name ?? '',style: TextStyle(
-              color: Colors.white
-            ),)
-          ),
+            Container(
+                alignment: Alignment.centerRight,
+                margin: EdgeInsets.only(right: kDefaultPadding),
+                child: Text(
+                  currentUser?.name ?? '',
+                  style: TextStyle(color: Colors.white),
+                )),
             esNotaCredito
                 ? ToolButtonWidget(
                     icon: Icons.document_scanner_outlined, onTap: _scanInvoice)
@@ -2252,14 +2334,9 @@ void deleteRow(int rowIndex) {
                                                           code, index),
                                                   textInputAction:
                                                       TextInputAction.none,
-                                                  inputFormatters: [
-                                                    FilteringTextInputFormatter
-                                                        .allow(
-                                                      RegExp(r'[a-zA-Z0-9]'),
-                                                    )
-                                                  ],
+                                               
                                                   keyboardType:
-                                                      TextInputType.number,
+                                                      TextInputType.text,
                                                   decoration: InputDecoration(
                                                       filled: true,
                                                       fillColor: Colors.white,
@@ -2296,9 +2373,15 @@ void deleteRow(int rowIndex) {
                                                     child: TextFormField(
                                                       controller: c2,
                                                       focusNode: f2,
-                                                      onChanged: (val){
-                                                        row.serviceName = val.isEmpty ? null : val;
-                                                        row.productName = val.isEmpty ? null : val;
+                                                      onChanged: (val) {
+                                                        row.serviceName =
+                                                            val.isEmpty
+                                                                ? null
+                                                                : val;
+                                                        row.productName =
+                                                            val.isEmpty
+                                                                ? null
+                                                                : val;
                                                       },
                                                       readOnly: esNotaCredito ||
                                                           widget

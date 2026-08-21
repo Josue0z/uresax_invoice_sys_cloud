@@ -178,7 +178,7 @@ class CreditNoteProduct implements SaleItem {
   Map<String, dynamic> toDisplayTecho() {
     return {
       'CANTIDAD': units?.toStringAsFixed(2),
-      'CODIGO':productCode,
+      'CODIGO':productCode ?? '-',
       'DESCRIPCIÓN': productName,
       'PRECIO': priceUnit?.toCoin(),
       'TOTAL': total?.toCoin() ?? ''
@@ -535,7 +535,7 @@ class CreditNoteProduct implements SaleItem {
   }
 
   factory CreditNoteProduct.fromMap(Map<String, dynamic> map) {
-   
+
     return CreditNoteProduct(
         id: map['id'],
         productId: map['productId'],
@@ -544,7 +544,7 @@ class CreditNoteProduct implements SaleItem {
         discountId: map['discountId'],
         discountName: map['discountName'],
         discount:map['discount'] != null ? double.parse(map['discount']) : null,
-                   discountRate: map['discountRate'] != null ? double.parse(map['discountRate']): null,
+        discountRate: map['discountRate'] != null ? double.parse(map['discountRate']): null,
         discountSymbol: map['discountSymbol'],
         net: double.parse(map['net']),
               netFinal: map['netFinal'] != null ? double.parse(map['netFinal']) : null,

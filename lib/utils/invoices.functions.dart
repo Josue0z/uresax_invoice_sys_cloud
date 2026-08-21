@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:image/image.dart' as img;
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/orden.model.dart';
@@ -474,9 +475,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.net?.toDop()
-                                : sale.net?.toUS() ?? '',
+                            sale.netLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])),
              sale.discount! > 0 ? pw.Container(
@@ -493,9 +492,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.discount?.toDop()
-                                : sale.discount?.toUS() ?? '',
+                            sale.discountLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])):pw.SizedBox(),
               sale.netFinal! > 0 && sale.net != sale.netFinal ?  pw.Container(
@@ -512,9 +509,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.netFinal?.toDop()
-                                : sale.netFinal?.toUS() ?? '',
+                            sale.netFinalLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])):pw.SizedBox(),
               pw.Container(
@@ -531,9 +526,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.tax?.toDop()
-                                : sale.tax?.toUS() ?? '',
+                            sale.taxLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])),
 
@@ -551,9 +544,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.law10?.toDop()
-                                : sale.law10?.toUS() ?? '',
+                            sale.law10Label,
                             style: pw.TextStyle(fontSize: 7))
                       ])):pw.SizedBox(),
               pw.Container(
@@ -570,9 +561,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.total?.toDop()
-                                : sale.total?.toUS() ?? '',
+                            sale.totalLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])),
              sale.retentionTax! > 0 ?  pw.Container(
@@ -589,9 +578,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.retentionTax?.toDop()
-                                : sale.retentionTax?.toUS() ?? '',
+                          sale.retentionTaxLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])):pw.SizedBox(),
              sale.retentionIsr! > 0 ? pw.Container(
@@ -608,9 +595,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.retentionIsr?.toDop()
-                                : sale.retentionIsr?.toUS() ?? '',
+                            sale.retentionIsrLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])):pw.SizedBox(),
               pw.Container(
@@ -630,15 +615,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? (sale.total! -
-                                        (sale.retentionIsr! +
-                                            sale.retentionTax!))
-                                    .toDop()
-                                : (sale.total! -
-                                        (sale.retentionIsr! +
-                                            sale.retentionTax!))
-                                    .toUS(),
+                            sale.amountPaidLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])),
               pw.Container(
@@ -655,9 +632,7 @@ pw.Document createDefaultInvoice(Sale sale) {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.Text(
-                            sale.currencyId == 1
-                                ? sale.amountPaid?.toDop()
-                                : sale.amountPaid?.toUS() ?? '',
+                            sale.amountxPaidLabel,
                             style: pw.TextStyle(fontSize: 7))
                       ])),
               pw.Container(
@@ -8119,12 +8094,80 @@ if(isSaleProduct){
 columnWidths = w2;
 columnWidths2 = ww2;
 }
+
+var tels = [];
+
+if(company?.phone1 != null){
+  tels.add('${company?.phone1}');
+}
+
+if(company?.phone2 != null){
+  tels.add('${company?.phone2}');
+}
+
+var telsMessage = '';
+
+if(tels.isNotEmpty){
+  telsMessage = 'Telefonos: ${tels.join(',')}';
+}
+
+
+// Número mínimo de filas por defecto
+const minRows = 4;
+
+// Filas dinámicas con datos
+final itemRows = List.generate(sale.items.length, (index) {
+  var item = sale.items[index];
+  var values = item.toDisplayTecho().values.toList();
+
+  return pw.TableRow(
+    verticalAlignment: pw.TableCellVerticalAlignment.middle,
+    decoration: pw.BoxDecoration(
+      border: pw.Border(
+        bottom: pw.BorderSide(color: PdfColor.fromHex('#e6e6e6')),
+      ),
+    ),
+    children: List.generate(values.length, (i) {
+      var val = values[i];
+      return pw.Padding(
+        padding: pw.EdgeInsets.all(kDefaultPadding / 4),
+        child: pw.Text(
+          val,
+          textAlign: i >= 3 || i == 0 || (sale.invoiceTypeId == 1 && i >= 4)
+              ? pw.TextAlign.center
+              : pw.TextAlign.left,
+          style: pw.TextStyle(
+            fontSize: i > 3 ? 8 : 7,
+            fontWeight: i == 1 ? pw.FontWeight.bold : pw.FontWeight.normal,
+          ),
+        ),
+      );
+    }),
+  );
+});
+
+// Calcular cuántas filas vacías faltan
+final emptyRowsCount = (minRows - sale.items.length).clamp(0, minRows);
+
+// Filas vacías
+final emptyRows = List.generate(emptyRowsCount, (_) {
+  return pw.TableRow(
+    children: List.generate(columnWidths.length, (_) {
+      return pw.Padding(
+        padding: pw.EdgeInsets.all(kDefaultPadding/2),
+        child: pw.Text(''), // celda vacía
+      );
+    }),
+  );
+});
+
+
   document.addPage(pw.MultiPage(
     margin: pw.EdgeInsets.only(
         left: kDefaultPadding * 2,
         right: kDefaultPadding * 2,
-        top: kDefaultPadding * 2,
-        bottom: kDefaultPadding*2
+        top: kDefaultPadding * 1.5,
+        bottom: kDefaultPadding* 0.5
     ),
     theme: pw.ThemeData(
      defaultTextStyle: pw.TextStyle(
@@ -8135,24 +8178,22 @@ columnWidths2 = ww2;
      )
     ),
     header: (ctx) {
-    return pw.Column(children: [
-      pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-      pw.Expanded(child:  pw.Column(
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+    pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                    company?.logo != null
-                        ? pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.start,
-                            crossAxisAlignment: pw.CrossAxisAlignment.center,
-                            children: [
-                                pw.Image(
+                        ?   pw.Container(
+                          margin: pw.EdgeInsets.only(
+                            bottom: kDefaultPadding * 0.60
+                          ),
+                          child:  pw.Image(
                                     pw.MemoryImage(
                                         base64Decode(company!.logo!)),
-                                    width: 130),
-                          
-                              ])
+                                    width: 130)
+                        )
                         : pw.Container(
                           width: 110,
                           height: 110,
@@ -8168,28 +8209,78 @@ columnWidths2 = ww2;
                           )
                         ),
                
-                ])),
-        pw.Expanded(child: pw.Column(
-                 crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
+                ]),
+
+      pw.Row(
+           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            flex:3,
+            child: pw.Column(
+                         mainAxisAlignment: pw.MainAxisAlignment.start,
+                   crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+               pw.Container(
+                margin: pw.EdgeInsets.only(
+                  bottom: kDefaultPadding/4
+                ),
+                child:pw.Text('RNC ${company?.rncOrId}',style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold
+              )),
+               ),
+            
+            pw.Container(
+                margin: pw.EdgeInsets.only(
+                  bottom: kDefaultPadding/5
+                ),
+              child:pw.Text(company?.address ?? '',style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold
+              )),
+            ),
+
+            tels.isNotEmpty ?  pw.Text(telsMessage,style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold
+              )):pw.SizedBox(),
+
+            company?.email  != null ? pw.Text('Correo: ${company?.email}',style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold
+              )) : pw.Container()
+            ]
+          )),
+
+          pw.Expanded(
+            flex:2,
+            child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+              mainAxisAlignment: pw.MainAxisAlignment.start,
+            children: [
+
             pw.Text(sale.ncfTypeName ?? '',style: pw.TextStyle(
-              fontSize: 9,
+              fontSize: 13,
               fontWeight: pw.FontWeight.bold
             )),
             pw.SizedBox(
-            height: kDefaultPadding/2
+              height:kDefaultPadding/2
             ),
+          
             pw.Row(
                  mainAxisAlignment: pw.MainAxisAlignment.start,
               children: [
-                 pw.Expanded(child: pw.Text('NCF:',style: pw.TextStyle(
+                 pw.Expanded(
+                
+                  child: pw.Text('NCF:',style: pw.TextStyle(
               fontSize: 8,
               fontWeight: pw.FontWeight.bold
             ))),
                 
-                pw.Expanded(
-                  flex:3,
-                  child:  pw.Text(sale.ncf ?? '',style: pw.TextStyle(
+               pw.Expanded(
+                flex:2,
+                child: pw.Text(sale.ncf ?? '',style: pw.TextStyle(
               fontSize: 8,
               fontWeight: pw.FontWeight.bold
             )))
@@ -8204,7 +8295,7 @@ columnWidths2 = ww2;
             ))),
                
                 pw.Expanded(
-                  flex:3,
+                  flex:2,
                   child:  pw.Text(sale.ncfAffected ?? '',style: pw.TextStyle(
               fontSize: 8,
               fontWeight: pw.FontWeight.bold
@@ -8220,7 +8311,7 @@ columnWidths2 = ww2;
             ))),
              
                 pw.Expanded(
-                  flex:3,
+                  flex:2,
                   child:  pw.Text(sale.createdAt?.format(payload:'LL') ?? '',style: pw.TextStyle(
               fontSize: 8,
               fontWeight: pw.FontWeight.bold
@@ -8237,44 +8328,17 @@ columnWidths2 = ww2;
             ))),
              
                 pw.Expanded(
-                  flex:3,
+                  flex:2,
                   child:  pw.Text(sale.expirationDate?.format(payload:'LL') ?? '',style: pw.TextStyle(
               fontSize: 8,
               fontWeight: pw.FontWeight.bold
             )))
             ]
-          )
-          ]
-        )),
-       
+          ),
 
-      ]),
-      pw.SizedBox(height: kDefaultPadding/3),
-      pw.Row(
-           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Expanded(child: pw.Column(
-                   crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('RNC ${company?.rncOrId}',style: pw.TextStyle(
-                fontSize: 8,
-                fontWeight: pw.FontWeight.bold
-              )),
-                  pw.Text(company?.address ?? '',style: pw.TextStyle(
-                fontSize: 8,
-                fontWeight: pw.FontWeight.bold
-              )),
-
-              pw.Text('Telefonos: ${company?.phone1}, ${company?.phone2}',style: pw.TextStyle(
-                fontSize: 8,
-                fontWeight: pw.FontWeight.bold
-              ))
-            ]
-          )),
-
-          pw.Expanded(child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
+          pw.SizedBox(
+               height: kDefaultPadding
+          ),
               pw.Row(
                    mainAxisAlignment: pw.MainAxisAlignment.start,
                 children: [
@@ -8284,7 +8348,7 @@ columnWidths2 = ww2;
                   ))),
                
                   pw.Expanded(
-                    flex: 3,
+                    flex: 2,
                     child: pw.Text(sale.clientName ?? '',style: pw.TextStyle(
                     fontSize: 7,
                      fontWeight: pw.FontWeight.bold
@@ -8302,7 +8366,7 @@ columnWidths2 = ww2;
                  
                   
                   pw.Expanded(
-                    flex: 3,
+                    flex: 2,
                     child:  pw.Text(sale.clientAddress ?? 'S/N',softWrap: true, style: pw.TextStyle(
                     fontSize: 7,
                      fontWeight: pw.FontWeight.bold
@@ -8321,7 +8385,7 @@ columnWidths2 = ww2;
                   ))),
                 
                   pw.Expanded(
-                    flex: 3,
+                    flex: 2,
                     child: pw.Text(sale.clientIdentificationFormat,textAlign: pw.TextAlign.left, style: pw.TextStyle(
                     fontSize: 7,
                      fontWeight: pw.FontWeight.bold
@@ -8331,19 +8395,36 @@ columnWidths2 = ww2;
               pw.Row(
                    mainAxisAlignment: pw.MainAxisAlignment.start,
                 children: [
-                  pw.Expanded(child: pw.Text('Telefono:',style: pw.TextStyle(
+                  pw.Expanded(child: pw.Text('Teléfono:',style: pw.TextStyle(
                     fontSize: 8,
                     fontWeight: pw.FontWeight.bold
                   ))),
                  
                   pw.Expanded(
-                    flex: 3,
+                    flex: 2,
                     child: pw.Text(sale.clientPhone ??'S/N',style: pw.TextStyle(
                     fontSize: 7,
                      fontWeight: pw.FontWeight.bold
                   )))
                 ]
-              )
+              ),
+
+                sale.clientEmail != null ?   pw.Row(
+                   mainAxisAlignment: pw.MainAxisAlignment.start,
+                children: [
+                  pw.Expanded(child: pw.Text('Correo:',style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold
+                  ))),
+                 
+                  pw.Expanded(
+                    flex: 2,
+                    child: pw.Text(sale.clientEmail ??'S/N',style: pw.TextStyle(
+                    fontSize: 7,
+                     fontWeight: pw.FontWeight.bold
+                  )))
+                ]
+              ):pw.SizedBox()
             ]
           )
           ),
@@ -8352,7 +8433,7 @@ columnWidths2 = ww2;
         ]
       ),
   
-       pw.SizedBox(height: kDefaultPadding),
+       pw.SizedBox(height: kDefaultPadding/2),
      pw.Table(
           border: pw.TableBorder.symmetric(outside: pw.BorderSide(
             color: PdfColors.black, width: 0.5
@@ -8363,6 +8444,8 @@ columnWidths2 = ww2;
          
             children: List.generate(columns().length, (index) {
               var col = columns()[index];
+
+             
 
               return pw.Padding(
                   padding: pw.EdgeInsets.all(kDefaultPadding / 4),
@@ -8380,29 +8463,9 @@ columnWidths2 = ww2;
       pw.Table(
          border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
         columnWidths: columnWidths, children: [
-      
-        ...List.generate(sale.items.length, (index) {
-          var item = sale.items[index];
-          var values = item.toDisplayTecho().values.toList();
-          return pw.TableRow(
-            verticalAlignment: pw.TableCellVerticalAlignment.middle,
-              decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                      bottom:
-                          pw.BorderSide(color: PdfColor.fromHex('#e6e6e6')))),
-              children: List.generate(values.length, (i) {
-                var val = values[i];
-                return pw.Padding(
-                  padding: pw.EdgeInsets.all(kDefaultPadding/4),
-                  child:pw.Text(val,textAlign: i > 3   || i == 0 ? pw.TextAlign.center : pw.TextAlign.left, 
-                  style:pw.TextStyle(fontSize: i > 3 ? 8: 7,fontWeight: i == 1 ? pw.FontWeight.bold:pw.FontWeight.normal))
-                );
-              }));
-        })
+       ...itemRows,
+    ...emptyRows,
       ]),
-
-   
-  
 
             pw.Table(
         columnWidths: columnWidths2,
@@ -8443,18 +8506,9 @@ columnWidths2 = ww2;
           ]
          ),
             ):pw.SizedBox(),
-             sale.description?.isNotEmpty == true ? pw.Container(
-                margin: pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 5),
-                child:  pw.Text(sale.description ?? '', style: pw.TextStyle(fontSize: 8)),
-              ):pw.SizedBox(),
-             
-              
-
-            
+           
             ]),
 
-      
-      
              pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -8490,12 +8544,11 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child: pw.Text(
-                            sale.currencyId == 1
-                                ? sale.net?.toDop()
-                                : sale.net?.toUS() ?? '',
+                            sale.netLabel,
                             style: pw.TextStyle(fontSize: 8),textAlign: pw.TextAlign.center)
                         ))
-                      ])),
+                      ])
+                      ),
 
         sale.discount == 0  ? pw.SizedBox():  pw.Container(
                  
@@ -8532,14 +8585,12 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child:  pw.Text(
-                            sale.currencyId == 1
-                                ? sale.discount?.toDop()
-                                : sale.discount?.toUS() ?? '',
+                            sale.discountLabel,
                             style: pw.TextStyle(fontSize: 8),textAlign: pw.TextAlign.center)
                         ))
                       ])),
            
-               sale.netFinal! > 0 && (sale.net != sale.netFinal) ?   pw.Container(
+               (sale.netFinal ?? 0) > 0 && (sale.net != sale.netFinal) ?   pw.Container(
                  
                   decoration: pw.BoxDecoration(
                       border: pw.Border.all(
@@ -8573,9 +8624,7 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child: pw.Text(
-                            sale.currencyId == 1
-                                ? sale.netFinal?.toDop()
-                                : sale.netFinal?.toUS() ?? '',
+                            sale.netFinalLabel,
                             style: pw.TextStyle(fontSize: 8),textAlign: pw.TextAlign.center)
                         ))
                       ])):pw.SizedBox(),
@@ -8614,14 +8663,12 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child:  pw.Text(
-                            sale.currencyId == 1
-                                ? sale.tax?.toDop()
-                                : sale.tax?.toUS() ?? '',
+                            sale.taxLabel,
                             style: pw.TextStyle(fontSize: 8),textAlign: pw.TextAlign.center)
                         ))
                       ])),
 
-                   sale.retentionTax! > 0 ? pw.Container(
+                   (sale.retentionTax ?? 0) > 0 ? pw.Container(
                  
                   decoration: pw.BoxDecoration(
                       border: pw.Border.all(
@@ -8654,14 +8701,12 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child:  pw.Text(
-                            sale.currencyId == 1
-                                ? sale.retentionTax?.toDop()
-                                : sale.retentionTax?.toUS() ?? '',
+                            sale.retentionTaxLabel,
                             style: pw.TextStyle(fontSize: 8),textAlign: pw.TextAlign.center)
                         ))
                       ])):pw.SizedBox(),
 
-         sale.retentionIsr! > 0 ?  pw.Container(
+         (sale.retentionIsr ?? 0) > 0 ?  pw.Container(
                  
                   decoration: pw.BoxDecoration(
                       border: pw.Border.all(
@@ -8694,14 +8739,12 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child: pw.Text(
-                            sale.currencyId == 1
-                                ? sale.retentionIsr?.toDop()
-                                : sale.retentionIsr?.toUS() ?? '',
+                            sale.retentionIsrLabel,
                             style: pw.TextStyle(fontSize: 8),textAlign: pw.TextAlign.center)
                         ))
                       ])):pw.SizedBox(),
 
-               sale.law10! > 0 ? pw.Container(
+               (sale.law10 ?? 0) > 0 ? pw.Container(
                  
                   decoration: pw.BoxDecoration(
                       border: pw.Border.all(
@@ -8735,9 +8778,7 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child: pw.Text(
-                            sale.currencyId == 1
-                                ? sale.law10?.toDop()
-                                : sale.law10?.toUS() ?? '',
+                            sale.law10Label,
                             style: pw.TextStyle(fontSize: 8),textAlign: pw.TextAlign.center)
                         ))
                       ])):pw.SizedBox(),
@@ -8778,18 +8819,7 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child: pw.Text(
-                            enabledTotalsConfigSimple ?     sale.currencyId == 1
-                                ? (sale.total! -
-                                        (sale.retentionIsr! +
-                                            sale.retentionTax!))
-                                    .toDop()
-                                : (sale.total! -
-                                        (sale.retentionIsr! +
-                                            sale.retentionTax!))
-                                    .toUS():
-                            sale.currencyId == 1
-                                ? sale.total?.toDop()
-                                : sale.total?.toUS() ?? '',
+                            enabledTotalsConfigSimple ? sale.amountPaidLabel :sale.totalLabel,
                             style: pw.TextStyle(fontSize: 8,fontWeight: pw.FontWeight.bold),textAlign: pw.TextAlign.center)
                         ))
                       ])),
@@ -8831,15 +8861,7 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child: pw.Text(
-                              sale.currencyId == 1
-                                ? (sale.total! -
-                                        (sale.retentionIsr! +
-                                            sale.retentionTax!))
-                                    .toDop()
-                                : (sale.total! -
-                                        (sale.retentionIsr! +
-                                            sale.retentionTax!))
-                                    .toUS(),
+                              sale.amountPaidLabel,
                             style: pw.TextStyle(fontSize: 8),textAlign: pw.TextAlign.center)
                         ))
                       ])),
@@ -8878,37 +8900,37 @@ columnWidths2 = ww2;
                             ))
                         ),
                           child:  pw.Text(
-                            sale.currencyId == 1
-                                ? sale.amountPaid?.toDop()
-                                : sale.amountPaid?.toUS() ?? '',
+                            sale.amountxPaidLabel,
                             style: pw.TextStyle(fontSize: 8,fontWeight: pw.FontWeight.bold),textAlign: pw.TextAlign.center)
                         ))
                       ])),
              
-              pw.Container(
+            (sale.amountPaid??0) > 0 ?  pw.Container(
                   margin: pw.EdgeInsets.symmetric(vertical: kDefaultPadding/3),
                   child: pw.Text('FORMAS DE PAGO:',
                       style: pw.TextStyle(
-                          fontSize: 6, fontWeight: pw.FontWeight.bold))),
-              pw.Container(
+                          fontSize: 6, fontWeight: pw.FontWeight.bold))) :pw.SizedBox(),
+            (sale.amountPaid??0) > 0 ?  pw.Container(
             
                 child: pw.Text(paymentsWidgets.join(','),
                     style: pw.TextStyle(fontSize: 6)),
-              )
+
+              
+              ):pw.SizedBox()
+
+             
             ])
           ])
         ]
       ),
 
-      pw.SizedBox(
-        height: 200,
-      ),
+      pw.Spacer(),
       pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children:[
             pw.Container(
-                  width: 70,
-                  height: 70,
+                  width: 30,
+                  height: 30,
                   margin: pw.EdgeInsets.only(
                     top: kDefaultPadding/2
                   ),
@@ -8921,71 +8943,63 @@ columnWidths2 = ww2;
               sale.securityCode != null
                   ? pw.Container(
                       margin: pw.EdgeInsets.symmetric(
-                          vertical: kDefaultPadding / 6),
+                          vertical: kDefaultPadding / 7),
                       child: pw.Row(children: [
                         pw.Text('Codigo de seguridad:',
                             style: pw.TextStyle(
-                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 5, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(sale.securityCode ?? '',
-                            style: pw.TextStyle(fontSize: 7)),
+                            style: pw.TextStyle(fontSize: 5)),
                       ]))
                   : pw.SizedBox(),
               sale.signatureDate != null
                   ? pw.Container(
                       margin: pw.EdgeInsets.symmetric(
-                          vertical: kDefaultPadding / 6),
+                          vertical: kDefaultPadding / 7),
                       child: pw.Row(children: [
                         pw.Text('Fecha de Firma:',
                             style: pw.TextStyle(
-                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 5, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(
                             sale.signatureDate
                                     ?.format(payload: 'DD-MM-YYYY HH:mm:ss') ??
                                 '',
-                            style: pw.TextStyle(fontSize: 7)),
+                            style: pw.TextStyle(fontSize: 5)),
                       ]))
                   : pw.SizedBox(),
-              sale.authorName != null
-                  ? pw.Container(
-                      margin: pw.EdgeInsets.symmetric(
-                          vertical: kDefaultPadding / 6),
-                      child: pw.Row(children: [
-                        pw.Text('Atendido por:',
-                            style: pw.TextStyle(
-                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
-                        pw.SizedBox(width: 5),
-                        pw.Text(sale.authorName ?? '',
-                            style: pw.TextStyle(fontSize: 7)),
-                      ]))
-                  : pw.SizedBox(),
+            
               sale.rate != null && sale.rate! > 1
                   ? pw.Container(
                       margin: pw.EdgeInsets.symmetric(
-                          vertical: kDefaultPadding / 6),
+                          vertical: kDefaultPadding / 7),
                       child: pw.Row(children: [
                         pw.Text('Tasa Dolar:',
                             style: pw.TextStyle(
-                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 5, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(sale.rate?.toStringAsFixed(2) ?? '',
-                            style: pw.TextStyle(fontSize: 7)),
+                            style: pw.TextStyle(fontSize: 5)),
                       ]))
                   : pw.SizedBox(),
               sale.estadoDgiiNombre != null
                   ? pw.Container(
                       margin: pw.EdgeInsets.symmetric(
-                          vertical: kDefaultPadding / 6),
+                          vertical: kDefaultPadding / 7),
                       child: pw.Row(children: [
                         pw.Text('Estado DGII:',
                             style: pw.TextStyle(
-                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 5, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(sale.estadoDgiiNombre ?? '',
-                            style: pw.TextStyle(fontSize: 7)),
+                            style: pw.TextStyle(fontSize: 5)),
                       ]))
                   : pw.SizedBox(),
+            sale.description?.isNotEmpty == true ? pw.Container(
+                margin: pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 6),
+                child:  pw.Text( sale.description ?? '', style: pw.TextStyle(fontSize: 7)),
+              ):pw.SizedBox(),
         ]
       )
     ];
@@ -9015,6 +9029,7 @@ columnWidths2 = ww2;
         ]
     );
   }));
+
   return document;
 }
 
@@ -9142,47 +9157,18 @@ Future<pw.Document> createPaymentOrdenInvoice(PaymentOrden payment) async {
   return document;
 }
 
-Future<List<int>> createTicketReportBoxesByHour(
+Future<List<int>> createTicketCashShift(
     {String name = 'default',
-    required DateTime startDate,
-    required DateTime endDate,
-    List<String>? ncfsTypes,
-    List<int>? dgiiStates,
-    SaleStatus? saleStatus}) async {
+    required CashShiftModel cashShiftModel}) async {
   
   final profile = await CapabilityProfile.load(name: name);
   final generator = Generator(PaperSize.mm80, profile,
       spaceBetweenRows: 2, codec: CustomLatinCodec());
+  DateTime now = DateTime.now();
   List<int> bytes = [];
   bytes.addAll([27, 97, 0]); // ESC a 0 → izquierda
 
   generator.setStyles(PosStyles(width: PosTextSize.size6));
-
-  // Construir parámetros para la API
-  var query = [];
-  if (ncfsTypes != null && ncfsTypes.isNotEmpty) {
-    query.add('ncfsTypes=${ncfsTypes.join(',')}');
-  }
-  if (dgiiStates != null && dgiiStates.isNotEmpty) {
-    query.add('dgiiStates=${dgiiStates.join(',')}');
-  }
-  if (saleStatus == SaleStatus.paid) {
-    query.add('paidStatus=paid');
-  }
-  if (saleStatus == SaleStatus.notPaid) {
-    query.add('paidStatus=pending');
-  }
-  var params = query.isNotEmpty ? '&${query.join('&')}' : '';
-
-  // Llamada a la API
-  var res = await apiUresax.get(
-      '/reports/get-sales-report-by-boxes-pos?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
-
-  var listPOS = [];
-  if (res.statusCode == 200) {
-    var data = res.data;
-    listPOS = data['listPOS'];
-  }
 
   // Encabezado
   bytes += generator.text(company?.name ?? '',
@@ -9191,54 +9177,66 @@ Future<List<int>> createTicketReportBoxesByHour(
     bytes += generator.text(company?.comercialName ?? '',
         styles: PosStyles(bold: true, align: PosAlign.center));
   }
-  bytes += generator.text('REPORTE DE CAJA POR HORA',
+  bytes += generator.text('TURNO: ${cashShiftModel.cashShiftNumber}',
       styles: PosStyles(align: PosAlign.center, bold: true));
-  bytes += generator.text(
-      'Del ${startDate.format(payload: 'DD/MM/YYYY hh:mm A')} al ${endDate.format(payload: 'DD/MM/YYYY hh:mm A')}',
+
+  bytes += generator.text('JORNADA: ${cashShiftModel.periodName}',
       styles: PosStyles(align: PosAlign.center));
+  bytes += generator.text('${cashShiftModel.boxName}',
+       styles: PosStyles(align: PosAlign.left));
+  bytes += generator.text('CAJERO: ${cashShiftModel.userName}',
+       styles: PosStyles(align: PosAlign.left));
+
+  bytes += generator.text('ESTADO: ${cashShiftModel.statusName}',
+       styles: PosStyles(bold: false, align: PosAlign.left));
   bytes += generator.emptyLines(1);
-
-  // Iterar cada bloque de caja/hora
-  for (var item in listPOS) {
+  bytes += generator.text('FONDO INICIAL: ${cashShiftModel.openingAmount?.toCoin()}',
+        styles: PosStyles(align: PosAlign.left));
+  bytes += generator.text('EFECTIVO CONTADO: ${cashShiftModel.effectiveCount?.toCoin()}',
+        styles: PosStyles(align: PosAlign.left));
+   
     bytes += createDivider(generator);
-    bytes += generator.text('CAJA: ${item["CAJA"]}',
-        styles: PosStyles(bold: true, align: PosAlign.left));
-    bytes += generator.text('CANTIDAD FACTURAS: ${item["CANTIDAD FACTURAS"]}',
-        styles: PosStyles(align: PosAlign.left));
 
-    bytes += generator.text('MONTO NETO: ${item["MONTO NETO"]}',
+    bytes += generator.text('TOTAL FACTURADO: ${cashShiftModel.totalAmount?.toCoin()}',
         styles: PosStyles(align: PosAlign.left));
-    bytes += generator.text('TOTAL ITBIS: ${item["TOTAL ITBIS"]}',
-        styles: PosStyles(align: PosAlign.left));
-    bytes += generator.text('PROPINA LEGAL: ${item["PROPINA LEGAL"]}',
-        styles: PosStyles(align: PosAlign.left));
-    bytes += generator.text('EXENTO: ${item["EXENTO"]}',
-        styles: PosStyles(align: PosAlign.left));
-    bytes += generator.text('MONTO TOTAL: ${item["MONTO TOTAL"]}',
-        styles: PosStyles(align: PosAlign.left));
-    bytes += generator.text('MONTO PAGADO: ${item["MONTO PAGADO"]}',
+    bytes += generator.text('TOTAL ITBIS: ${cashShiftModel.totalTax?.toCoin()}',
         styles: PosStyles(align: PosAlign.left));
 
     // Métodos de pago
-    bytes += generator.text('EFECTIVO: ${item["EFECTIVO"]}',
+    bytes += generator.text('EFECTIVO: ${cashShiftModel.effective?.toCoin()}',
         styles: PosStyles(align: PosAlign.left));
-    bytes += generator.text('TARJETA: ${item["TARJETA"]}',
+    bytes += generator.text('TARJETA: ${cashShiftModel.creditCard?.toCoin()}',
         styles: PosStyles(align: PosAlign.left));
-    bytes += generator.text('CHEQUE/TRANSFERENCIA: ${item["CHEQUE/TRANSFERENCIA"]}',
+    bytes += generator.text('CHEQUE/TRANSFERENCIA: ${cashShiftModel.checkOrTransf?.toCoin()}',
         styles: PosStyles(align: PosAlign.left));
-    bytes += generator.text('VENTA A CRÉDITO: ${item["VENTA A CRÉDITO"]}',
+    bytes += generator.text('VENTA A CREDITO: ${cashShiftModel.saleToCredit?.toCoin()}',
         styles: PosStyles(align: PosAlign.left));
+      bytes += generator.emptyLines(1);
+     bytes += generator.text('DENOMINACIONES',
+        styles: PosStyles(align: PosAlign.left));
+    var keys = cashShiftModel.denominations!.keys.toList();
 
-    bytes += generator.emptyLines(1);
-  }
-    bytes += generator.emptyLines(1);
+    for(int i = 0; i < keys.length;i++){  
+      var key = keys[i];
+      var map = cashShiftModel.denominations![key];
+      var total = map['total'];
+      var counts = map['counts'];
+       bytes += generator.text('TIPO:$key\nCANTIDAD:$counts TOTAL: $total',
+        styles: PosStyles(align: PosAlign.left));
+      bytes += generator.emptyLines(1);
+    }
+    
+  
+    bytes += generator.emptyLines(2);
+
     bytes += generator.text('GENERADO POR: ${currentUser?.name}',
   styles: PosStyles(align: PosAlign.center, bold: true));
+  bytes += generator.text('GENERADO: ${now.toIso8601String()}',
+      styles: PosStyles(align: PosAlign.center, bold: true));
 
   bytes += createDivider(generator);
   bytes += generator.text('FIN DEL REPORTE',
       styles: PosStyles(align: PosAlign.center, bold: true));
-
 
   
   bytes += generator.feed(2);

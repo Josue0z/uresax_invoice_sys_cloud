@@ -120,6 +120,54 @@ abstract class Sale {
   String? refInvoiceId;
 
   int? ncfListId;
+
+  bool? enabledDollarInvoice;
+
+  double? netLocal;
+
+  double? discountLocal;
+
+  double? taxLocal;
+
+  double? totalLocal;
+  
+
+  double? effectiveLocal;
+
+  double? creditCardLocal;
+
+  double? checkOrTransfLocal;
+
+  double? saleToCreditLocal;
+
+  double? law10Local;
+
+  double? amountPaidLocal;
+
+  double? debtLocal;
+
+  double? tax18Local;
+
+  double? tax16Local;
+
+  double? tax3Local;
+
+  double? net18Local;
+
+  double? net16Local;
+
+  double? net3Local;
+
+  double? exemptAmountLocal;
+
+  double? netFinalLocal;
+
+  double? retentionTaxLocal;
+
+  double? retentionIsrLocal;
+
+  String? cashShiftId;
+
   bool get isPaid {
     throw UnimplementedError();
   }
@@ -133,6 +181,44 @@ abstract class Sale {
   }
 
   Color get statusColorDgii {
+    throw UnimplementedError();
+  }
+
+  String get netLabel {
+    throw UnimplementedError();
+  }
+  String get discountLabel{
+    throw UnimplementedError();
+  }
+  String get netFinalLabel {
+    throw UnimplementedError();
+  }
+
+  String get taxLabel {
+    throw UnimplementedError();
+  }
+
+  String get totalLabel {
+    throw UnimplementedError();
+  }
+
+  String get retentionTaxLabel {
+    throw UnimplementedError();
+  }
+
+  String get retentionIsrLabel {
+    throw UnimplementedError();
+  }
+
+  String get amountPaidLabel {
+    throw UnimplementedError();
+  }
+
+  String get law10Label {
+    throw UnimplementedError();
+  }
+
+    String get amountxPaidLabel {
     throw UnimplementedError();
   }
 

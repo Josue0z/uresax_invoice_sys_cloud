@@ -35,6 +35,8 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
   AmountInputFormatter amountInputFormatter =
       AmountInputFormatter(fractionalDigits: 2);
 
+  bool isWithTax = false;
+
   int? currentTaxId;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -54,7 +56,7 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
   _onSubmit() async {
     if (_formKey.currentState!.validate()) {
       try {
-        widget.service.name = name.text;
+        widget.service.name = name.text.trim();
         widget.service.price = amountInputFormatter.doubleValue;
         widget.service.taxId = currentTaxId;
         widget.service.categoryId = currentCategoryId;
@@ -63,7 +65,8 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
         widget.service.maxDiscount = double.tryParse(maxDiscount.text) ?? 90.00;
         widget.service.editable = editable;
         widget.service.priceSuite = priceSuiteFormatter.doubleValue;
-        widget.service.rateSuite =  double.tryParse(rateSuite.text.replaceAll(',', '')) ?? 0.00;
+        widget.service.rateSuite =
+            double.tryParse(rateSuite.text.replaceAll(',', '')) ?? 0.00;
         if (!widget.editing) {
           await widget.service.create();
           await LogHandler.printEvent(
@@ -110,17 +113,17 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
       editable = widget.service.editable ?? false;
       maxDiscount.text =
           widget.service.maxDiscount?.toStringAsFixed(2) ?? '0.00';
-     
-     if((widget.service.priceSuite??0) > 0){
-       priceSuite.value = priceSuiteFormatter.formatEditUpdate(TextEditingValue.empty, TextEditingValue(
-        text: widget.service.priceSuite?.toStringAsFixed(2) ?? '0.00'
-      ));
-     }
-     
-     if((widget.service.rateSuite ?? 0) > 0){
-       rateSuite.text = widget.service.rateSuite?.toStringAsFixed(2) ?? '';
-     }
-    
+
+      if ((widget.service.priceSuite ?? 0) > 0) {
+        priceSuite.value = priceSuiteFormatter.formatEditUpdate(
+            TextEditingValue.empty,
+            TextEditingValue(
+                text: widget.service.priceSuite?.toStringAsFixed(2) ?? '0.00'));
+      }
+
+      if ((widget.service.rateSuite ?? 0) > 0) {
+        rateSuite.text = widget.service.rateSuite?.toStringAsFixed(2) ?? '';
+      }
     }
     currentTaxId = widget.service.taxId;
 
@@ -193,18 +196,20 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
                                 hintText: 'Escribir nombre...'),
                           ),
                         ),
-                     enabledRealEstateAgency == false?  SizedBox():  Container(
-                          margin: EdgeInsets.only(bottom: kDefaultPadding),
-                          child: TextFormField(
-                            controller: priceSuite,
-                            inputFormatters: [
-                            priceSuiteFormatter
-                            ],
-                            decoration: InputDecoration(
-                                labelText: 'PRECIO APART.', hintText: '0.00'),
-                          ),
-                        ),
-                      Container(
+                        enabledRealEstateAgency == false
+                            ? SizedBox()
+                            : Container(
+                                margin:
+                                    EdgeInsets.only(bottom: kDefaultPadding),
+                                child: TextFormField(
+                                  controller: priceSuite,
+                                  inputFormatters: [priceSuiteFormatter],
+                                  decoration: InputDecoration(
+                                      labelText: 'PRECIO APART.',
+                                      hintText: '0.00'),
+                                ),
+                              ),
+                        Container(
                           margin: EdgeInsets.only(bottom: kDefaultPadding),
                           child: DropdownButtonFormField<int>(
                               initialValue: currentTaxId,
@@ -219,41 +224,64 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
                                 currentTaxId = option;
                               }),
                         ),
-                         enabledRealEstateAgency == false ? SizedBox() : Container(
-                          margin: EdgeInsets.only(bottom: kDefaultPadding),
-                          child: TextFormField(
-                            controller: rateSuite,
-                            inputFormatters: [
-                              rateSuiteFormatter,
-                              FilteringTextInputFormatter.allow(
-                                  RegExp(r'^\d*\.?\d{0,2}$'))
-                            ],
-                            decoration: InputDecoration(
-                                labelText: 'TASA COMISION.',
-                                hintText: '%10',
-                                suffixIcon: IconButton(
-                                    onPressed: () {
-                                      var rate = double.tryParse(rateSuite.text.replaceAll(',', '')) ?? 0.00;
-                                      var ratePercent = rate / 100;
-                                      var pb = priceSuiteFormatter.doubleValue *
-                                          ratePercent;
-                                     double pn = pb;
+                        enabledRealEstateAgency == false
+                            ? SizedBox()
+                            : Container(
+                                margin:
+                                    EdgeInsets.only(bottom: kDefaultPadding),
+                                child: TextFormField(
+                                  controller: rateSuite,
+                                  inputFormatters: [
+                                    rateSuiteFormatter,
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'^\d*\.?\d{0,2}$'))
+                                  ],
+                                  decoration: InputDecoration(
+                                      labelText: 'TASA COMISION.',
+                                      hintText: '%10',
+                                      suffixIcon: IconButton(
+                                          onPressed: () {
+                                            var rate = double.tryParse(rateSuite
+                                                    .text
+                                                    .replaceAll(',', '')) ??
+                                                0.00;
+                                            var ratePercent = rate / 100;
+                                            var pb = priceSuiteFormatter
+                                                    .doubleValue *
+                                                ratePercent;
+                                            double pn = pb;
 
-                                     if(currentTaxId == 1){
-                                      pn = pb / 1.16;
-                                     }
-                                     if(currentTaxId == 2){
-                                      pn =  pb/ 1.18;
-                                     }
+                                          
+                                          isWithTax = !isWithTax;
+                                         
 
-                                     amount.value = amountInputFormatter.formatEditUpdate(TextEditingValue.empty, TextEditingValue(
-                                      text: pn.toStringAsFixed(2)
-                                     ));
+                                            if (currentTaxId == 1) {
+                                              if (isWithTax) {
+                                                pn = pb / 1.16;
+                                              } else {
+                                                pn = (pb / 1.16) / 1.16;
+                                              }
+                                            }
+                                            if (currentTaxId == 2) {
+                                              if (isWithTax) {
+                                                pn = pb / 1.18;
+                                              } else {
+                                                pn = (pb / 1.18) / 1.18;
+                                              }
+                                            }
 
-                                    },
-                                    icon: Icon(Icons.calculate_outlined))),
-                          ),
-                        ),
+                                            amount.value = amountInputFormatter
+                                                .formatEditUpdate(
+                                                    TextEditingValue.empty,
+                                                    TextEditingValue(
+                                                        text:
+                                                            pn.toStringAsFixed(
+                                                                2)));
+                                          },
+                                          icon:
+                                              Icon(Icons.calculate_outlined))),
+                                ),
+                              ),
                         Container(
                           margin: EdgeInsets.only(bottom: kDefaultPadding),
                           child: TextFormField(
@@ -279,26 +307,34 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
                               screen: CategoriesPage(selectorMode: true),
                               title: 'SELECCIONA CATEGORIA',
                             )),
-                      enabledItemSimpleConfig ? SizedBox():  Container(
-                          margin: EdgeInsets.only(bottom: kDefaultPadding),
-                          child: TextFormField(
-                            controller: maxDiscount,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                  RegExp(r'^\d*\.?\d{0,2}$'))
-                            ],
-                            decoration: InputDecoration(
-                                labelText: 'MAXIMO DESCUENTO', hintText: '90%'),
-                          ),
-                        ),
-                      enabledItemSimpleConfig ? SizedBox(): Container(
-                          margin: EdgeInsets.only(bottom: kDefaultPadding),
-                          child: TextFormField(
-                            controller: code,
-                            decoration: InputDecoration(
-                                labelText: 'CODIGO', hintText: '000000000'),
-                          ),
-                        ),
+                        enabledItemSimpleConfig
+                            ? SizedBox()
+                            : Container(
+                                margin:
+                                    EdgeInsets.only(bottom: kDefaultPadding),
+                                child: TextFormField(
+                                  controller: maxDiscount,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'^\d*\.?\d{0,2}$'))
+                                  ],
+                                  decoration: InputDecoration(
+                                      labelText: 'MAXIMO DESCUENTO',
+                                      hintText: '90%'),
+                                ),
+                              ),
+                        enabledItemSimpleConfig
+                            ? SizedBox()
+                            : Container(
+                                margin:
+                                    EdgeInsets.only(bottom: kDefaultPadding),
+                                child: TextFormField(
+                                  controller: code,
+                                  decoration: InputDecoration(
+                                      labelText: 'CODIGO',
+                                      hintText: '000000000'),
+                                ),
+                              ),
                         Container(
                           margin: EdgeInsets.only(bottom: kDefaultPadding),
                           child: DropdownButtonFormField<bool>(

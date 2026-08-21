@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:localstorage/localstorage.dart';
 import 'package:page_route_transition/page_route_transition.dart';
 import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart';
 import 'package:uresax_invoice_sys_cloud/modals/company.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/modals/electronic.ncf.settings.modal.dart';
+import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
@@ -13,6 +15,7 @@ import 'package:uresax_invoice_sys_cloud/models/sale.item.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.service.dart';
 import 'package:uresax_invoice_sys_cloud/pages/boxes_page.dart';
+import 'package:uresax_invoice_sys_cloud/pages/cash.shifts.page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/categories_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/clients_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/cotizations_page.dart';
@@ -99,7 +102,7 @@ class _HomePageState extends State<HomePage> {
       'title': 'VER ORDENES DE COMPRAS',
       'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg'
     },
-     {
+    {
       'id': 19,
       'title': 'VER ENTRADAS DE ALMACEN',
       'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg'
@@ -114,14 +117,14 @@ class _HomePageState extends State<HomePage> {
       'title': 'TUS NOTAS DE CREDITO',
       'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
     },
-        {
+    {
       'id': 20,
       'title': 'VER TUS COTIZACIONES',
       'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
     },
-      {
+    {
       'id': 21,
-      'title': 'VER GENERADOR DE REPORTES',
+      'title': 'VER TURNOS DE CAJA',
       'svg': 'assets/svgs/undraw_report_k55w.svg'
     },
     {
@@ -154,28 +157,25 @@ class _HomePageState extends State<HomePage> {
       'title': 'VER UNIDADES DE MEDIDA',
       'svg': 'assets/svgs/undraw_report_k55w.svg'
     },
-
-
   ];
   ScrollController scrollControllerY = ScrollController();
   late List<Map<String, dynamic>> defaultOptions = [];
 
   _showInvoiceGenerator(SaleMode mode, List<SaleItem> items, Sale sale) {
-    if( (enabledInvoiceSimpleGenerator && (sale is SaleProduct || sale is SaleService) )  ){
-       Navigator.push(context, MaterialPageRoute(builder: (ctx) {
-      return PosScreenPage( items: [], sale: sale);
-    }));
-    } else if(enabledTableInvoiceGenerator){
-          Navigator.push(context, MaterialPageRoute(builder: (ctx) {
-      return TableInvoiceGenerator( items: items, sale: sale ,mode: mode);
-    }));
-    }
-    else{
+    if ((enabledInvoiceSimpleGenerator &&
+        (sale is SaleProduct || sale is SaleService))) {
       Navigator.push(context, MaterialPageRoute(builder: (ctx) {
-      return InvoiceGeneratorPage(mode: mode, items: items, sale: sale);
-    }));
+        return PosScreenPage(items: [], sale: sale);
+      }));
+    } else if (enabledTableInvoiceGenerator) {
+      Navigator.push(context, MaterialPageRoute(builder: (ctx) {
+        return TableInvoiceGenerator(items: items, sale: sale, mode: mode);
+      }));
+    } else {
+      Navigator.push(context, MaterialPageRoute(builder: (ctx) {
+        return InvoiceGeneratorPage(mode: mode, items: items, sale: sale);
+      }));
     }
-    
   }
 
   _showServicesPage() async {
@@ -212,7 +212,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {});
   }
 
-    _showCotizationsPage() async {
+  _showCotizationsPage() async {
     await Navigator.push(
         context, MaterialPageRoute(builder: (ctx) => CotizationsPage()));
     setState(() {});
@@ -276,20 +276,21 @@ class _HomePageState extends State<HomePage> {
         context, MaterialPageRoute(builder: (ctx) => UnitsPage()));
   }
 
-  _showReportsPage()async{
-    await Navigator.push(context,MaterialPageRoute(builder: (ctx) => ReportsSalesPage()));
+  _showCashShiftsPage() async {
+    await Navigator.push(
+        context, MaterialPageRoute(builder: (ctx) => CashShiftsPage()));
   }
 
   _showPage(int id) {
     switch (id) {
       case 1:
         _showInvoiceGenerator(SaleMode.service,
-            [SaleItemService(id: Uuid().v4(),quantity: 1.0)], SaleService());
+            [SaleItemService(id: Uuid().v4(), quantity: 1.0)], SaleService());
         break;
 
       case 2:
         _showInvoiceGenerator(SaleMode.product,
-            [SaleItemProduct(id: Uuid().v4(),quantity: 1.0)], SaleProduct());
+            [SaleItemProduct(id: Uuid().v4(), quantity: 1.0)], SaleProduct());
         break;
       case 3:
         _showServicesPage();
@@ -343,16 +344,16 @@ class _HomePageState extends State<HomePage> {
       case 18:
         _showUnitsPage();
         break;
-    case 19:
-    _showEntriesPurchasesPage();
-    break;
+      case 19:
+        _showEntriesPurchasesPage();
+        break;
       case 20:
         _showCotizationsPage();
         break;
 
-    case 21:
-    _showReportsPage();
-    break;
+      case 21:
+        _showCashShiftsPage();
+        break;
       default:
     }
   }
@@ -419,7 +420,7 @@ class _HomePageState extends State<HomePage> {
     if (!currentUser!.permissions!.contains('ALLOW_VIEW_ORDENS_PURCHASES')) {
       options.removeWhere((e) => e['id'] == 15);
     }
-     if (!currentUser!.permissions!.contains('ALLOW_VIEW_ENTRIES_PURCHASES')) {
+    if (!currentUser!.permissions!.contains('ALLOW_VIEW_ENTRIES_PURCHASES')) {
       options.removeWhere((e) => e['id'] == 19);
     }
 
@@ -433,13 +434,13 @@ class _HomePageState extends State<HomePage> {
     if (!currentUser!.permissions!.contains('ALLOW_VIEW_UNITS')) {
       options.removeWhere((e) => e['id'] == 18);
     }
-        if (!currentUser!.permissions!.contains('ALLOW_VIEW_COTIZATIONS')) {
+    if (!currentUser!.permissions!.contains('ALLOW_VIEW_COTIZATIONS')) {
       options.removeWhere((e) => e['id'] == 20);
     }
-      if (!currentUser!.permissions!.contains('ALLOW_VIEW_REPORTS')) {
+    if (!currentUser!.permissions!.contains('ALLOW_VIEW_REPORTS')) {
       options.removeWhere((e) => e['id'] == 21);
     }
-    
+
     return UpdaterWidget(
         context: context,
         child: Scaffold(
@@ -480,7 +481,7 @@ class _HomePageState extends State<HomePage> {
                   runAlignment: WrapAlignment.center,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                   /* Container(
+                    /* Container(
                       margin: EdgeInsets.only(right: kDefaultPadding),
                       child: CircleAvatar(
                             child: IconButton(
@@ -556,21 +557,19 @@ class _HomePageState extends State<HomePage> {
                     SizedBox(
                       width: kDefaultPadding,
                     ),
-                  Container(
-                            margin: EdgeInsets.only(right: kDefaultPadding),
-                            child: CircleAvatar(
-                              child: IconButton(
-                                  onPressed: () async {
-                                    await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (ctx) =>
-                                                InvoicesModelsPage()));
-                                  },
-                                  icon: Icon(Icons.receipt_long_outlined)),
-                            ),
-                          ),
-             
+                    Container(
+                      margin: EdgeInsets.only(right: kDefaultPadding),
+                      child: CircleAvatar(
+                        child: IconButton(
+                            onPressed: () async {
+                              await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (ctx) => InvoicesModelsPage()));
+                            },
+                            icon: Icon(Icons.receipt_long_outlined)),
+                      ),
+                    ),
                     CircleAvatar(
                       child: IconButton(
                           onPressed: () async {
@@ -582,6 +581,12 @@ class _HomePageState extends State<HomePage> {
                                 (_) => false);
                             await LogHandler.printEvent(
                                 '${currentUser?.name} CERRO SESION');
+                            await CashShiftModel.closeCashShiftTurno(
+                                id: localStorage.getItem('currentTurnoId') ??
+                                    'x');
+                            localStorage.removeItem('currentTurnoId');
+                            localStorage.removeItem('oldPeriodId');
+
                             currentUser = null;
                             company = null;
                             currentClientContado = null;
@@ -649,7 +654,7 @@ class _HomePageState extends State<HomePage> {
                           : const ClampingScrollPhysics(),
                       itemCount: options.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4),
+                          crossAxisCount: 6),
                       itemBuilder: (ctx, i) {
                         var option = options[i];
                         return _CardHover(
@@ -678,7 +683,6 @@ class __CardHoverState extends State<_CardHover> {
   bool _isHovered = false;
   @override
   Widget build(BuildContext context) {
-  
     return MouseRegion(
       opaque: false,
       onEnter: (_) => setState(() => _isHovered = true),
@@ -704,13 +708,14 @@ class __CardHoverState extends State<_CardHover> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SvgPicture.asset(widget.option['svg'], width: 100),
+                        SvgPicture.asset(widget.option['svg'], width: 60),
                         SizedBox(height: kDefaultPadding),
-                        Text(widget.option['title'],
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontSize:15
-                            ),
-                            textAlign: TextAlign.center)
+                        Flexible(child: Text(widget.option['title'],
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(fontSize: 12),
+                            textAlign: TextAlign.center))
                       ],
                     ),
                   )),

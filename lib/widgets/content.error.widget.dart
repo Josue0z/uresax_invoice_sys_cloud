@@ -21,11 +21,11 @@ class _ContentErrorWidgetState extends State<ContentErrorWidget> {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.asset('assets/svgs/undraw_cancel_7zdh.svg', width: 270),
+            SvgPicture.asset('assets/svgs/undraw_not-found_6bgl.svg', width: 220),
             SizedBox(
               height: kDefaultPadding,
             ),
-            Text(widget.error.toString()),
+            Text('NO SE PUDO CARGAR LA INFORMACION'),
             SizedBox(
               height: kDefaultPadding * 2,
             ),

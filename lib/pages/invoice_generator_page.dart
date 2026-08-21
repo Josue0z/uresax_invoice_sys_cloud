@@ -2224,8 +2224,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                             setState(() {});
                                           }),
                               ),
-                              currentCurrencyId == 2 && currentNcfTypeId != '50'
-                                  ? Column(
+                         currentCurrencyId == 2 ?   Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
@@ -2261,8 +2260,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                           ),
                                         )
                                       ],
-                                    )
-                                  : SizedBox(),
+                                    ):SizedBox(),
                               Container(
                                 margin: EdgeInsets.symmetric(
                                     vertical: kDefaultPadding / 2),

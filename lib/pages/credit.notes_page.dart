@@ -48,8 +48,11 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
     try {
   
       var items = await sale.getSaleData();
+      
 
       sale.items = items;
+
+   
       pw.Document doc;
 
       if (enabledVerticalPosInvoice) {

@@ -179,6 +179,25 @@ class CreditNoteAsProduct implements Sale {
       this.clientEmail,
       this.message,
       this.refInvoiceId,
+      this.enabledDollarInvoice = false,
+      this.netLocal = 0,
+      this.discountLocal = 0,
+      this.debtLocal = 0,
+      this.netFinalLocal = 0,
+      this.net18Local = 0,
+      this.net16Local = 0,
+      this.net3Local = 0,
+      this.tax18Local = 0,
+      this.tax16Local = 0,
+      this.tax3Local = 0,
+      this.exemptAmountLocal = 0,
+      this.retentionTaxLocal = 0,
+      this.retentionIsrLocal = 0,
+      this.law10Local = 0,
+      this.taxLocal = 0,
+      this.totalLocal = 0,
+      this.saleToCreditLocal = 0,
+      this.cashShiftId
       });
 
   @override
@@ -294,7 +313,8 @@ class CreditNoteAsProduct implements Sale {
       'typeIncomeName': typeIncomeName,
       'currencyId': currencyId,
       'rate': rate,
-      'maxSequence': maxSequence
+      'maxSequence': maxSequence,
+      'cashShiftId':cashShiftId
     };
   }
 
@@ -338,7 +358,8 @@ class CreditNoteAsProduct implements Sale {
       'coinBack': coinBack,
       'issueDate': issueDate?.toIso8601String(),
       'retentionDate': retentionDate?.toIso8601String(),
-      'createdAt': createdAt?.toIso8601String()
+      'createdAt': createdAt?.toIso8601String(),
+      'cashShiftId':cashShiftId
     };
   }
 
@@ -423,6 +444,7 @@ class CreditNoteAsProduct implements Sale {
   }
 
   factory CreditNoteAsProduct.fromMap(Map<String, dynamic> map) {
+
     return CreditNoteAsProduct(
       amountPaid: double.tryParse(map['amountPaid']?.toString() ?? '0') ?? 0,
       checkOrTransf:
@@ -482,6 +504,7 @@ class CreditNoteAsProduct implements Sale {
       expirationDate: map['expirationDate'] != null
           ? DateTime.parse(map['expirationDate'])
           : null,
+      
       tax18: map['tax18'] != null ? double.parse(map['tax18']) : null,
       tax16: map['tax16'] != null ? double.parse(map['tax16']) : null,
       tax3: map['tax3'] != null ? double.parse(map['tax3']) : null,
@@ -511,6 +534,31 @@ class CreditNoteAsProduct implements Sale {
       clientPhone: map['clientPhone'],
       clientEmail: map['clientEmail'],
       message: map['message'],
+      enabledDollarInvoice: map['enabledDollarInvoice'] ?? false,
+              netLocal: map['netLocal'] != null ? double.parse(map['netLocal']) : 0,
+        discountLocal: map['discountLocal'] != null
+            ? double.parse(map['discountLocal'])
+            : 0,
+        debtLocal: map['debtLocal'] != null ? double.parse(map['debtLocal']) : 0,
+        netFinalLocal: map['netFinalLocal'] != null ? double.parse(map['netFinalLocal']) : 0,
+        net18Local: map['net18Local'] != null ? double.parse(map['net18Local']) : 0,
+        net16Local: map['net16Local'] != null ? double.parse(map['net16Local']) : 0,
+        net3Local: map['net3Local'] != null ? double.parse(map['net3Local']) : 0,
+        tax18Local: map['tax18Local'] != null ? double.parse(map['tax18Local']) : 0,
+        tax16Local: map['tax16Local'] != null ? double.parse(map['tax16Local']) : 0,
+        tax3Local: map['tax3Local'] != null ? double.parse(map['tax3Local']) : 0,
+        exemptAmountLocal: map['exemptAmountLocal'] != null
+            ? double.parse(map['exemptAmountLocal'])
+            : 0,
+        retentionTaxLocal: map['retentionTaxLocal'] != null
+            ? double.parse(map['retentionTaxLocal'])
+            : 0,
+        retentionIsrLocal: map['retentionIsrLocal'] != null
+            ? double.parse(map['retentionIsrLocal'])
+            : 0,
+            law10Local: map['law10Local'] != null ? double.parse(map['law10Local']) : 0,
+            taxLocal: map['taxLocal'] != null ? double.parse(map['taxLocal']) : 0,
+                    totalLocal: map['totalLocal'] != null ? double.parse(map['totalLocal']) : 0,
     
     );
   }
@@ -790,4 +838,157 @@ class CreditNoteAsProduct implements Sale {
 
   @override
   int? ncfListId;
+
+  @override
+  bool? enabledDollarInvoice;
+
+  @override
+  double? amountPaidLocal;
+
+  @override
+  double? checkOrTransfLocal;
+
+  @override
+  double? creditCardLocal;
+
+  @override
+  double? debtLocal;
+
+  @override
+  double? discountLocal;
+
+  @override
+  double? effectiveLocal;
+
+  @override
+  double? exemptAmountLocal;
+
+  @override
+  double? law10Local;
+
+  @override
+  double? net16Local;
+
+  @override
+  double? net18Local;
+
+  @override
+  double? net3Local;
+
+  @override
+  double? netFinalLocal;
+
+  @override
+  double? netLocal;
+
+  @override
+  double? retentionIsrLocal;
+
+  @override
+  double? retentionTaxLocal;
+
+  @override
+  double? saleToCreditLocal;
+
+  @override
+  double? tax16Local;
+
+  @override
+  double? tax18Local;
+
+  @override
+  double? tax3Local;
+
+  @override
+  double? taxLocal;
+
+  @override
+  double? totalLocal;
+
+
+ 
+
+    @override
+  String get amountPaidLabel {
+   if(enabledDollarInvoice == true){
+       return  (totalLocal! - (retentionIsrLocal! + retentionTaxLocal!)).toDop();
+   }
+
+   return  currencyId == 1 ? (total! -(retentionIsr! + retentionTax!)).toDop(): (total! - (retentionIsr! + retentionTax!)).toUS();
+  }
+
+  @override
+  String get discountLabel {
+           if(enabledDollarInvoice == true){
+       return discountLocal?.toDop() ?? '';
+    }
+    return  currencyId == 1 ? discount?.toDop() : discount?.toUS() ?? '';
+  }
+
+  @override
+  String get netFinalLabel {
+           if(enabledDollarInvoice == true){
+       return netFinalLocal?.toDop() ?? '';
+    }
+    return  currencyId == 1 ? netFinal?.toDop() : netFinal?.toUS() ?? '';
+  }
+
+  @override
+  String get netLabel{
+     if(enabledDollarInvoice == true){
+       return netLocal?.toDop() ?? '';
+   }
+   return currencyId == 1 ? net?.toDop() : net?.toUS() ?? '';
+  }
+
+  @override
+  String get retentionIsrLabel {
+
+    if(enabledDollarInvoice == true){
+       return retentionIsrLocal?.toDop() ?? '';
+    }
+    return  currencyId == 1 ? retentionIsr?.toDop() : retentionIsr?.toUS() ?? '';
+  }
+
+  @override
+  String get retentionTaxLabel {
+       if(enabledDollarInvoice == true){
+       return retentionTaxLocal?.toDop() ?? '';
+    }
+    return  currencyId == 1 ? retentionTax?.toDop() : retentionTax?.toUS() ?? '';
+  }
+
+  @override
+  String get taxLabel {
+       if(enabledDollarInvoice == true){
+       return taxLocal?.toDop() ?? '';
+    }
+    return  currencyId == 1 ? tax?.toDop() : tax?.toUS() ?? '';
+  }
+
+  @override
+  String get totalLabel {
+       if(enabledDollarInvoice == true){
+       return totalLocal?.toDop() ?? '';
+    }
+    return  currencyId == 1 ? total?.toDop() : total?.toUS() ?? '';
+  }
+
+      @override
+  String get law10Label {
+       if(enabledDollarInvoice == true){
+       return law10Local?.toDop() ?? '';
+    }
+    return  currencyId == 1 ? law10?.toDop() : law10?.toUS() ?? '';
+  }
+
+        @override
+  String get amountxPaidLabel {
+       if(enabledDollarInvoice == true){
+       return amountPaidLocal?.toDop() ?? '';
+    }
+    return  currencyId == 1 ? amountPaid?.toDop() : amountPaid?.toUS() ?? '';
+  }
+  @override
+  String? cashShiftId;
 }

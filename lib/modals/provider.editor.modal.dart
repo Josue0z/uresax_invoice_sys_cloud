@@ -34,7 +34,7 @@ class _ProviderEditorModalState extends State<ProviderEditorModal> {
     if (_formKey.currentState!.validate()) {
       Providers? provider;
       try {
-        widget.provider.name = name.text;
+        widget.provider.name = name.text.trim();
         widget.provider.rncOrId = rncOrId.text;
         widget.provider.phone = phone.text.isEmpty ? null : phone.text;
         widget.provider.email = email.text.isEmpty ? null : email.text;

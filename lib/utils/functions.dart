@@ -304,7 +304,7 @@ Future<void> enviarDgii(
     }
     final cert = certFile;
 
-    String password = getCertPassword();
+    String password = localStorage.getItem('certPassword_${company?.id}') ?? '';
 
     EcfType ecfType = EcfType.e31;
 
