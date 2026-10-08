@@ -1,6 +1,9 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
+import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+
 
 
 class InvoiceModel {
@@ -12,6 +15,16 @@ class InvoiceModel {
     this.name,
     this.imageAsset,
   });
+
+  static Future<void> updateInvoiceIndex(int index)async{
+      try{
+        await apiUresax.post('/companies/update-invoice-index', data: {
+          'currentInvoiceIndex': index
+        });
+      }on DioException catch(e){
+        throw e.response?.data['message'] ?? e.error?.toString();
+      }
+  }
 
   InvoiceModel copyWith({
     int? id,

@@ -28,11 +28,10 @@ class _CashShiftCloseModalState extends State<CashShiftCloseModal> {
     '5': {'total': 0, 'counts': 0},
     '1': {'total': 0, 'counts': 0},
   };
-
+  late List<FocusNode> _focusNodes;
   _submit() async {
     showLoader(context);
     try {
-
       widget.cashShiftModel.effectiveCount = totalSales;
 
       widget.cashShiftModel.denominations = denos;
@@ -58,13 +57,30 @@ class _CashShiftCloseModalState extends State<CashShiftCloseModal> {
   }
 
   double get dif {
-    return totalSales - (widget.cashShiftModel.openingAmount! + widget.cashShiftModel.effectiveCalc!);
+    return totalSales -
+        (widget.cashShiftModel.openingAmount! +
+            widget.cashShiftModel.effectiveCalc!);
   }
-  
+
   String get statusName {
-    if(dif == 0)return 'CUADRADO';
-    if(dif > 0)return 'SOBRANTE';
+    if (dif == 0) return 'CUADRADO';
+    if (dif > 0) return 'SOBRANTE';
     return 'FALTANTE';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNodes =
+        List.generate(widget.denominations.length, (_) => FocusNode());
+  }
+
+  @override
+  void dispose() {
+    for (var node in _focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -73,7 +89,7 @@ class _CashShiftCloseModalState extends State<CashShiftCloseModal> {
       child: Form(
           child: Container(
         width: 560,
-        height: 700,
+        height: 850,
         padding: EdgeInsets.all(kDefaultPadding),
         child: Column(
           children: [
@@ -86,6 +102,7 @@ class _CashShiftCloseModalState extends State<CashShiftCloseModal> {
                       fontSize: 20, color: Theme.of(context).primaryColor),
                 )),
                 IconButton(
+                    focusNode: FocusNode(skipTraversal: true),
                     onPressed: () {
                       Navigator.pop(context);
                     },
@@ -93,143 +110,193 @@ class _CashShiftCloseModalState extends State<CashShiftCloseModal> {
               ],
             ),
             SizedBox(
-              height: kDefaultPadding,
+              height: kDefaultPadding / 3,
             ),
-               Row(
-              children: [
-                Expanded(
-                    flex: 2,
-                    child: Text(
-                      'FONDO INICIAL',
-                      style: TextStyle(color: Theme.of(context).primaryColor),
-                    )),
-                Text('${widget.cashShiftModel.openingAmount?.toCoin()}')
-              ],
-            ),
-            const Divider(),
+            currentUser!.permissions!.contains('ALLOW_VIEW_STATUS_CASH_SHIFT')
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                              flex: 2,
+                              child: Text(
+                                'FONDO INICIAL',
+                                style: TextStyle(
+                                    color: Theme.of(context).primaryColor,
+                                    fontSize: 17),
+                              )),
+                          Text(
+                              '${widget.cashShiftModel.openingAmount?.toCoin()}',
+                              style: TextStyle(fontSize: 17))
+                        ],
+                      ),
+                      const Divider(height: 10),
+                    ],
+                  )
+                : SizedBox(),
             Row(
               children: [
                 Expanded(
                     flex: 2,
                     child: Text(
-                      'TOTAL VENTAS',
-                      style: TextStyle(color: Theme.of(context).primaryColor),
+                      'EFECTIVO CONTADO',
+                      style: TextStyle(
+                          color: Theme.of(context).primaryColor, fontSize: 17),
                     )),
-                Text('${totalSales.toCoin()}')
+                Text('${totalSales.toCoin()}', style: TextStyle(fontSize: 17))
               ],
             ),
-            const Divider(),
-               Row(
-              children: [
-                Expanded(
-                    flex: 2,
-                    child: Text(
-                      'EFECTIVO EN VENTAS',
-                      style: TextStyle(color: Theme.of(context).primaryColor),
-                    )),
-                Text('${widget.cashShiftModel.effectiveCalc?.toCoin()}')
-              ],
-            ),
-            const Divider(),
-
-                Row(
-              children: [
-                Expanded(
-                    flex: 2,
-                    child: Text(
-                      'ESTADO',
-                      style: TextStyle(color: Theme.of(context).primaryColor),
-                    )),
-                Text('[${dif.toStringAsFixed(2)}]-$statusName')
-              ],
-            ),
-            const Divider(),
-            Expanded(
-                child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ...List.generate(widget.denominations.length, (i) {
-                    var d = widget.denominations[i];
-                    var tag = d.value?.toInt().toString();
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          margin: EdgeInsets.only(bottom: kDefaultPadding / 3),
-                          child: Row(
-                            children: [
-                              Expanded(child: Text(d.description ?? '')),
-                              SizedBox(
-                                width: kDefaultPadding / 2,
-                              ),
-                              Expanded(
-                                  child: TextFormField(
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                onChanged: (value) {
-                                  var count = int.tryParse(value) ?? -1;
-
-                                  if (count != -1) {
-                                    denos[tag!]['counts'] = count;
-                                  } else {
-                                    count = 0;
-                                    denos[tag!]['counts'] = count;
-                                  }
-
-                                  denos[tag]['total'] =
-                                      count * d.value!.toInt();
-                                },
-                                onTapUpOutside: (c) {
-                                  setState(() {});
-                                },
-                                onTap: () {
-                                  setState(() {});
-                                },
-                                validator: (val) {
-                                  var n = int.tryParse(val ?? 'x') ?? -1;
-                                  var n2 = int.parse(tag!);
-                                  if (n != n2) {
-                                    return '';
-                                  }
-                                  return null;
-                                },
-                                decoration: InputDecoration(
-                                    isDense: true,
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.zero),
-                                    hintText: '0.00'),
-                              )),
-                              Text(
-                                '=',
+            const Divider(height: 10),
+            currentUser!.permissions!.contains('ALLOW_VIEW_STATUS_CASH_SHIFT')
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                              flex: 2,
+                              child: Text(
+                                'EFECTIVO EN VENTAS',
                                 style: TextStyle(
-                                    fontSize: 18,
-                                    color: Theme.of(context).primaryColor),
-                              ),
-                              Expanded(
-                                  child: TextFormField(
-                                controller: TextEditingController(
-                                    text: denos[tag]['total'].toString()),
-                                readOnly: true,
-                                decoration: InputDecoration(
-                                    isDense: true,
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.zero),
-                                    hintText: '0.00'),
+                                    color: Theme.of(context).primaryColor,
+                                    fontSize: 17),
                               )),
-                            ],
-                          ),
-                        ),
-                        Divider()
-                      ],
-                    );
-                  }),
-                ],
-              ),
-            )),
+                          Text(
+                              '${widget.cashShiftModel.effectiveCalc?.toCoin()}',
+                              style: TextStyle(fontSize: 17))
+                        ],
+                      ),
+                      const Divider(height: 10),
+                    ],
+                  )
+                : SizedBox(),
+            currentUser!.permissions!.contains('ALLOW_VIEW_STATUS_CASH_SHIFT')
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                              flex: 2,
+                              child: Text(
+                                'ESTADO',
+                                style: TextStyle(
+                                    color: Theme.of(context).primaryColor,
+                                    fontSize: 17),
+                              )),
+                          Text('[${dif.toStringAsFixed(2)}]-$statusName',
+                              style: TextStyle(fontSize: 17))
+                        ],
+                      ),
+                      const Divider(height: 10),
+                    ],
+                  )
+                : SizedBox(),
+            Expanded(
+                flex: 5,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ...List.generate(widget.denominations.length, (i) {
+                        var d = widget.denominations[i];
+                        var tag = d.value?.toInt().toString();
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin:
+                                  EdgeInsets.only(bottom: kDefaultPadding / 6),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                      child: Text(d.description ?? '',
+                                          style: TextStyle(fontSize: 17))),
+                                  SizedBox(
+                                    width: kDefaultPadding / 2,
+                                  ),
+                                  Flexible(
+                                      child: TextFormField(
+                                          focusNode: _focusNodes[i],
+                                          autofocus: i == 0,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                    ],
+                                    onChanged: (value) {
+                                      var count = int.tryParse(value) ?? -1;
+
+                                      if (count != -1) {
+                                        denos[tag!]['counts'] = count;
+                                      } else {
+                                        count = 0;
+                                        denos[tag!]['counts'] = count;
+                                      }
+
+                                      denos[tag]['total'] =
+                                          count * d.value!.toInt();
+                                    },
+                                    onTapUpOutside: (c) {
+                                      setState(() {});
+                                    },
+                                    onTap: () {
+                                      setState(() {});
+                                    },
+                                    onFieldSubmitted: (val) {
+                                      // mover al siguiente campo si existe
+                                      if (i + 1 < _focusNodes.length) {
+                                        FocusScope.of(context)
+                                            .requestFocus(_focusNodes[i + 1]);
+                                      } else {
+                                        FocusScope.of(context)
+                                            .unfocus(); // último campo
+                                      }
+                                      setState(() {});
+                                    },
+                                    validator: (val) {
+                                      var n = int.tryParse(val ?? 'x') ?? -1;
+                                      var n2 = int.parse(tag!);
+                                      if (n != n2) {
+                                        return '';
+                                      }
+                                      return null;
+                                    },
+                                    decoration: InputDecoration(
+                                        isDense: true,
+                                        border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.zero),
+                                        hintText: '0.00'),
+                                  )),
+                                  Text(
+                                    '=',
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        color: Theme.of(context).primaryColor),
+                                  ),
+                                  Flexible(
+                                      child: TextFormField(
+                                      
+                                    controller: TextEditingController(
+                                        text: denos[tag]['total'].toString()),
+                                    readOnly: true,
+                                    decoration: InputDecoration(
+                                        isDense: true,
+                                        border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.zero),
+                                        hintText: '0.00'),
+                                  )),
+                                ],
+                              ),
+                            ),
+                            const Divider(height: 2),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+                )),
             SizedBox(
               width: double.infinity,
               height: 50,

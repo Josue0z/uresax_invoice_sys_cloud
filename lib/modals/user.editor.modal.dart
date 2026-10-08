@@ -260,7 +260,7 @@ class _UserEditorModalState extends State<UserEditorModal> {
                                         }
                                         setState(() {});
                                       }),
-                             Container(
+                            /* Container(
                               margin: EdgeInsets.only(top: kDefaultPadding),
                               child: DropdownButtonFormField(
                                 initialValue: currentBoxId,
@@ -275,7 +275,7 @@ class _UserEditorModalState extends State<UserEditorModal> {
                                     currentBoxId=value;
                                   });
                               }),
-                            ),
+                            ),*/
                             widget.editing
                                 ? SizedBox(height: kDefaultPadding)
                                 : Column(

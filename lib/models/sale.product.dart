@@ -141,7 +141,14 @@ class SaleProduct implements Sale {
       this.law10Local = 0,
       this.taxLocal = 0,
       this.totalLocal = 0,
-      this.cashShiftId});
+      this.cashShiftId,
+      this.creditCardDescription,
+      this.brancheId,
+      this.brancheName,
+      this.branchePhone1,
+      this.branchePhone2,
+      this.brancheAddress,
+      this.brancheEmail});
 
   SaleProduct copyWith({
     String? id,
@@ -225,7 +232,9 @@ class SaleProduct implements Sale {
       'currencyId': currencyId,
       'rate': rate,
       'maxSequence': maxSequence,
-      'cashShiftId':cashShiftId
+      'cashShiftId':cashShiftId,
+      'creditCardDescription':creditCardDescription,
+      'brancheId': brancheId
     };
   }
 
@@ -276,7 +285,9 @@ class SaleProduct implements Sale {
       'bankId':bankId,
       'transfRef':transfRef,
       'paymentDate':paymentDate?.toIso8601String(),
-      'cashShiftId':cashShiftId
+      'cashShiftId':cashShiftId,
+      'creditCardDescription':creditCardDescription,
+      'brancheId': brancheId
     };
   }
 
@@ -389,7 +400,14 @@ class SaleProduct implements Sale {
             ? double.parse(map['retentionIsrLocal'])
             : 0,
         taxLocal: map['taxLocal'] != null ? double.parse(map['taxLocal']) : 0,
-                totalLocal: map['totalLocal'] != null ? double.parse(map['totalLocal']) : 0,);
+                totalLocal: map['totalLocal'] != null ? double.parse(map['totalLocal']) : 0,
+                creditCardDescription:map['creditCardDescription'],
+        brancheId: map['brancheId'],
+        brancheName: map['brancheName'],
+        branchePhone1: map['branchePhone1'],
+        branchePhone2: map['branchePhone2'],
+        brancheAddress: map['brancheAddress'],
+        brancheEmail: map['brancheEmail']);
   }
 
   String toJson() => json.encode(toMap());
@@ -399,7 +417,7 @@ class SaleProduct implements Sale {
 
   @override
   String toString() {
-    return 'SaleProduct(id: $id, clientId: $clientId, ncf: $ncf, ncfAffected: $ncfAffected, discount: $discount, net: $net, tax: $tax, total: $total, effective: $effective, creditCard: $creditCard, checkOrTransf: $checkOrTransf, saleToCredit: $saleToCredit, law10: $law10, typeIncomeId: $typeIncomeId, clientType: $clientType, createdAt: $createdAt, retentionTax: $retentionTax, retentionIsr: $retentionIsr, paymentMethodId: $paymentMethodId, ncfTypeId: $ncfTypeId, saleId: $saleId, clientAddress: $clientAddress, cashShiftId: $cashShiftId)';
+    return 'SaleProduct(id: $id, clientId: $clientId, ncf: $ncf, ncfAffected: $ncfAffected, discount: $discount, net: $net, tax: $tax, total: $total, effective: $effective, creditCard: $creditCard, checkOrTransf: $checkOrTransf, saleToCredit: $saleToCredit, law10: $law10, typeIncomeId: $typeIncomeId, clientType: $clientType, createdAt: $createdAt, retentionTax: $retentionTax, retentionIsr: $retentionIsr, paymentMethodId: $paymentMethodId, ncfTypeId: $ncfTypeId, saleId: $saleId, clientAddress: $clientAddress, cashShiftId: $cashShiftId,creditCardDescription: $creditCardDescription, brancheId: $brancheId, brancheName: $brancheName, branchePhone1: $branchePhone1, branchePhone2: $branchePhone2, brancheAddress: $brancheAddress, brancheEmail: $brancheEmail)';
   }
 
   @override
@@ -571,7 +589,8 @@ class SaleProduct implements Sale {
         'checkOrTransf': checkOrTransf,
         'saleToCredit': saleToCredit,
         'paid': paid,
-        'coinBack': coinBack
+        'coinBack': coinBack,
+        'creditCardDescription':creditCardDescription
       });
    
       if (res.statusCode == 200) {
@@ -1032,4 +1051,25 @@ class SaleProduct implements Sale {
 
   @override
   String? cashShiftId;
+
+  @override
+  String? creditCardDescription;
+
+  @override
+  String? brancheAddress;
+
+  @override
+  String? brancheEmail;
+
+  @override
+  int? brancheId;
+
+  @override
+  String? brancheName;
+
+  @override
+  String? branchePhone1;
+
+  @override
+  String? branchePhone2;
 }

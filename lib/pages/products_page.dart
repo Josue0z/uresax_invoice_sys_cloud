@@ -17,11 +17,13 @@ class ProductsPage extends StatefulWidget {
   bool selectedMode;
   bool isOrdenGenerator;
   List<SaleItem>? items;
+  Products? parentProduct;
   ProductsPage(
       {super.key,
       this.selectedMode = false,
       this.items,
-      this.isOrdenGenerator = false});
+      this.isOrdenGenerator = false,
+      this.parentProduct});
 
   @override
   State<ProductsPage> createState() => _ProductsPageState();
@@ -39,11 +41,11 @@ class _ProductsPageState extends State<ProductsPage> {
     var res = await showDialog(
         context: context,
         builder: (ctx) => ProductEditorModal(
-              editing: editing,
-              product: product,
-            ));
+            editing: editing,
+            isParent: widget.parentProduct != null ? true : false,
+            product: product,
+            parentProduct: widget.parentProduct));
 
- 
     if (res != null) {
       setState(() {
         future = _initAsync();
@@ -72,13 +74,26 @@ class _ProductsPageState extends State<ProductsPage> {
     }
   }
 
+  _showChildrens({required Products product}) async {
+    try {
+      var xproduct = await Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (ctx) => ProductsPage(parentProduct: product)));
+    } catch (e) {}
+    ;
+  }
+
   List<int> get xcategories {
     return _categories.map((e) => e.id).toList().cast<int>();
   }
 
   _initAsync([String? words]) async {
     try {
-      products = await Products.get(search: words, categories: xcategories);
+      products = await Products.get(
+          search: words,
+          categories: xcategories,
+          parentId: widget.parentProduct?.id);
     } catch (e) {
       print(e);
     } finally {
@@ -129,7 +144,8 @@ class _ProductsPageState extends State<ProductsPage> {
                                       height: 100,
                                       decoration: BoxDecoration(
                                         image: DecorationImage(
-                                          image: NetworkImage(product.imageUrl ?? ''),
+                                          image: NetworkImage(
+                                              product.imageUrl ?? ''),
                                           fit: BoxFit.cover,
                                         ),
                                         borderRadius:
@@ -163,9 +179,38 @@ class _ProductsPageState extends State<ProductsPage> {
                                         bottom: kDefaultPadding / 2),
                                     child: Text(product.name ?? ''),
                                   ),
-                                   product.code != null ? Text(product.code ?? '') : SizedBox(),
+                                  product.code != null
+                                      ? Text(product.code ?? '')
+                                      : SizedBox(),
                                   Row(
                                     children: [
+                                      currentUser!.permissions!.contains(
+                                                      'ALLOW_VIEW_PRODUCT_QUANTITY') ==
+                                                  false ||
+                                              product.parentId != null
+                                          ? SizedBox()
+                                          : Container(
+                                              margin: EdgeInsets.only(
+                                                  top: kDefaultPadding / 3,
+                                                  right: kDefaultPadding / 3),
+                                              padding: EdgeInsets.all(
+                                                  kDefaultPadding / 2),
+                                              decoration: BoxDecoration(
+                                                color: product.color
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(50),
+                                              ),
+                                              child: Text(
+                                                product.quantity!
+                                                    .toStringAsFixed(2),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                        color: product.color),
+                                              ),
+                                            ),
                                       Container(
                                         margin: EdgeInsets.only(
                                             top: kDefaultPadding / 3,
@@ -205,8 +250,6 @@ class _ProductsPageState extends State<ProductsPage> {
                                               fontSize: 14),
                                         ),
                                       ),
-                                      
-                                  
                                     ],
                                   ),
                                 ],
@@ -224,25 +267,16 @@ class _ProductsPageState extends State<ProductsPage> {
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(product.price?.toCoin() ?? ''),
-                                  SizedBox(
-                                    width: kDefaultPadding / 3,
-                                  ),
-                                 currentUser!.permissions!.contains('ALLOW_VIEW_PRODUCT_QUANTITY') ?  Container(
-                                    padding:
-                                        EdgeInsets.all(kDefaultPadding / 2),
-                                    decoration: BoxDecoration(
-                                      color: product.color.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(50),
-                                    ),
-                                    child: Text(
-                                      product.quantity!.toStringAsFixed(2),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(color: product.color),
-                                    ),
-                                  ):SizedBox(),
-                                  enabledBarCodePrinter && widget.selectedMode == false
+                                  widget.parentProduct != null ||
+                                          product.isUnique == true
+                                      ? SizedBox()
+                                      : IconButton(
+                                          onPressed: () =>
+                                              _showChildrens(product: product),
+                                          icon: Icon(Icons.visibility_rounded,
+                                              color: Colors.black38)),
+                                  enabledBarCodePrinter &&
+                                          widget.selectedMode == false
                                       ? IconButton(
                                           tooltip: product.code?.isNotEmpty ==
                                                   true
@@ -330,6 +364,13 @@ class _ProductsPageState extends State<ProductsPage> {
     }
   }
 
+  String get title {
+    if (widget.parentProduct != null) {
+      return '${widget.parentProduct?.name} (${products.length})';
+    }
+    return 'TUS PRODUCTOS (${products.length})';
+  }
+
   @override
   void initState() {
     setState(() {
@@ -342,7 +383,7 @@ class _ProductsPageState extends State<ProductsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('TUS PRODUCTOS (${products.length})'),
+        title: Text(title),
         actions: [
           Wrap(
             runAlignment: WrapAlignment.center,
@@ -391,7 +432,9 @@ class _ProductsPageState extends State<ProductsPage> {
                           child: IconButton(
                               tooltip: 'AGREGAR PRODUCTO',
                               onPressed: () {
-                                _showModal(product: Products());
+                                _showModal(
+                                    product:
+                                        Products());
                               },
                               icon: Icon(Icons.add))),
                     )

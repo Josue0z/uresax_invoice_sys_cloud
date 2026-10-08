@@ -18,9 +18,11 @@ import 'package:uresax_invoice_sys_cloud/widgets/selector.item.widget.dart';
 
 class ProductEditorModal extends StatefulWidget {
   bool editing;
+  bool isParent;
   Products product;
+  Products? parentProduct;
 
-  ProductEditorModal({super.key, this.editing = false, required this.product});
+  ProductEditorModal({super.key, this.editing = false, this.isParent = false, required this.product,this.parentProduct});
 
   @override
   State<ProductEditorModal> createState() => _ProductEditorModalState();
@@ -57,6 +59,7 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
   String? imageUrl;
   int? currentDiscountId;
   Discount? currentDiscount;
+  double? conversionFactor = 1;
   TextEditingController maxDiscount = TextEditingController();
 
   bool editable = true;
@@ -64,6 +67,14 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
   List<Map<String, dynamic>> optionsEdits = [
     {'value': true, 'name': 'EDITABLE'},
     {'value': false, 'name': 'NO EDITABLE'}
+  ];
+
+  bool isUnique = true;
+
+
+    List<Map<String, dynamic>> optionsProductsModes = [
+    {'value': true, 'name': 'ES UNICO'},
+    {'value': false, 'name': 'NO ES UNICO'}
   ];
 
   _calcUnits() {
@@ -86,7 +97,7 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
         widget.product.name = name.text.trim();
         widget.product.price = amountInputFormatter.doubleValue;
         widget.product.cost = costInputFormatter.doubleValue;
-        widget.product.quantity = double.tryParse(quantity.text);
+        widget.product.quantity =  double.tryParse(quantity.text);
         widget.product.chassis =
             chassis.text.isEmpty ? null : chassis.text.trim();
         widget.product.licensePlate =
@@ -103,6 +114,9 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
         widget.product.discountId = currentDiscountId;
         widget.product.editable = editable;
         widget.product.maxDiscount = double.tryParse(maxDiscount.text) ?? 90;
+        widget.product.isUnique = isUnique;
+        widget.product.parentId =  widget.parentProduct?.id;
+        widget.product.factor = double.tryParse(factor.text) ?? 1.0;
         if (!widget.editing) {
           var product = await widget.product.create();
           await LogHandler.printEvent(
@@ -137,6 +151,7 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
 
   @override
   void initState() {
+  
     name.value = TextEditingValue(text: widget.product.name ?? '');
 
     currentWareHouseId = widget.product.wareHouseId;
@@ -150,6 +165,7 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
         id: widget.product.categoryId, name: widget.product.categoryName);
 
     maxDiscount.text = '90.00';
+
   
 
     if (widget.editing) {
@@ -181,7 +197,9 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
           TextEditingValue.empty,
           TextEditingValue(
               text: widget.product.cost?.toStringAsFixed(2) ?? ''));
+      isUnique = widget.product.isUnique ?? false;
       editable = widget.product.editable ?? false;
+      conversionFactor = widget.product.conversionFactor ?? 1.0;
     }
     code.value = TextEditingValue(text: widget.product.code ?? '');
 
@@ -189,6 +207,9 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
       xxquantity = null;
     }
 
+   
+    factor.value =
+        TextEditingValue(text:conversionFactor?.toStringAsFixed(2) ?? '');
     quantity.value =
         TextEditingValue(text: xxquantity?.toStringAsFixed(2) ?? '');
 
@@ -367,7 +388,14 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
                                   controller: code,
                                   decoration: InputDecoration(
                                       labelText: 'CODIGO PRODUCTO',
-                                      hintText: '0000000000'),
+                                      hintText: '0000000000',
+                                        suffixIcon: IconButton(
+                                          onPressed: () {
+                                            if(name.text.trim().isNotEmpty){
+                                              code.text = generarCodigoIniciales(name.text.trim());
+                                            }
+                                          },
+                                          icon: Icon(Icons.refresh))),
                                 ),
                               )
                             : Container(
@@ -429,6 +457,7 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
                               onChanged: (xunit, _) {
                                 currentUnit = xunit;
                                 currentUnitId = xunit?.id;
+                                factor.text = currentUnit?.conversionFactor.toString() ?? '1.00';
                               },
                               screen: UnitsPage(selectedMode: true),
                               title: 'SELECCIONA UNIDAD',
@@ -449,17 +478,55 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
                             },
                           ),
                         ),
-                        !widget.editing
-                            ? Container(
+
+                  
+                       widget.isParent? SizedBox(): Container(
+                             margin: EdgeInsets.only(bottom: kDefaultPadding),
+                          child: DropdownButtonFormField<bool>(
+                            initialValue: isUnique,
+                            decoration: InputDecoration(labelText: 'PRODUCTO'),
+                            items: List.generate(optionsProductsModes.length, (index) {
+                              var option = optionsProductsModes[index];
+                              return DropdownMenuItem(
+                                  value: option['value'],
+                                  child: Text(option['name']));
+                            }),
+                            onChanged: widget.editing ? null : (val) {
+                             setState(() {
+                                isUnique = val!;
+
+                                if(isUnique == false){
+                                  xxquantity = 0;
+                                  quantity.text = '0.00';
+                                }else{
+                                  xxquantity = 1;
+                                  quantity.text = '1.00';
+                                }
+                             });
+                            },
+                          ),
+                        ),
+
+                            widget.editing || (isUnique == false && widget.isParent == false) ?SizedBox(): Container(
+                              margin: EdgeInsets.only(bottom: kDefaultPadding),
+                          child:TextFormField(
+                            controller: factor,
+                              inputFormatters: [ FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,6}'))],
+                            decoration: InputDecoration(
+                                labelText: 'FACTOR DE CONVERSION',
+                                hintText: '1.00'),
+                          )
+                        ),
+
+                        widget.editing || (isUnique == false && widget.isParent == false)
+                            ? SizedBox(): Container(
                                 margin:
                                     EdgeInsets.only(bottom: kDefaultPadding),
                                 child: TextFormField(
                                   controller: quantity,
                                   readOnly: eCommerceMode == false &&
                                       enabledStore == false,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly
-                                  ],
+                                 inputFormatters: [ FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
                                   onChanged: (val) {
                                     widget.product.quantity =
                                         double.tryParse(quantity.text) ?? 0.0;
@@ -472,7 +539,7 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
                                       labelText: 'CANTIDAD', hintText: '0'),
                                 ),
                               )
-                            : SizedBox(),
+                           
                       ],
                     ),
                   )),

@@ -339,4 +339,10 @@ class Services implements SaleElement {
 
   @override
   String? discountSymbol;
+
+  @override
+  int? parentId;
+
+  @override
+  bool? isUnique;
 }

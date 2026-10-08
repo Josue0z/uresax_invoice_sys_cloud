@@ -26,7 +26,7 @@ class PrinterHandler {
   static Future<List<String>> listPrinters() async {
     if (isWindows) {
       final result = await Process.run('powershell',
-          ['-Command', 'Get-Printer | Select-Object -ExpandProperty Name']);
+          ['-Command', 'Get-Printer | ForEach-Object { \$_.Name }']);
       return LineSplitter.split(result.stdout.toString())
           .where((line) => line.trim().isNotEmpty)
           .toList();

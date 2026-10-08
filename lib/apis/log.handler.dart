@@ -1,18 +1,29 @@
-
-import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'dart:io';
+import 'package:path/path.dart' as path;
 
 class LogHandler {
   LogHandler._();
 
+  static late File logs;
+  static Future<void> init() async {
+    try {
+      var dir = Directory.current;
+      logs = File(path.join(dir.path, 'logs', 'logs.txt'));
+      await logs.create(recursive: true);
+    } catch (e) {
+      print(e);
+    }
+  }
+
   static Future<void> printEvent(String message) async {
-    /*await apiUresax.post('/logs/print-event',data:  {
-      'message': message
-    });*/
+    var now = DateTime.now();
+    var oldData = await logs.readAsString();
+    logs.writeAsString('[${now.toIso8601String()}] - EVENT: $message\n$oldData');
   }
 
   static Future<void> printError(String error) async {
-    /* await apiUresax.post('/logs/print-error',data:  {
-      'message': error
-    });*/
+    var now = DateTime.now();
+    var oldData = await logs.readAsString();
+    logs.writeAsString('[${now.toIso8601String()}] - ERROR: $error\n$oldData');
   }
 }

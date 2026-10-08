@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "URESAX INVOICE SYS"
-#define MyAppVersion "2.0.5+16"
+#define MyAppVersion "2.0.6+17"
 #define MyAppPublisher "URENA LORENZO & ASOCIADOS SRL"
 #define MyAppExeName "uresax_invoice_sys_cloud.exe"
 #define MyAppAssocName MyAppName + " File"
@@ -43,6 +43,8 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "desktopicon_global"; Description: "Crear acceso directo para Vista Global"; GroupDescription: "Accesos directos:"
+Name: "desktopicon_local"; Description: "Crear acceso directo para Vista Local (Esta Terminal)"; GroupDescription: "Accesos directos:"
 
 [Files]
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
@@ -70,6 +72,11 @@ Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}\shell\open\command"; Value
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+; Acceso directo para la versión GLOBAL
+Name: "{autodesktop}\{#MyAppName} - Modo Global"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--modo=global"; Tasks: desktopicon_global
+; Acceso directo para la versión LOCAL (Esta Terminal)
+Name: "{autodesktop}\{#MyAppName} - Vista Terminal"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--modo=terminal"; Tasks: desktopicon_local
+
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+import 'dart:math';
 import 'package:ecf_dgii/ecf_dgii.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,10 +10,10 @@ import 'package:intl/intl.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:moment_dart/moment_dart.dart';
 import 'package:path/path.dart' as path;
-import 'package:postgres/postgres.dart';
 import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart';
 import 'package:uresax_invoice_sys_cloud/apis/printers.handler.dart';
 import 'package:uresax_invoice_sys_cloud/models/bank.dart';
+import 'package:uresax_invoice_sys_cloud/models/company.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.item.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.item.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.product.dart';
@@ -40,8 +41,6 @@ import 'package:http/http.dart' as http;
 import 'dart:math' as math;
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart' as pos;
 
-import 'package:pdf_plus/widgets.dart' as pdfplusw; // high-level PDF widgets
-import 'package:pdf_plus/pdf.dart' as pdfplus; // low-level PDF APIs
 import 'package:pdf_plus/signing.dart'
     as pdfpluss; // signing and validation       // PKI helpers
 
@@ -119,22 +118,33 @@ Future<Directory> getUresaxInvoiceDir() async {
   return await dir.create(recursive: true);
 }
 
-Future<bool> isValidCertFilePath() async {
+
+Future<void> launchFile(String path) async {
+  ProcessResult? result;
+
+
+  if (Platform.isMacOS) {
+    result = await Process.run('open', [path]);
+  }
+
+  if (Platform.isWindows) {
+    result = await Process.run('cmd', ['/c', 'start', '', path]);
+  }
+  if (result?.exitCode == 0) {
+  } else {}
+}
+
+
+Future<bool> isValidCertFilePath({Company? company}) async {
   try {
     var filePath = certFile?.path ??
         localStorage.getItem('certFilePath_${company?.id}')?.trim();
-    var password = certPassword.text;
 
     certFile = File(filePath ?? '');
 
-    var storePassword = localStorage.getItem('certPassword_${company?.id}');
+    var password = certPassword.text.isNotEmpty ? certPassword.text : localStorage.getItem('certPassword_${company?.id}') ?? '';
 
-    if (password.isNotEmpty) {
-      password = certPassword.text;
-    } else {
-      password = storePassword ?? '';
-    }
-
+  
     // var data = await extraerInfoPfx(path: filePath ?? '', password: password);
     var request = http.MultipartRequest(
         'POST', Uri.parse('https://api.uresax.com/ecf/verificarcertificado'))
@@ -672,7 +682,6 @@ Future<void> enviarDgii(
         await xmlFile.writeAsString(ecf.xmlDefault);
       }
 
-      print(await xmlFile.readAsString());
       request = http.MultipartRequest('POST', Uri.parse(endPointApi))
         ..headers['accept'] = 'application/json'
         ..headers['x-tempdirname'] = company?.name?.toUpperCase() ?? ''
@@ -691,6 +700,7 @@ Future<void> enviarDgii(
           filename: path.basename(certFile?.path ?? ''),
         ))
         ..fields['password'] = password;
+       
     } else {
       await LogHandler.printEvent(
           'SE INICIO EL PROCESO DE ENVIO A DGII DEL COMPROBANTE ${sale.ncf}');
@@ -718,7 +728,7 @@ Future<void> enviarDgii(
         ));
     }
 
-    final response = await request.send();
+    final response = await request.send().timeout(const Duration(seconds: 70));
 
     code = response.statusCode;
 
@@ -869,6 +879,10 @@ Future<bool?> showConfirm(BuildContext context,
                           const SizedBox(height: 15),
                           TextFormField(
                             controller: code,
+                            autofocus: true,
+                            onFieldSubmitted: (_){
+                              ok();
+                            },
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
                             ],
@@ -915,19 +929,6 @@ Future<bool?> showConfirm(BuildContext context,
   return result == true;
 }
 
-Future<void> launchFile(String path) async {
-  ProcessResult? result;
-
-  if (Platform.isMacOS) {
-    result = await Process.run('open', [path]);
-  }
-
-  if (Platform.isWindows) {
-    result = await Process.run('cmd', ['/c', 'start', '', path]);
-  }
-  if (result?.exitCode == 0) {
-  } else {}
-}
 
 bool isRemoteVersionGreater(String local, String remote) {
   List<int> localParts =
@@ -1056,3 +1057,45 @@ Future<Uint8List> signaturePdf(File inputFile) async {
   final signedBytes = await xdoc.save();
   return signedBytes;
 }
+
+
+
+Future<String?> getMotherboardUUID() async {
+  try {
+    // Ejecuta PowerShell para obtener el UUID
+    var result = await Process.run(
+      'powershell',
+      [
+        '-Command',
+        'Get-CimInstance Win32_ComputerSystemProduct | Select-Object -ExpandProperty UUID'
+      ],
+      runInShell: true,
+    );
+
+    if (result.exitCode == 0) {
+      var uuid = result.stdout.toString().trim();
+      return uuid.isNotEmpty ? uuid : null;
+    } else {
+      print('Error ejecutando PowerShell: ${result.stderr}');
+    }
+  } catch (e) {
+    print('Error obteniendo UUID: $e');
+  }
+  return null;
+}
+
+
+
+String generarCodigoIniciales(String nombre) {
+  // Tomamos las iniciales de cada palabra
+  List<String> partes = nombre.split(" ");
+  String iniciales = partes.map((p) => p[0].toUpperCase()).join();
+
+  // Agregamos un número aleatorio de 4 dígitos
+  int randomNum = Random().nextInt(9000) + 1000;
+
+  return "$iniciales-$randomNum";
+}
+
+
+

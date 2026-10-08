@@ -17,6 +17,7 @@ class _PaymentEditorModalState extends State<PaymentEditorModal> {
   int? currentPaymentMethodId;
   int? currentBankId;
   TextEditingController transfRef = TextEditingController();
+  TextEditingController creditCardDescription = TextEditingController();
   AmountInputFormatter amountInputFormatter =
       AmountInputFormatter(fractionalDigits: 2);
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -57,6 +58,7 @@ class _PaymentEditorModalState extends State<PaymentEditorModal> {
 
         widget.sale.bankId = currentBankId;
         widget.sale.transfRef = transfRef.text;
+        widget.sale.creditCardDescription = creditCardDescription.text;
 
         widget.sale.paymentMethodId = currentPaymentMethodId;
 
@@ -168,6 +170,19 @@ class _PaymentEditorModalState extends State<PaymentEditorModal> {
                         ],
                       )
                     : SizedBox(height: kDefaultPadding),
+                
+                currentPaymentMethodId == 2 ? Container(
+                  margin: EdgeInsets.only(
+                    bottom: kDefaultPadding
+                  ),
+                  child: TextFormField(
+                    controller: creditCardDescription,
+                    decoration: InputDecoration(
+                      labelText: 'REFERENCIA DE TARJETA',
+                      hintText: 'VISA XXXX'
+                    ),
+                  ),
+                ):SizedBox(),
                 TextFormField(
                   validator: (val) => val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                   onChanged: (_) {

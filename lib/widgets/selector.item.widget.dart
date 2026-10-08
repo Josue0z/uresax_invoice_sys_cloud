@@ -22,6 +22,7 @@ class SelectorItemWidget<T> extends FormField<T> {
     this.hintText,
     this.focusNode,
     void Function(String?)? onEditing,
+    void Function(TapDownDetails)? onFocus,
     required void Function(T?, bool)? onChanged,
     super.initialValue,
     super.validator,
@@ -74,7 +75,13 @@ class SelectorItemWidget<T> extends FormField<T> {
                             child: Row(
                               children: [
                                 Expanded(
-                                  child: TextFormField(
+                                  child: GestureDetector(
+                                    onTapDown:(details){
+                                      if(onFocus != null){
+                                        onFocus(details);
+                                      }
+                                    },
+                                    child:TextFormField(
                                     controller: (state.widget
                                             as SelectorItemWidget<T>)
                                         .editingController!,
@@ -82,6 +89,7 @@ class SelectorItemWidget<T> extends FormField<T> {
                                             as SelectorItemWidget<T>)
                                         .focusNode!,
                                     enabled: enabled,
+                                   
                                     decoration: InputDecoration(
                                       isDense: true,
                                       border: InputBorder.none,
@@ -96,6 +104,7 @@ class SelectorItemWidget<T> extends FormField<T> {
                                       }
                                     },
                                   ),
+                                  )
                                 ),
                                 MouseRegion(
                                   cursor: !enabled

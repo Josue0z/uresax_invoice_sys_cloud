@@ -907,8 +907,7 @@ Future<pw.Document> createPaymentInvoice(Payment payment) async {
                       pw.Text('Fecha', style: pw.TextStyle(fontSize: 12)),
                       pw.Text(
                           payment.createdAt
-                                  ?.toLocal()
-                                  .format(payload: 'DD/MM/YYYY') ??
+                                 ?.format(payload: 'DD/MM/YYYY') ??
                               '',
                           style: pw.TextStyle(fontSize: 12)),
                     ]),
@@ -968,7 +967,8 @@ pw.Document createVerticalInvoice(Sale sale) {
       sale.total! < 250000;
 
    bool esConsumo = (sale.ncfTypeId == '02' || sale.ncfTypeId == '32');
-
+   
+   bool esCotization = (sale.ncfTypeId == '50' || sale.ncfTypeId == '60');
    bool esNotaCredito = (sale.ncfTypeId == '04' || sale.ncfTypeId == '34');
 
   if (sale is SaleProduct || sale is SaleService) {
@@ -982,7 +982,7 @@ pw.Document createVerticalInvoice(Sale sale) {
       paymentsWidgets.add(pw.Container(
           margin: pw.EdgeInsets.only(bottom: kDefaultPadding / 3),
           child: pw.Text(
-            'TARJETA DE CREDITO O DEBITO',
+            'TARJETA DE CREDITO O DEBITO\n${sale.creditCardDescription ?? ''}',
           )));
     }
 
@@ -1006,12 +1006,28 @@ pw.Document createVerticalInvoice(Sale sale) {
   }
   String tels = '';
 
-  if(company?.phone1 != null || company?.phone1?.isNotEmpty == true){
-      tels+='Tel: ${company?.phone1}';
+    
+    if(sale.branchePhone1 == null){
+       if(company?.phone1 != null){
+    if(company?.phone1?.isNotEmpty == true){
+            tels+='Tel: ${company?.phone1}';
+    }
   }
-    if(company?.phone2 != null || company?.phone2?.isNotEmpty == true){
-      tels+='\nCel: ${company?.phone2}';
+    }else{
+         tels+='Tel: ${sale.branchePhone1}';
+    }
+
+   if(sale.branchePhone2 == null){
+     if(company?.phone2 != null){
+
+      if(company?.phone2?.isNotEmpty == true){
+          tels+='\nCel: ${company?.phone2}';
+      }
+    
   }
+   }else{
+      tels+='\nCel: ${sale.branchePhone2}';
+   }
 
   pw.Document document = pw.Document(
       theme: pw.ThemeData(defaultTextStyle: pw.TextStyle(fontSize: 6)));
@@ -1029,12 +1045,35 @@ pw.Document createVerticalInvoice(Sale sale) {
                 alignment: pw.Alignment.center,
                 child: pw.Image(pw.MemoryImage(base64Decode(company?.logo??'')),width: 100,height: 100)
               ):pw.SizedBox(),
+
+
+          
           pw.Align(
               alignment: pw.Alignment.center,
               child: pw.Column(children: [
-                pw.Text(company?.name ?? '',
+               
+                enabledFirstComercialName ? pw.Column(
+                   crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                sale.brancheName != null ? pw.Text(sale.brancheName ?? '',
                     style: pw.TextStyle(
-                        fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                        fontSize: 11, fontWeight: pw.FontWeight.bold)):pw.SizedBox(),
+                      pw.Text( company?.name ?? '',
+                    style: pw.TextStyle(
+                        fontSize:8, fontWeight: pw.FontWeight.bold)),
+                  ]
+                ): pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                      pw.Text( company?.name ?? '',
+                    style: pw.TextStyle(
+                        fontSize:11, fontWeight: pw.FontWeight.bold)),
+
+                         sale.brancheName != null ? pw.Text(sale.brancheName ?? '',
+                    style: pw.TextStyle(
+                        fontSize: 8, fontWeight: pw.FontWeight.bold)):pw.SizedBox(),
+                  ]
+                ),
                 pw.SizedBox(height: kDefaultPadding / 2),
                 pw.Text('RNC: ${company?.rncOrId}'),
                 company?.address != null || company?.address?.isNotEmpty == true
@@ -1065,7 +1104,7 @@ pw.Document createVerticalInvoice(Sale sale) {
                   'Fecha Emision: ${sale.issueDate?.format(payload: 'DD/MM/YYYY')}'
                       .toUpperCase())),
 
-          sale.expirationDate != null && esConsumo == false && esNotaCredito == false
+          sale.expirationDate != null && esConsumo == false && esNotaCredito == false && esCotization == false
               ? pw.Container(
                   margin:
                       pw.EdgeInsets.only(bottom: kDefaultPadding / 3),
@@ -1381,31 +1420,46 @@ Future<List<int>> createDefaultTicket(
     decoded = img.copyResize(decoded, width: maxWidth);
   }
   bytes+=generator.image(decoded);
-    }
+  }
 
-  bytes += generator.text(company?.name ?? '',
-      styles: PosStyles(bold: true, fontType: PosFontType.fontA, align: PosAlign.center));
-  
+  if(enabledFirstComercialName){
+
   if(company?.comercialName != null){
-     bytes += generator.text(company?.comercialName ?? '',
+     bytes += generator.text(sale.brancheName ??  company?.comercialName ?? '',
       styles: PosStyles(bold: true, fontType: PosFontType.fontA, align: PosAlign.center));
   }
+
+   bytes += generator.text(company?.name ?? '',
+      styles: PosStyles(bold: true, fontType: PosFontType.fontA, align: PosAlign.center));
+  
+  }else{
+      bytes += generator.text(company?.name ?? '',
+      styles: PosStyles(bold: true, fontType: PosFontType.fontA, align: PosAlign.center));
+  
+      if(company?.comercialName != null){
+     bytes += generator.text(sale.brancheName ??  company?.comercialName ?? '',
+      styles: PosStyles(bold: true, fontType: PosFontType.fontA, align: PosAlign.center));
+  }
+ 
+  }
+
+ 
     bytes += generator.text(company?.rncOrId ?? '',
       styles: PosStyles(align: PosAlign.center));
 
 
-  if(company?.address != null || company?.address?.isNotEmpty == true){
-     bytes += generator.text(company?.address ?? '',
+  if(company?.address != null || company?.address?.isNotEmpty == true || sale.brancheAddress != null){
+     bytes += generator.text(sale.brancheAddress ??  company?.address ?? '',
       styles: PosStyles(align: PosAlign.center));
   }
 
     
     String tels = '';
-  if(company?.phone1 != null || company?.phone1?.isNotEmpty == true){
-        tels +='Tel: ${company?.phone1}';
+  if(company?.phone1 != null || company?.phone1?.isNotEmpty == true || sale.branchePhone1 != null){
+        tels +='Tel: ${sale.branchePhone1 ??  company?.phone1}';
      }
-  if(company?.phone2 != null || company?.phone2?.isNotEmpty == true){
-        tels +='\nCel: ${company?.phone2}';
+  if(company?.phone2 != null || company?.phone2?.isNotEmpty == true || sale.branchePhone2 != null){
+        tels +='\nCel: ${sale.branchePhone2 ??  company?.phone2}';
   }
      
   if(tels.isNotEmpty){
@@ -1421,7 +1475,7 @@ Future<List<int>> createDefaultTicket(
       (sale.ncfTypeId == '02' || sale.ncfTypeId == '32') && eCommerceMode;
 
   bool esNotaCredito = (sale.ncfTypeId == '04' || sale.ncfTypeId == '34');
-    var esCotization = sale.ncfTypeId == 'C';
+  var esCotization = sale.ncfTypeId == '60';
 
  
  bytes += generator.text('Rnc/Cedula: ${sale.clientIdentification}'.toUpperCase(),
@@ -1441,10 +1495,11 @@ Future<List<int>> createDefaultTicket(
 
   
   styles: PosStyles(align: PosAlign.left));
-
+   
      if(!esConsumo){
        if(!esNotaCredito){
          if(!esCotization){
+      
            bytes += generator.text(
       'Fecha de Vencimiento: ${sale.expirationDate?.format(payload: 'DD/MM/YYYY')}'.toUpperCase(),
       styles: PosStyles(align: PosAlign.left));
@@ -1514,7 +1569,12 @@ Future<List<int>> createDefaultTicket(
   }
 
   if (sale.creditCard != 0) {
-    paymentsMethods.add('TARJETA');
+    if(sale.creditCardDescription != null){
+          paymentsMethods.add('TARJETA\n${sale.creditCardDescription}');
+    }else{
+          paymentsMethods.add('TARJETA');
+    }
+
   }
   if (sale.checkOrTransf != 0) {
     paymentsMethods.add('CHEQUE O TRANSFERENCIA');
@@ -9036,7 +9096,7 @@ final emptyRows = List.generate(emptyRowsCount, (_) {
 
 
 Future<pw.Document> createInvoice(Sale sale) async{
-  int option = int.parse(localStorage.getItem('CURRENT_INVOICE_INDEX') ?? '0');
+  int option = currentInvoiceIndex ?? 0;
   switch (option) {
     case 0:
       return createDefaultInvoice(sale);
@@ -9159,7 +9219,7 @@ Future<pw.Document> createPaymentOrdenInvoice(PaymentOrden payment) async {
 
 Future<List<int>> createTicketCashShift(
     {String name = 'default',
-    required CashShiftModel cashShiftModel}) async {
+    required CashShiftModel cashShiftModel,PrintCashShiftMode mode = PrintCashShiftMode.all}) async {
   
   final profile = await CapabilityProfile.load(name: name);
   final generator = Generator(PaperSize.mm80, profile,
@@ -9193,6 +9253,12 @@ Future<List<int>> createTicketCashShift(
   bytes += generator.text('FONDO INICIAL: ${cashShiftModel.openingAmount?.toCoin()}',
         styles: PosStyles(align: PosAlign.left));
   bytes += generator.text('EFECTIVO CONTADO: ${cashShiftModel.effectiveCount?.toCoin()}',
+        styles: PosStyles(align: PosAlign.left));
+      
+  bytes += generator.text('FALTANTE: ${cashShiftModel.missingCash?.toCoin()}',
+        styles: PosStyles(align: PosAlign.left));
+
+   bytes += generator.text('TRANSACCIONES: ${cashShiftModel.transactionsCount?.toStringAsFixed(2)}',
         styles: PosStyles(align: PosAlign.left));
    
     bytes += createDivider(generator);

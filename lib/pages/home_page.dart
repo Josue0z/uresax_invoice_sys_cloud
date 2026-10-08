@@ -15,6 +15,7 @@ import 'package:uresax_invoice_sys_cloud/models/sale.item.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.service.dart';
 import 'package:uresax_invoice_sys_cloud/pages/boxes_page.dart';
+import 'package:uresax_invoice_sys_cloud/pages/branches_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/cash.shifts.page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/categories_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/clients_page.dart';
@@ -39,6 +40,7 @@ import 'package:uresax_invoice_sys_cloud/pages/units_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/users_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/warehouses_page.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
+import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/updater.widget.dart';
 import 'package:uuid/uuid.dart';
@@ -156,6 +158,12 @@ class _HomePageState extends State<HomePage> {
       'id': 18,
       'title': 'VER UNIDADES DE MEDIDA',
       'svg': 'assets/svgs/undraw_report_k55w.svg'
+    },
+
+      {
+      'id': 22,
+      'title': 'VER SUCURSALES',
+      'svg': 'assets/svgs/undraw_logistics_xpdj.svg'
     },
   ];
   ScrollController scrollControllerY = ScrollController();
@@ -280,6 +288,10 @@ class _HomePageState extends State<HomePage> {
     await Navigator.push(
         context, MaterialPageRoute(builder: (ctx) => CashShiftsPage()));
   }
+  _showBranchesPage()async{
+      await Navigator.push(
+        context, MaterialPageRoute(builder: (ctx) => BranchesPage()));
+  }
 
   _showPage(int id) {
     switch (id) {
@@ -354,6 +366,9 @@ class _HomePageState extends State<HomePage> {
       case 21:
         _showCashShiftsPage();
         break;
+      case 22:
+      _showBranchesPage();
+      break;
       default:
     }
   }
@@ -361,6 +376,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     defaultOptions = [...options];
+    WidgetsBinding.instance.addPostFrameCallback((d){
+      if(isTerminal){
+        showTopSnackBar(context, message: 'EL USUARIO: ${currentUser?.name} ENTRO EN MODO TERMINAL',color: Colors.green);
+      }
+    });
     super.initState();
   }
 
@@ -440,6 +460,11 @@ class _HomePageState extends State<HomePage> {
     if (!currentUser!.permissions!.contains('ALLOW_VIEW_REPORTS')) {
       options.removeWhere((e) => e['id'] == 21);
     }
+
+       if (!currentUser!.permissions!.contains('ALLOW_VIEW_BRANCHES')) {
+      options.removeWhere((e) => e['id'] == 22);
+    }
+
 
     return UpdaterWidget(
         context: context,
@@ -573,7 +598,10 @@ class _HomePageState extends State<HomePage> {
                     CircleAvatar(
                       child: IconButton(
                           onPressed: () async {
-                            Navigator.pushAndRemoveUntil(
+
+                            var confirm = await showConfirm(context,title:'¿Deseas Cerrar la Sesión?');
+                            if(confirm == true){
+                               Navigator.pushAndRemoveUntil(
                                 context,
                                 PageRouteTransitionBuilder(
                                     page: LoginPage(),
@@ -581,12 +609,18 @@ class _HomePageState extends State<HomePage> {
                                 (_) => false);
                             await LogHandler.printEvent(
                                 '${currentUser?.name} CERRO SESION');
-                            await CashShiftModel.closeCashShiftTurno(
-                                id: localStorage.getItem('currentTurnoId') ??
-                                    'x');
-                            localStorage.removeItem('currentTurnoId');
-                            localStorage.removeItem('oldPeriodId');
 
+                          
+                            await CashShiftModel.closeCashShiftTurno(
+                                id: localStorage.getItem('currentTurnoId_$currentInstanceId') ??
+                                    'x');
+                            localStorage.removeItem('currentTurnoId_$currentInstanceId');
+                            localStorage.removeItem('oldPeriodId_$currentInstanceId');
+                            certPassword.clear();
+                            certPath.clear();
+                            certFile= null;
+                            
+                     
                             currentUser = null;
                             company = null;
                             currentClientContado = null;
@@ -603,6 +637,8 @@ class _HomePageState extends State<HomePage> {
                             dgiiStates = [];
                             boxes = [];
                             wareHouses = [];
+                            branches = [];
+                            }
                           },
                           icon: Icon(Icons.power_settings_new_outlined)),
                     ),

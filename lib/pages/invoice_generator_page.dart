@@ -6,6 +6,7 @@ import 'package:amount_input_formatter/amount_input_formatter.dart';
 import 'package:ecf_dgii/ecf_dgii.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:localstorage/localstorage.dart';
 import 'package:moment_dart/moment_dart.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as path;
@@ -104,11 +105,14 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
 
   Sale? _currentSale;
   double creditNoteTotal = 0;
-  final FocusNode _focusNode = FocusNode();
 
   final ScrollController _scrollControllerY = ScrollController();
   final ScrollController _scrollControllerX = ScrollController();
 
+
+  int? get brancheId {
+    return int.tryParse(localStorage.getItem('URESAX_INVOICE_BRANCHE_ID_${company?.id}') ?? 'x');
+  }
   bool get esGubernamental {
     return currentNcfTypeId == '45' || currentNcfTypeId == '15';
   }
@@ -326,6 +330,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
         widget.sale.coinBack = 0;
         widget.sale.law10 = calcs[14];
         widget.sale.ncfListId = ncfList?.id;
+        widget.sale.brancheId = brancheId;
         if (ncfList == null) {
           throw 'NO TIENE SECUENCIA REGISTRADA PARA EL COMPROBANTE TIPO: $currentNcfTypeId';
         }
@@ -1572,6 +1577,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
 
       var items = await res.getSaleData();
 
+
       items = items
           .map((e) => e is SaleItemService
               ? CreditNoteService(
@@ -1666,8 +1672,10 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
       for (int i = 0; i < items.length; i++) {
         var item = items[i];
         widget.items.add(item);
-        setState(() {});
+   
       }
+
+      setState(() {});
       description.value = TextEditingValue(text: res.description ?? '');
     }
   }
@@ -2220,6 +2228,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                     onChanged: widget.editing || esNotaCredito
                                         ? null
                                         : (option) {
+                                           rate.clear();
                                             currentCurrencyId = option;
                                             setState(() {});
                                           }),

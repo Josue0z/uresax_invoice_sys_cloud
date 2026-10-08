@@ -11,7 +11,7 @@ class BoxesPage extends StatefulWidget {
 }
 
 class _BoxesPageState extends State<BoxesPage> {
-  List<Box> boxes = [];
+  List<Box> xboxes = [];
   _showBoxModal({required Box box, bool editing = false}) async {
     var res = await showDialog(
         context: context,
@@ -24,7 +24,8 @@ class _BoxesPageState extends State<BoxesPage> {
 
   _initAsync() async {
     try {
-      boxes = await Box.get();
+      xboxes = await Box.get();
+      boxes = [Box(name: 'CAJA'),...xboxes];
       setState(() {});
     } catch (e) {
       print(e);
@@ -42,7 +43,7 @@ class _BoxesPageState extends State<BoxesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('CAJAS (${boxes.length})'),
+        title: Text('CAJAS (${xboxes.length})'),
         actions: [
           Wrap(
             runAlignment: WrapAlignment.center,
@@ -66,7 +67,7 @@ class _BoxesPageState extends State<BoxesPage> {
       ),
       body: ListView.separated(
           itemBuilder: (ctx, index) {
-            final box = boxes[index];
+            final box = xboxes[index];
             return ListTile(
               key: ValueKey(box.id),
               minTileHeight: 60,
@@ -98,7 +99,7 @@ class _BoxesPageState extends State<BoxesPage> {
             );
           },
           separatorBuilder: (ctx, index) => Divider(),
-          itemCount: boxes.length),
+          itemCount: xboxes.length),
     );
   }
 }

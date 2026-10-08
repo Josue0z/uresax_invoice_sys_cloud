@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:number_text_input_formatter/number_text_input_formatter.dart';
 import 'package:uresax_invoice_sys_cloud/models/unit.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
@@ -68,7 +67,8 @@ class _UnitEditorModalState extends State<UnitEditorModal> {
     name.text = widget.unit.name ?? '';
     code.text = widget.unit.code ?? '';
     symbol.text = widget.unit.symbol ?? '';
-    conversionFactor.text = widget.unit.conversionFactor?.toStringAsFixed(2) ?? '';
+    var formatter = NumberFormat("#.######");
+    conversionFactor.text = formatter.format(widget.unit.conversionFactor ?? 1.0);
     isBaseUnit = widget.unit.isBaseUnit ?? false;
     status = widget.unit.status ?? true;
     super.initState();
@@ -135,7 +135,7 @@ class _UnitEditorModalState extends State<UnitEditorModal> {
               TextFormField(
                 controller: conversionFactor,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,6}'))],
                 validator: (val) => val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                 decoration: InputDecoration(
                     labelText: 'FACTOR DE CONVERSION', hintText: '1.00'),
@@ -143,7 +143,7 @@ class _UnitEditorModalState extends State<UnitEditorModal> {
               SizedBox(
                 height: kDefaultPadding,
               ),
-              Column(
+              /*Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -151,7 +151,7 @@ class _UnitEditorModalState extends State<UnitEditorModal> {
                     style: TextStyle(
                         fontSize: 16, color: Theme.of(context).primaryColor),
                   ),
-                  SizedBox(
+                SizedBox(
                     height: kDefaultPadding / 2,
                   ),
                   Switch.adaptive(
@@ -180,7 +180,7 @@ class _UnitEditorModalState extends State<UnitEditorModal> {
                         });
                       }),
                 ],
-              ),
+              ),*/
               SizedBox(
                 height: kDefaultPadding,
               ),

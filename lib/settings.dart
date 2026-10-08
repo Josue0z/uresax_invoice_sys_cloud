@@ -5,6 +5,7 @@ import 'package:localstorage/localstorage.dart';
 import 'package:paypal_sdk/subscriptions.dart' show PlanCollection;
 import 'package:uresax_invoice_sys_cloud/models/bank.dart'; 
 import 'package:uresax_invoice_sys_cloud/models/box.dart';
+import 'package:uresax_invoice_sys_cloud/models/branche.dart';
 import 'package:uresax_invoice_sys_cloud/models/categorie.dart';
 import 'package:uresax_invoice_sys_cloud/models/client.dart';
 import 'package:uresax_invoice_sys_cloud/models/company.dart';
@@ -201,13 +202,42 @@ bool enabledRealEstateAgency = bool.tryParse(
 bool enabledItemSimpleConfig = bool.tryParse(
             Platform.environment['URESAX_INVOICE_ENABLED_ITEMS_SIMPLE_CONFIG'] ?? 'false') ??
         false;
+
+bool enabledFullGeneratorTableInvoice = bool.tryParse(
+            Platform.environment['URESAX_INVOICE_ENABLED_FULL_GENERATOR_TABLE_INVOICE'] ?? 'true') ??
+        true;
+
+bool enabledStepRncTableInvoice = bool.tryParse(
+            Platform.environment['URESAX_INVOICE_ENABLED_STEP_RNC_TABLE_INVOICE'] ?? 'false') ??
+        false;
+
+bool allowOnlyCashShiftElectronic = bool.tryParse(
+            Platform.environment['URESAX_INVOICE_ALLOW_ONLY_CASH_SHIFT_ELECTRONIC'] ?? 'false') ??
+        false;
+
+bool enabledViewCashShiftDetails = bool.tryParse(
+            Platform.environment['URESAX_INVOICE_VIEW_CASH_SHIFT_FULL_DETAILS'] ?? 'false') ??
+        false;
+
+bool enabledFilterInvoicesByDay = bool.tryParse(
+            Platform.environment['URESAX_INVOICE_FILTER_INVOICES_BY_DAY'] ?? 'false') ??
+        false;
+
+
+bool enabledFirstComercialName = bool.tryParse(
+            Platform.environment['URESAX_INVOICE_ENABLED_FIRST_COMERCIAL_NAME'] ?? 'false') ??
+        false;
+  
+bool enabledInvoiceNotes = false;
+
 String appVersion = 'Desconocida';
 String localVersion = 'Desconocida';
 String remoteVersion = 'Desconocida';
 bool versionChanged = false;
 
-final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<NavigatorState> rootScaffoldStateKey = GlobalKey<NavigatorState>();
 
 final Color secondaryColor = const Color.fromARGB(255, 11, 146, 15);
 
@@ -223,3 +253,19 @@ bool enabledStore = bool.tryParse(Platform.environment['URESAX_INVOICE_ENABLED_S
 Client? currentClientContado;
 
 const double kDefaultNavbarHeight = kToolbarHeight + kDefaultPadding;
+
+String? currentTerminalId;
+int? currentInvoiceIndex = 0;
+bool isTerminal = false;
+
+enum PrintCashShiftMode {
+  all,
+  electronic,
+  preventa
+}
+
+
+String? currentInstanceId;
+bool enabledMultiplyBranches = false;
+
+List<BrancheModel> branches = [];

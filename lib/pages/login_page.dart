@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:localstorage/localstorage.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart' show LogHandler;
+import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/pages/home_page.dart';
@@ -28,38 +30,84 @@ class _LoginPageState extends State<LoginPage> {
       try {
         showLoader(context);
         currentUser = await User.login(username.text, password.text);
-        company= currentUser?.company;
-        apiUresax.options.headers['x-max-pre-sales'] = company?.maxPreSales ?? 99999999;
-   
-        await isValidCertFilePath();
+        company = currentUser?.company;
+        eCommerceMode = company?.eCommerceMode ?? false;
+        enabledBarCodePrinter = company?.enabledBarCodePrinter ?? false;
+        enabledVerticalPosInvoice = company?.enabledVerticalPosInvoice ?? false;
+        enabledEcfProduction = company?.enabledEcfProduction ?? false;
+        allowEditInvoice = company?.allowEditInvoice ?? false;
+        automaticSendEcf = company?.automaticSendEcf ?? false;
+        enabledRetentions = company?.enabledRetentions ?? false;
+        enabledRestaurantMode = company?.enabledRestaurantMode ?? false;
+        enabledInvoiceSimpleGenerator =
+            company?.enabledInvoiceSimpleGenerator ?? false;
+        enabledImageChanges = company?.enabledImageChanges ?? false;
+        enabledProductQuantityEditor =
+            company?.enabledProductQuantityEditor ?? false;
+        enabledTextEditor = company?.enabledTextEditor ?? false;
+        enabledPosAutomaticSetup = company?.enabledPosAutomaticSetup ?? false;
+        enabledTotalsConfigSimple = company?.enabledTotalsConfigSimple ?? false;
+        enabledProformaUpdateStock =
+            company?.enabledProformaUpdateStock ?? false;
+        enabledRemoteSigned = company?.enabledRemoteSigned ?? false;
+        removeInvoiceTitle = company?.removeInvoiceTitle ?? false;
+        enabledOnlySeller = company?.enabledOnlySeller ?? false;
+        disabledTicket = company?.disabledTicket ?? false;
+        enabledEditPriceModal = company?.enabledEditPriceModal ?? false;
+        enabledQuotationsSetup = company?.enabledQuotationsSetup ?? false;
+        enabledTableInvoiceGenerator =
+            company?.enabledTableInvoiceGenerator ?? false;
+        enabledRealEstateAgency = company?.enabledRealEstateAgency ?? false;
+        enabledItemSimpleConfig = company?.enabledItemSimpleConfig ?? false;
+        enabledFullGeneratorTableInvoice =
+            company?.enabledFullGeneratorTableInvoice ??
+                true; // este por defecto true
+        enabledStepRncTableInvoice =
+            company?.enabledStepRncTableInvoice ?? false;
+        enabledInvoiceDollars = company?.enabledInvoiceDollars ?? false;
+        enabledStore = company?.enabledStore ?? false;
+        allowOnlyCashShiftElectronic = company?.allowOnlyCashShiftElectronic ?? false;
+        enabledViewCashShiftDetails = company?.enabledViewCashShiftDetails ?? false;
+        enabledFilterInvoicesByDay = company?.enabledFilterInvoicesByDay ?? false;
+        enabledFirstComercialName = company?.enabledFirstComercialName ?? false;
+        enabledMultiplyBranches = company?.enabledMultiplyBranches ?? false;
+        enabledInvoiceNotes = company?.enabledInvoiceNotes ?? false;
+        currentInvoiceIndex = company?.currentInvoiceIndex ?? 0;
+
+        apiUresax.options.headers['x-max-pre-sales'] =
+            company?.maxPreSales ?? 99999999;
+
       
+
+        /*await CashShiftModel.closeCashShiftTurno(
+            id: localStorage.getItem('currentTurnoId') ?? 'x');
+        localStorage.removeItem('currentTurnoId');
+        localStorage.removeItem('oldPeriodId');*/
+
+        var isValid = await isValidCertFilePath(company: company);
+
+        if (isValid) {
+          electronicNcfEnabled = true;
+          currentElectronicNcfOption = 1;
+        } else {
+          electronicNcfEnabled = false;
+          currentElectronicNcfOption = 2;
+        }
+
         await LogHandler.printEvent(
             'EL USUARIO: ${currentUser?.name} INICIO SESION');
 
         if (currentUser != null) {
-          /*if(!notExistsSubscriptionsTable){
-            if(!subscriptionActive){
+          if (isTerminal) {
+            apiUresax.options.headers['x-terminalid'] = currentTerminalId;
+          }
 
-           
-              if(subscriptionPause){
-                throw 'LA SUBSCRIPCION ESTA PAUSADA';
-              }
-              Navigator.pop(context);
+          localStorage.setItem('currentUsername', currentUser?.username ?? '');
 
-              await showDialog(context: context, builder: (ctx) => PlansPage());
-              if(!subscriptionActive){
-                return;
-              }
-            }
-          }*/
-           
           if (currentUser!.permissions!.contains('ALLOW_VIEW_POS_SCREEN')) {
-
-         
             if (!eCommerceMode) {
               throw 'NO ESTA HABILITADO EL MODO COMERCIO';
             }
-
 
             await Navigator.pushAndRemoveUntil(
                 context,
@@ -70,7 +118,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     effect: TransitionEffect.leftToRight),
                 (_) => false);
-         
           } else {
             await Navigator.pushAndRemoveUntil(
                 context,
@@ -86,6 +133,12 @@ class _LoginPageState extends State<LoginPage> {
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
       }
     }
+  }
+
+  @override
+  void initState() {
+    username.text = localStorage.getItem('currentUsername') ?? '';
+    super.initState();
   }
 
   @override

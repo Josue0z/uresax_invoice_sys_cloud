@@ -43,6 +43,8 @@ abstract class SaleElement {
   double? maxDiscount;
   double? priceSuite;
   double? rateSuite;
+  int? parentId;
+  bool? isUnique;
 
  String? get imageUrl {
    throw UnimplementedError();

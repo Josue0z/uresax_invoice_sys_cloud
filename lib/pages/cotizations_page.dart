@@ -245,9 +245,7 @@ class _CotizationsPageState extends State<CotizationsPage> {
 
               if (currentUser!.permissions!
                   .contains('ALLOW_CREATE_FISCAL_INVOICE')) {
-                if (sale.isPaid == false) {
-                  salesOptions.add({'id': 7, 'name': 'Generar Factura Fiscal'});
-                }
+                 salesOptions.add({'id': 7, 'name': 'Generar Factura Fiscal'});
               }
 
               return ListTile(

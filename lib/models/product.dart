@@ -58,6 +58,10 @@ class Products implements SaleElement {
   bool? editable;
   @override
   double? maxDiscount;
+  @override
+  int? parentId;
+  @override
+  bool? isUnique;
 
   Products(
       {this.id,
@@ -102,7 +106,9 @@ class Products implements SaleElement {
       this.discountSymbol,
       this.imageBase64,
       this.editable = true,
-      this.maxDiscount = 90});
+      this.maxDiscount = 90,
+      this.parentId,
+      this.isUnique = true});
 
   Color get color {
     if (quantity == null) Colors.red;
@@ -135,6 +141,9 @@ class Products implements SaleElement {
         'discountId': discountId,
         'imageBase64':imageBase64,
         'editable':editable,
+        'parentId': parentId,
+        'factor': factor,
+        'isUnique': isUnique,
         'maxDiscount': maxDiscount
       });
 
@@ -251,6 +260,9 @@ class Products implements SaleElement {
         'imageBase64': imageBase64,
         'discountId': discountId,
         'editable':editable,
+        'factor': factor,
+        'isUnique': isUnique,
+        'parentId': parentId,
         'maxDiscount':maxDiscount
       });
 
@@ -279,7 +291,7 @@ class Products implements SaleElement {
   }
 
   static Future<List<Products>> get(
-      {String? search, List<int>? categories}) async {
+      {String? search, List<int>? categories, int? parentId}) async {
     try {
       final queryParams = <String>[];
 
@@ -289,6 +301,10 @@ class Products implements SaleElement {
 
       if (categories != null && categories.isNotEmpty) {
         queryParams.add('categories=${categories.join(',')}');
+      }
+
+      if(parentId != null){
+        queryParams.add('parentId=$parentId');
       }
 
       var params = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
@@ -446,7 +462,9 @@ class Products implements SaleElement {
         discountSymbolId: map['discountSymbolId'],
         discountSymbol: map['discountSymbol'],
         editable: map['editable'],
-        maxDiscount: map['maxDiscount'] != null ? double.parse(map['maxDiscount']) : 90);
+        maxDiscount: map['maxDiscount'] != null ? double.parse(map['maxDiscount']) : 90,
+        parentId: map['parentId'],
+        isUnique: map['isUnique']);
   }
 
   String toJson() => json.encode(toMap());
@@ -456,7 +474,7 @@ class Products implements SaleElement {
 
   @override
   String toString() {
-    return 'Products(id: $id, name: $name, price: $price, quantity: $quantity, unitId: $unitId, unitName: $unitName, unitSymbol: $unitSymbol, unitCode: $unitCode, conversionFactor: $conversionFactor,editable: $editable, maxDiscount: $maxDiscount, createdAt: $createdAt)';
+    return 'Products(id: $id, name: $name, price: $price, quantity: $quantity, unitId: $unitId, unitName: $unitName, unitSymbol: $unitSymbol, unitCode: $unitCode, conversionFactor: $conversionFactor,editable: $editable, maxDiscount: $maxDiscount, createdAt: $createdAt, parentId: $parentId, isUnique: $isUnique)';
   }
 
   @override

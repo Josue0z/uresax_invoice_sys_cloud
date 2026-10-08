@@ -37,6 +37,7 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
 
   bool isWithTax = false;
 
+
   int? currentTaxId;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -251,24 +252,24 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
                                                 ratePercent;
                                             double pn = pb;
 
-                                          
-                                          isWithTax = !isWithTax;
-                                         
+                                            isWithTax = !isWithTax;
 
                                             if (currentTaxId == 1) {
                                               if (isWithTax) {
-                                                pn = pb / 1.16;
+                                                pn = pb;
                                               } else {
-                                                pn = (pb / 1.16) / 1.16;
+                                                pn = (pb / 1.16);
                                               }
                                             }
                                             if (currentTaxId == 2) {
                                               if (isWithTax) {
-                                                pn = pb / 1.18;
+                                                pn = pb;
                                               } else {
-                                                pn = (pb / 1.18) / 1.18;
+                                                pn = (pb / 1.18);
                                               }
                                             }
+
+
 
                                             amount.value = amountInputFormatter
                                                 .formatEditUpdate(
@@ -332,7 +333,16 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
                                   controller: code,
                                   decoration: InputDecoration(
                                       labelText: 'CODIGO',
-                                      hintText: '000000000'),
+                                      hintText: '000000000',
+                                      suffixIcon: IconButton(
+                                          onPressed: () {
+                                            if (name.text.trim().isNotEmpty) {
+                                              code.text =
+                                                  generarCodigoIniciales(
+                                                      name.text.trim());
+                                            }
+                                          },
+                                          icon: Icon(Icons.refresh))),
                                 ),
                               ),
                         Container(

@@ -66,7 +66,6 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
 
       var file = File(path.join(
           dir.path,
-          company?.name,
           'NOTAS DE CREDITO',
           sale.createdAt?.format(payload: 'YYYYMM'),
           'PDFS',
@@ -85,13 +84,28 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
   _generateXmlFile(Sale sale) async {
     try {
       var dir = await getUresaxInvoiceDir();
-      var file = File(path.join(dir.path, company?.name, 'NOTAS DE CREDITO',
+      var file = File(path.join(dir.path, 'NOTAS DE CREDITO',
           sale.createdAt?.format(payload: 'YYYYMM'), 'XML', '${sale.clientIdentification}${sale.ncf}.xml'));
       await file.create(recursive: true);
       await file.writeAsString(sale.ecfXmlFirmado ?? '');
 
       await OpenFile.open(file.path);
     } catch (e) {
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+    _openInvoiceFolder(Sale sale) async {
+    showLoader(context);
+    try {
+      var dir = await getUresaxInvoiceDir();
+
+      var folderPath = path.join(dir.path, 'NOTAS DE CREDITO',
+          sale.createdAt?.format(payload: 'YYYYMM'), 'PDFS');
+      Navigator.pop(context);
+      await launchFile(folderPath);
+    } catch (e) {
+      Navigator.pop(context);
       showTopSnackBar(context, message: e.toString(), color: Colors.red);
     }
   }
@@ -122,6 +136,10 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
           await LogHandler.printError(e.toString());
         }
         break;
+
+        case 8:
+          _openInvoiceFolder(sale);
+          break;
 
       default:
     }
@@ -174,6 +192,8 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
               if (eCommerceMode) {
                 salesOptions.add({'id': 3, 'name': 'Imprimir factura'});
               }
+
+                 salesOptions.add({'id': 8, 'name': 'Abrir carpeta de factura'});
               return ListTile(
                 key: ValueKey(item.id),
                 minVerticalPadding: kDefaultPadding,
@@ -193,7 +213,7 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
                 ),
                 title: Text('${item.ncf} - ${item.ncfAffected}',
                     style: Theme.of(context).textTheme.bodyMedium),
-                subtitle: Text('${item.clientName}\n${item.createdAt?.format(payload: 'DD/MM/YYYY')}'),
+                subtitle: Text('${item.brancheName != null ? '${item.brancheName}\n': ''}${item.clientName}\n${item.createdAt?.format(payload: 'DD/MM/YYYY')}'),
                 trailing: Wrap(
                   runAlignment: WrapAlignment.center,
                   crossAxisAlignment: WrapCrossAlignment.center,

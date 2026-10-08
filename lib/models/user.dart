@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:localstorage/localstorage.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/branche.dart';
 import 'package:uresax_invoice_sys_cloud/models/company.dart';
 import 'package:uresax_invoice_sys_cloud/models/discount.dart';
 import 'package:uresax_invoice_sys_cloud/models/warehouse.dart';
@@ -89,6 +91,8 @@ class User {
         ];
 
         boxes = [bx.Box(name: 'CAJA'), ...await bx.Box.get()];
+
+        branches =  [BrancheModel(name:'SUCURSAL'),...await BrancheModel.get()];
     
         return user;
       }
@@ -199,7 +203,7 @@ class User {
             : null,
         roleId: map['roleId'],
         roleName: map['roleName'],
-        boxId: map['boxId'],
+        boxId:localStorage.getItem('URESAX_INVOICE_CURRENT_BOX_ID_${map['id']}') ??  map['boxId'],
         boxName: map['boxName'],
         company:
             map['company'] != null ? Company.fromMap(map['company']) : null);

@@ -14,6 +14,7 @@ class Denominations {
   bool? isActive;
   DateTime? createdAt;
   DateTime? updatedAt;
+
   Denominations({
     this.id,
     this.currency,
@@ -38,6 +39,7 @@ class Denominations {
       throw e.response?.data['message'] ?? e.error.toString();
     }
   }
+
   Denominations copyWith({
     String? id,
     String? currency,
@@ -75,16 +77,20 @@ class Denominations {
       id: map['id'] != null ? map['id'] as String : null,
       currency: map['currency'] != null ? map['currency'] as String : null,
       value: map['value'] != null ? double.parse(map['value']) : null,
-      description: map['description'] != null ? map['description'] as String : null,
+      description:
+          map['description'] != null ? map['description'] as String : null,
       isActive: map['isActive'] != null ? map['isActive'] as bool : null,
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
+      createdAt:
+          map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
+      updatedAt:
+          map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
     );
   }
 
   String toJson() => json.encode(toMap());
 
-  factory Denominations.fromJson(String source) => Denominations.fromMap(json.decode(source) as Map<String, dynamic>);
+  factory Denominations.fromJson(String source) =>
+      Denominations.fromMap(json.decode(source) as Map<String, dynamic>);
 
   @override
   String toString() {
@@ -94,28 +100,28 @@ class Denominations {
   @override
   bool operator ==(covariant Denominations other) {
     if (identical(this, other)) return true;
-  
-    return 
-      other.id == id &&
-      other.currency == currency &&
-      other.value == value &&
-      other.description == description &&
-      other.isActive == isActive &&
-      other.createdAt == createdAt &&
-      other.updatedAt == updatedAt;
+
+    return other.id == id &&
+        other.currency == currency &&
+        other.value == value &&
+        other.description == description &&
+        other.isActive == isActive &&
+        other.createdAt == createdAt &&
+        other.updatedAt == updatedAt;
   }
 
   @override
   int get hashCode {
     return id.hashCode ^
-      currency.hashCode ^
-      value.hashCode ^
-      description.hashCode ^
-      isActive.hashCode ^
-      createdAt.hashCode ^
-      updatedAt.hashCode;
+        currency.hashCode ^
+        value.hashCode ^
+        description.hashCode ^
+        isActive.hashCode ^
+        createdAt.hashCode ^
+        updatedAt.hashCode;
   }
 }
+
 class CashShiftModel {
   String? id;
   String? description;
@@ -142,6 +148,16 @@ class CashShiftModel {
   DateTime? updatedAt;
   DateTime? createdAt;
   double? effectiveCalc;
+  int? transactionsCount;
+  double? missingCash;
+  double? effectiveCalcElectronic;
+  double? effectiveCalcPreventa;
+  int? transactionsCountElectronic;
+  int? transactionsCountPreventa;
+
+  double? creditCardCalcElectronic;
+  double? creditCardCalcPreventa;
+
   CashShiftModel(
       {this.id,
       this.description,
@@ -167,17 +183,40 @@ class CashShiftModel {
       this.denominations,
       this.updatedAt,
       this.createdAt,
-      this.effectiveCalc});
-  
+      this.effectiveCalc = 0,
+      this.transactionsCount = 0,
+      this.missingCash = 0,
+      this.effectiveCalcElectronic = 0,
+      this.effectiveCalcPreventa = 0,
+      this.transactionsCountElectronic = 0,
+      this.transactionsCountPreventa = 0,
+      this.creditCardCalcElectronic = 0,
+      this.creditCardCalcPreventa = 0});
+
   Color get color {
-     if(status == 1 || status == 3 || status == 5){
-       return Colors.green;
-     }
-     return Colors.red;
+    if (status == 1 || status == 3 || status == 5) {
+      return Colors.green;
+    }
+    return Colors.red;
   }
-  static Future<List<CashShiftModel>> get() async {
+
+  static Future<List<CashShiftModel>> get(
+      {required DateTime startDate,
+      required DateTime endDate,
+      String? search}) async {
     try {
-      var res = await apiUresax.get('/cash-shifts/all');
+      var params = '';
+
+      var parameters = [];
+
+      if (search != null) {
+        parameters.add('search=$search');
+      }
+
+      params = '&${parameters.join('&')}';
+
+      var res = await apiUresax.get(
+          '/cash-shifts/all?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
       if (res.statusCode == 200) {
         var data = res.data;
@@ -193,7 +232,7 @@ class CashShiftModel {
 
   Future<CashShiftModel?> openCashShift() async {
     try {
-      var res = await apiUresax.post('/cash-shift/open',data: toMap());
+      var res = await apiUresax.post('/cash-shift/open', data: toMap());
 
       if (res.statusCode == 200) {
         var data = res.data;
@@ -207,7 +246,8 @@ class CashShiftModel {
 
   Future<CashShiftModel?> closeCashShiftReport() async {
     try {
-      var res = await apiUresax.put('/cash-shift/close-finish/$id',data: toMap());
+      var res =
+          await apiUresax.put('/cash-shift/close-finish/$id', data: toMap());
 
       if (res.statusCode == 200) {
         var data = res.data;
@@ -323,21 +363,25 @@ class CashShiftModel {
         shiftDate:
             map['shiftDate'] != null ? DateTime.parse(map['shiftDate']) : null,
         openingAmount: map['openingAmount'] != null
-            ?double.parse( map['openingAmount'])
+            ? double.parse(map['openingAmount'])
             : null,
-        effective: map['effective'] != null ? double.parse(map['effective'] ): null,
+        effective:
+            map['effective'] != null ? double.parse(map['effective']) : null,
         creditCard:
-            map['creditCard'] != null ?double.parse( map['creditCard'] ): null,
+            map['creditCard'] != null ? double.parse(map['creditCard']) : null,
         checkOrTransf: map['checkOrTransf'] != null
             ? double.parse(map['checkOrTransf'])
             : null,
-        saleToCredit:
-            map['saleToCredit'] != null ? double.parse(map['saleToCredit']) : null,
-        totalAmount:
-            map['totalAmount'] != null ? double.parse(map['totalAmount']) : null,
-        totalTax: map['totalTax'] != null ? double.parse(map['totalTax']) : null,
+        saleToCredit: map['saleToCredit'] != null
+            ? double.parse(map['saleToCredit'])
+            : null,
+        totalAmount: map['totalAmount'] != null
+            ? double.parse(map['totalAmount'])
+            : null,
+        totalTax:
+            map['totalTax'] != null ? double.parse(map['totalTax']) : null,
         effectiveCount: map['effectiveCount'] != null
-            ? double.parse(map['effectiveCount'] )
+            ? double.parse(map['effectiveCount'])
             : null,
         status: map['status'] != null ? map['status'] as int : null,
         statusName:
@@ -354,11 +398,31 @@ class CashShiftModel {
                 ? jsonDecode(map['denominations'])
                 : map['denominations'])
             : null,
-        effectiveCalc: map['effectiveCalc'] != null?double.parse(map['effectiveCalc']): 0,
+        effectiveCalc: map['effectiveCalc'] != null
+            ? double.parse(map['effectiveCalc'])
+            : 0,
         updatedAt:
             map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
         createdAt:
-            map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null);
+            map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
+        transactionsCount: map['transactionsCount'],
+        transactionsCountElectronic: map['transactionsCountElectronic'],
+        transactionsCountPreventa: map['transactionsCountPreventa'],
+        missingCash: map['missingCash'] != null
+            ? double.parse(map['missingCash'])
+            : 0,
+        effectiveCalcPreventa: map['effectiveCalcPreventa'] != null
+            ? double.parse(map['effectiveCalcPreventa'])
+            : 0,
+        effectiveCalcElectronic: map['effectiveCalcElectronic'] != null
+            ? double.parse(map['effectiveCalcElectronic'])
+            : 0,
+            creditCardCalcPreventa: map['creditCardCalcPreventa'] != null
+                ? double.parse(map['creditCardCalcPreventa'])
+                : 0,
+            creditCardCalcElectronic: map['creditCardCalcElectronic'] != null
+                ? double.parse(map['creditCardCalcElectronic'])
+                : 0);
   }
 
   String toJson() => json.encode(toMap());

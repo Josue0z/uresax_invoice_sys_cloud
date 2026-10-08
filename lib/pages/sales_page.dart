@@ -15,6 +15,7 @@ import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.service.dart';
 import 'package:uresax_invoice_sys_cloud/pages/invoice_generator_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/payments.sales_page.dart';
+import 'package:uresax_invoice_sys_cloud/pages/pos_screen.dart';
 import 'package:uresax_invoice_sys_cloud/pages/table_invoice_generator.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
@@ -68,18 +69,16 @@ class _SalesPageState extends State<SalesPage> {
       'name': 'Ver Reporte de Cajas',
       'icon': './assets/svgs/pdf-file-svgrepo-com.svg'
     },
-
-      {
+    {
       'id': 7,
       'name': 'Ver Reporte Por Conceptos',
       'icon': './assets/svgs/pdf-file-svgrepo-com.svg'
     },
-      {
+    {
       'id': 6,
       'name': 'Ver Reporte de Deudas por Cliente',
       'icon': './assets/svgs/pdf-file-svgrepo-com.svg'
     },
-    
   ];
 
   String? ncfTypeId;
@@ -128,7 +127,7 @@ class _SalesPageState extends State<SalesPage> {
     showLoader(context);
     try {
       var items = await sale.getSaleData();
-   
+
       sale.items = items;
 
       pw.Document doc;
@@ -144,22 +143,20 @@ class _SalesPageState extends State<SalesPage> {
 
       var file = File(path.join(
           dir.path,
-          company?.name,
           'VENTAS',
           sale.createdAt?.format(payload: 'YYYYMM'),
           'PDFS',
           '${sale.clientName}-${sale.ncf}-${company?.name}.pdf'));
       await file.create(recursive: true);
       await file.writeAsBytes(bytes);
-      
-  
+
       Navigator.pop(context);
       await OpenFile.open(file.path);
     } catch (e) {
       print(e);
       Navigator.pop(context);
       await LogHandler.printError(e.toString());
-      showTopSnackBar(context, message: e.toString(),color: Colors.red);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
     }
   }
 
@@ -353,8 +350,8 @@ class _SalesPageState extends State<SalesPage> {
     }
   }
 
-  _showReportByConcepts()async{
-       showLoader(context);
+  _showReportByConcepts() async {
+    showLoader(context);
     try {
       var result = await getSalesReportByConcepts(
           startDate: dates.first!,
@@ -395,30 +392,29 @@ class _SalesPageState extends State<SalesPage> {
     sale.items = items;
     dynamic res;
 
-    if(enabledTableInvoiceGenerator){
-     res = await Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (ctx) => TableInvoiceGenerator(
-                editing: true,
-                sale: sale,
-                items: items,
-                mode: sale is SaleService
-                    ? SaleMode.service
-                    : SaleMode.product)));
-    }else{
+    if (enabledTableInvoiceGenerator) {
       res = await Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (ctx) => InvoiceGeneratorPage(
-                editing: true,
-                sale: sale,
-                items: items,
-                mode: sale is SaleService
-                    ? SaleMode.service
-                    : SaleMode.product)));
+          context,
+          MaterialPageRoute(
+              builder: (ctx) => TableInvoiceGenerator(
+                  editing: true,
+                  sale: sale,
+                  items: items,
+                  mode: sale is SaleService
+                      ? SaleMode.service
+                      : SaleMode.product)));
+    } else {
+      res = await Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (ctx) => InvoiceGeneratorPage(
+                  editing: true,
+                  sale: sale,
+                  items: items,
+                  mode: sale is SaleService
+                      ? SaleMode.service
+                      : SaleMode.product)));
     }
-   
 
     if (res == 'UPDATE') {
       setState(() {
@@ -427,8 +423,8 @@ class _SalesPageState extends State<SalesPage> {
     }
   }
 
-  _showReportDebtsOfClients()async{
-     showLoader(context);
+  _showReportDebtsOfClients() async {
+    showLoader(context);
     try {
       var result = await getReportDebtsOfClients(
           startDate: dates.first!,
@@ -477,10 +473,10 @@ class _SalesPageState extends State<SalesPage> {
         _showReportBoxes();
         break;
       case 6:
-      _showReportDebtsOfClients();
+        _showReportDebtsOfClients();
       case 7:
-      _showReportByConcepts();
-      break;
+        _showReportByConcepts();
+        break;
       default:
     }
   }
@@ -488,13 +484,32 @@ class _SalesPageState extends State<SalesPage> {
   _generateXmlFile(Sale sale) async {
     try {
       var dir = await getUresaxInvoiceDir();
-      var file = File(path.join(dir.path, company?.name, 'VENTAS',
-          sale.createdAt?.format(payload: 'YYYYMM'), 'XML', '${sale.clientIdentification}${sale.ncf}.xml'));
+      var file = File(path.join(
+          dir.path,
+          'VENTAS',
+          sale.createdAt?.format(payload: 'YYYYMM'),
+          'XML',
+          '${sale.clientIdentification}${sale.ncf}.xml'));
       await file.create(recursive: true);
       await file.writeAsString(sale.ecfXmlFirmado ?? '');
 
       await OpenFile.open(file.path);
     } catch (e) {
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+  _openInvoiceFolder(Sale sale) async {
+    showLoader(context);
+    try {
+      var dir = await getUresaxInvoiceDir();
+
+      var folderPath = path.join(dir.path, 'VENTAS',
+          sale.createdAt?.format(payload: 'YYYYMM'), 'PDFS');
+      Navigator.pop(context);
+      await launchFile(folderPath);
+    } catch (e) {
+      Navigator.pop(context);
       showTopSnackBar(context, message: e.toString(), color: Colors.red);
     }
   }
@@ -534,25 +549,52 @@ class _SalesPageState extends State<SalesPage> {
           break;
 
         case 7:
-          showLoader(context);
           var items = await sale.getSaleData();
-          Navigator.pop(context);
           sale.items = items;
-          await Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (ctx) => InvoiceGeneratorPage(
-                      sale: sale,
-                      items: items,
-                      editing: false,
-                      generateNcfFromProforma: true,
-                      mode: sale is SaleProduct
-                          ? SaleMode.product
-                          : SaleMode.service)));
-          await LogHandler.printEvent(
-              'SE PRE-GENERO UNA FACTURA FISCAL DESDE UNA PROFORMA - ${sale.ncf}');
 
+          dynamic res;
+          if (enabledTableInvoiceGenerator) {
+            res = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (ctx) => TableInvoiceGenerator(
+                        editing: false,
+                        generateNcfFromProforma: true,
+                        sale: sale,
+                        items: items,
+                        mode: sale is SaleService
+                            ? SaleMode.service
+                            : SaleMode.product)));
+          } else if (enabledInvoiceSimpleGenerator) {
+            res = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (ctx) => PosScreenPage(
+                        sale: sale,
+                        items: items,
+                        editing: false,
+                        generateNcfFromProforma: true,
+                        mode: sale is SaleProduct
+                            ? SaleMode.product
+                            : SaleMode.service)));
+          } else {
+            res = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (ctx) => InvoiceGeneratorPage(
+                        editing: false,
+                        sale: sale,
+                        items: items,
+                        generateNcfFromProforma: true,
+                        mode: sale is SaleService
+                            ? SaleMode.service
+                            : SaleMode.product)));
+          }
+
+        case 8:
+          _openInvoiceFolder(sale);
           break;
+
         default:
       }
     } catch (e) {
@@ -563,120 +605,207 @@ class _SalesPageState extends State<SalesPage> {
     }
   }
 
+  Map<String, double> get totalSales {
+    Map<String, double> map = {};
+    var xtotal = 0.0;
+    var xtax = 0.0;
+    for (int i = 0; i < sales.length; i++) {
+      var sale = sales[i];
+      var rate = sale.rate ?? 1;
+      var retentionTax = sale.retentionTax ?? 0;
+      var retentionIsr = sale.retentionIsr ?? 0;
+      var total = sale.total ?? 0;
+
+      if (sale.ncfTypeId != '41') {
+        if (sale.ncfTypeId != '43') {
+          xtotal += (total - (retentionTax + retentionIsr)) * rate;
+          xtax += (sale.tax ?? 0) * rate;
+        }
+      }
+    }
+    map['total'] = xtotal;
+    map['tax'] = xtax;
+    return map;
+  }
+
   Widget get contentFilled {
-    return ScrollMoveEventWidget(
-        scrollControllerY: scrollControllerY,
-        child: ListView.separated(
-            controller: scrollControllerY,
-            separatorBuilder: (ctx, i) => const Divider(),
-            itemCount: sales.length,
-            itemBuilder: (ctx, index) {
-              var sale = sales[index];
-
-              List<Map<String, dynamic>> salesOptions = [
-                {'id': 1, 'name': 'Ver Factura'},
-                {'id': 2, 'name': 'Ver pagos'},
-              ];
-
-              if (sale.debt! > 0) {
-                if (allowEditInvoice) {
-                  salesOptions.add({'id': 4, 'name': 'Editar Factura'});
-                }
-              }
-
-              if (sale.ecfXmlFirmado != null) {
-                salesOptions.add(
-                    {'id': 5, 'name': 'Generar Archivo XML del ${sale.ncf}'});
-              }
-
-              if (eCommerceMode) {
-                salesOptions.add({'id': 6, 'name': 'Imprimir factura'});
-              }
-
-              if (sale.ncfTypeId == '50') {
-                salesOptions.add({'id': 7, 'name': 'Generar Factura Fiscal'});
-              }
-
-              return ListTile(
-                key: ValueKey(sale.id),
-                minVerticalPadding: kDefaultPadding,
-                leading: Container(
-                  width: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(90),
-                    color: Theme.of(context).primaryColor.withOpacity(0.04),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.receipt_long_outlined,
-                      color: Theme.of(context).primaryColor,
-                      size: 24,
-                    ),
-                  ),
-                ),
-                title: Text(sale.ncf ?? '',
-                    style: Theme.of(context).textTheme.bodyMedium),
-                subtitle: Text('${sale.clientName}\n${sale.createdAt?.format(payload:'DD/MM/YYYY')}'),
-                trailing: Wrap(
-                  runAlignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      children: [
+        currentUser!.permissions!.contains('ALLOW_VIEW_SALES_TOTALS')
+            ? Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: kDefaultPadding * 1.5,
+                    vertical: kDefaultPadding * 0.6),
+                decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Colors.black12))),
+                child: Row(
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(kDefaultPadding / 2),
-                      decoration: BoxDecoration(
-                        color: sale.color.withOpacity(0.04),
-                      ),
-                      child: Text(
-                        sale.paidLabel,
-                        style: TextStyle(color: sale.color, fontSize: 18),
-                      ),
-                    ),
-                    SizedBox(width: kDefaultPadding),
-                    sale.estadoDgii != null
-                        ? Container(
-                            margin: EdgeInsets.only(
-                                left: kDefaultPadding / 2,
-                                right: kDefaultPadding),
-                            padding: EdgeInsets.all(kDefaultPadding / 2),
-                            decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                color: sale.statusColorDgii.withOpacity(0.04)),
-                            child: Text(
-                              sale.estadoDgiiNombre ?? '',
-                              style: TextStyle(color: sale.statusColorDgii),
-                            ),
-                          )
-                        : SizedBox(),
                     Text(
-                        sale.currencyId == 1
-                            ? sale.total?.toDop()
-                            : sale.total?.toUS(),
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    SizedBox(width: kDefaultPadding),
-                    PopupMenuButton<int>(
-                      onSelected: (option) =>
-                          _onSelectedSaleOption(option, sale),
-                      itemBuilder: (ctx) {
-                        return List.generate(salesOptions.length * 2 - 1,
-                            (index) {
-                          if (index.isOdd) {
-                            // cada índice impar será un divisor
-                            return const PopupMenuDivider();
-                          } else {
-                            var option = salesOptions[index ~/ 2];
-                            return PopupMenuItem<int>(
-                              value: option['id'],
-                              child: Text(option['name']),
-                            );
-                          }
-                        });
-                      },
+                      'TOTAL A RECIBIR:',
+                      style: TextStyle(
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 17),
                     ),
-                    SizedBox(width: kDefaultPadding),
+                    SizedBox(
+                      width: kDefaultPadding * 0.6,
+                    ),
+                    Text(totalSales['total']?.toDop(),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black54,
+                            fontSize: 17)),
+                    SizedBox(
+                      width: kDefaultPadding * 0.6,
+                    ),
+                    Text(
+                      'ITBIS FACTURADO:',
+                      style: TextStyle(
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 17),
+                    ),
+                    SizedBox(
+                      width: kDefaultPadding * 0.6,
+                    ),
+                    Text(totalSales['tax']?.toDop(),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black54,
+                            fontSize: 17))
                   ],
                 ),
-              );
-            }));
+              )
+            : SizedBox(),
+        Expanded(
+            child: ScrollMoveEventWidget(
+                scrollControllerY: scrollControllerY,
+                child: ListView.separated(
+                    controller: scrollControllerY,
+                    separatorBuilder: (ctx, i) => const Divider(),
+                    itemCount: sales.length,
+                    itemBuilder: (ctx, index) {
+                      var sale = sales[index];
+
+                      List<Map<String, dynamic>> salesOptions = [
+                        {'id': 1, 'name': 'Ver Factura'},
+                        {'id': 2, 'name': 'Ver pagos'},
+                      ];
+
+                      if (sale.debt! > 0) {
+                        if (allowEditInvoice) {
+                          salesOptions.add({'id': 4, 'name': 'Editar Factura'});
+                        }
+                      }
+
+                      if (sale.ecfXmlFirmado != null) {
+                        salesOptions.add({
+                          'id': 5,
+                          'name': 'Generar Archivo XML del ${sale.ncf}'
+                        });
+                      }
+
+                      if (eCommerceMode) {
+                        salesOptions.add({'id': 6, 'name': 'Imprimir factura'});
+                      }
+
+                      if (sale.ncfTypeId == '50' || sale.ncfTypeId == '60') {
+                        salesOptions
+                            .add({'id': 7, 'name': 'Generar Factura Fiscal'});
+                      }
+
+                      salesOptions
+                          .add({'id': 8, 'name': 'Abrir carpeta de factura'});
+
+                      return ListTile(
+                        key: ValueKey(sale.id),
+                        minVerticalPadding: kDefaultPadding / 2,
+                        leading: Container(
+                          width: 80,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(90),
+                            color: Theme.of(context)
+                                .primaryColor
+                                .withOpacity(0.04),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              Icons.receipt_long_outlined,
+                              color: Theme.of(context).primaryColor,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                        title: Text(sale.ncf ?? '',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        subtitle: Text(
+                            '${sale.brancheName != null ? '${sale.brancheName}\n': ''}${sale.clientName}\n${sale.createdAt?.format(payload: 'DD/MM/YYYY')}'),
+                        trailing: Wrap(
+                          runAlignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(kDefaultPadding / 2),
+                              decoration: BoxDecoration(
+                                color: sale.color.withOpacity(0.04),
+                              ),
+                              child: Text(
+                                sale.paidLabel,
+                                style:
+                                    TextStyle(color: sale.color, fontSize: 18),
+                              ),
+                            ),
+                            SizedBox(width: kDefaultPadding),
+                            sale.estadoDgii != null
+                                ? Container(
+                                    margin: EdgeInsets.only(
+                                        left: kDefaultPadding / 2,
+                                        right: kDefaultPadding),
+                                    padding:
+                                        EdgeInsets.all(kDefaultPadding / 2),
+                                    decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(20),
+                                        color: sale.statusColorDgii
+                                            .withOpacity(0.04)),
+                                    child: Text(
+                                      sale.estadoDgiiNombre ?? '',
+                                      style: TextStyle(
+                                          color: sale.statusColorDgii),
+                                    ),
+                                  )
+                                : SizedBox(),
+                            Text(
+                                sale.currencyId == 1
+                                    ? sale.total?.toDop()
+                                    : sale.total?.toUS(),
+                                style: Theme.of(context).textTheme.bodyMedium),
+                            SizedBox(width: kDefaultPadding),
+                            PopupMenuButton<int>(
+                              onSelected: (option) =>
+                                  _onSelectedSaleOption(option, sale),
+                              itemBuilder: (ctx) {
+                                return List.generate(
+                                    salesOptions.length * 2 - 1, (index) {
+                                  if (index.isOdd) {
+                                    // cada índice impar será un divisor
+                                    return const PopupMenuDivider();
+                                  } else {
+                                    var option = salesOptions[index ~/ 2];
+                                    return PopupMenuItem<int>(
+                                      value: option['id'],
+                                      child: Text(option['name']),
+                                    );
+                                  }
+                                });
+                              },
+                            ),
+                            SizedBox(width: kDefaultPadding),
+                          ],
+                        ),
+                      );
+                    })))
+      ],
+    );
   }
 
   Widget get contentLoading {
@@ -699,10 +828,29 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   @override
+  initState() {
+    if (!mounted) return;
+
+    if(enabledFilterInvoicesByDay){
+      dates = [
+        DateTime.now().startOfDay(),
+        DateTime(startDate.year, startDate.month, startDate.day, 23, 59, 59)
+            .endOfDay()
+      ];
+    }
+    setState(() {
+      
+      future = _initAsync();
+    });
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
           title: Text('TUS FACTURAS (${sales.length})'),
+          toolbarHeight: kToolbarHeight + 50,
           actions: [
             Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -741,8 +889,10 @@ class _SalesPageState extends State<SalesPage> {
                   width: 290,
                   child: DateRangeWidget(
                       dates: dates,
+                      onInitRender: false,
                       onChanged: (xdates) async {
                         dates = xdates;
+
                         dates = [
                           xdates.first,
                           xdates.last!.copyWith(
@@ -766,30 +916,32 @@ class _SalesPageState extends State<SalesPage> {
                 SizedBox(
                   width: kDefaultPadding,
                 ),
-                currentUser!.permissions!.contains('ALLOW_VIEW_MENU_SALES_REPORTS') ?
-                PopupMenuButton<int>(
-                    onSelected: _onSelectedOption,
-                    itemBuilder: (ctx) {
-                      return List.generate(options.length * 2 - 1, (index) {
-                        var item = options[index ~/ 2];
-                        if (index.isOdd) {
-                          return PopupMenuDivider();
-                        } else {
-                          return PopupMenuItem(
-                              value: item['id'],
-                              child: Row(
-                                children: [
-                                  SvgPicture.asset(item['icon'],
-                                      width: 30, height: 30),
-                                  SizedBox(
-                                    width: kDefaultPadding / 2,
-                                  ),
-                                  Expanded(child: Text(item['name']))
-                                ],
-                              ));
-                        }
-                      });
-                    }) :SizedBox(),
+                currentUser!.permissions!
+                        .contains('ALLOW_VIEW_MENU_SALES_REPORTS')
+                    ? PopupMenuButton<int>(
+                        onSelected: _onSelectedOption,
+                        itemBuilder: (ctx) {
+                          return List.generate(options.length * 2 - 1, (index) {
+                            var item = options[index ~/ 2];
+                            if (index.isOdd) {
+                              return PopupMenuDivider();
+                            } else {
+                              return PopupMenuItem(
+                                  value: item['id'],
+                                  child: Row(
+                                    children: [
+                                      SvgPicture.asset(item['icon'],
+                                          width: 30, height: 30),
+                                      SizedBox(
+                                        width: kDefaultPadding / 2,
+                                      ),
+                                      Expanded(child: Text(item['name']))
+                                    ],
+                                  ));
+                            }
+                          });
+                        })
+                    : SizedBox(),
                 SizedBox(
                   width: kDefaultPadding,
                 ),

@@ -66,6 +66,7 @@ class TableInvoiceGenerator extends StatefulWidget {
 
 class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   List<List<TextEditingController>> controllers = [];
+  List<Timer?> rowDebounces = [];
   List<List<FocusNode>> focusNodes = [];
   final ScrollController _verticalScrollController = ScrollController();
   FocusNode keyboardFocus = FocusNode();
@@ -84,6 +85,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
   TextEditingController clientName = TextEditingController();
   TextEditingController rncOrId = TextEditingController();
+  TextEditingController creditCardDescription = TextEditingController();
+  FocusNode creditCardDescriptionFocus = FocusNode(skipTraversal: false);
   TaxPayer? taxPayer;
   Client? client;
   String? currentTypeIncomeId = '01';
@@ -118,6 +121,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   AmountInputFormatter amountInputFormatter =
       AmountInputFormatter(fractionalDigits: 2);
   TextEditingController amount = TextEditingController();
+
+  FocusNode amountFocus = FocusNode(skipTraversal: false);
   Sale? _currentSale;
   double creditNoteTotal = 0;
 
@@ -131,6 +136,10 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
   final ScrollController _scrollController = ScrollController();
   final ScrollController _scrollController2 = ScrollController();
+
+  int? get brancheId {
+    return int.tryParse(localStorage.getItem('URESAX_INVOICE_BRANCHE_ID_${company?.id}') ?? 'x');
+  }
 
   List<Map<String, dynamic>> law10Modes = [
     {'id': 1, 'value': null, 'name': 'MONTO PROPINA LEGAL'},
@@ -282,6 +291,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
     try {
       amount.text = '';
       amountInputFormatter.clear();
+      creditCardDescription.clear();
+      transfRef.clear();
+      rate.clear();
       widget.sale.amountPaid = 0;
       description.text = '';
       retentionDate = null;
@@ -394,6 +406,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
           focusNodes = [List.generate(columns.length, (_) => FocusNode())];
 
+          rowDebounces = List.generate(widget.items.length, (_) => null);
+
           // mover foco a la nueva fila, primera columna
           x = widget.items.length - 1;
           y = 0;
@@ -405,6 +419,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
           widget.items = [];
           controllers = [];
           focusNodes = [];
+          rowDebounces = [];
         }
       });
 
@@ -477,6 +492,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
               priceItem: item.priceItem,
               discountId: item.discountId,
               discount: item.discount,
+              discountRate:item.discountRate,
+              discountSymbol: item.discountSymbol,
               retentionIsrId: null,
               retentionIsr: 0,
               retentionTaxId: null,
@@ -505,6 +522,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
               price: item.price,
               priceItem: item.priceItem,
               discount: item.discount,
+              discountRate:item.discountRate,
+              discountSymbol: item.discountSymbol,
               retentionIsrId: item.retentionIsrId,
               retentionIsr: item.retentionIsr,
               retentionTaxId: item.retentionTaxId,
@@ -561,7 +580,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
           law10 = item.law10 ?? 0;
 
           if (item.discountSymbol == '%') {
-            discount = (item.discountRate! / 100) * priceAmountx;
+            discount = ((item.discountRate?? 1) / 100) * priceAmountx;
           }
 
           if (item.discountSymbol == '\$') {
@@ -587,6 +606,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
               law10: law10,
               taxId: type,
               discount: item.discount,
+              discountRate:item.discountRate,
+              discountSymbol: item.discountSymbol,
               retentionTaxId: item.retentionTaxId,
               retentionTax: item.retentionTax,
               retentionIsrId: item.retentionIsrId,
@@ -599,7 +620,12 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
           widget.items[i] = newItem;
         }
+
+
       }
+
+
+
 
       setState(() {
         widget.items = List.from(widget.items);
@@ -664,6 +690,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
       focusNodes.add(
           List.generate(columns.length, (_) => FocusNode(skipTraversal: true)));
 
+      rowDebounces = List.generate(widget.items.length, (_) => null);
+
       // mover foco a la nueva fila, primera columna
       x = widget.items.length - 1;
       y = 0;
@@ -674,7 +702,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   }
 
   void deleteRow(int rowIndex) {
-    if (rowIndex > 0 && rowIndex < widget.items.length) {
+    if (rowIndex == 0 && widget.items.length == 1) return;
+    if (rowIndex < widget.items.length) {
       setState(() {
         widget.items.removeAt(rowIndex);
 
@@ -718,6 +747,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
           widget.items.removeAt(i);
           controllers.removeAt(i);
           focusNodes.removeAt(i);
+          rowDebounces.removeAt(i);
         }
       }
 
@@ -894,59 +924,61 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   Timer? timer;
 
   String? get currentTurnoId {
-    return localStorage.getItem('currentTurnoId');
+    return localStorage.getItem('currentTurnoId_$currentInstanceId');
   }
 
-int getPeriodIdByHour(DateTime now) {
-  if (now.hour >= 6 && now.hour < 11) {
-    return 1; // Mañana
-  } else if (now.hour >= 11 && now.hour < 19) {
-    return 2; // Tarde
-  } else {
-    return 3; // Noche
+  int getPeriodIdByHour(DateTime now) {
+    if (now.hour >= 6 && now.hour < 12) {
+      return 1; // Mañana
+    } else if (now.hour >= 12 && now.hour < 19) {
+      return 2; // Tarde
+    } else {
+      return 3; // Noche
+    }
   }
-}
 
   Future<void> validatePeriod() async {
-    var cashshift = CashShiftModel(
-      createdBy: currentUser?.id,
-      boxId: currentUser?.boxId
-    );
+    var cashshift =
+        CashShiftModel(createdBy: currentUser?.id, boxId: currentUser?.boxId);
     int currentPeriodId = getPeriodIdByHour(DateTime.now());
 
-    int oldPeriodId = int.tryParse(localStorage.getItem('oldPeriodId') ?? 'x') ?? -1;
+    int oldPeriodId =
+        int.tryParse(localStorage.getItem('oldPeriodId_$currentInstanceId') ?? 'x') ?? -1;
 
     if (currentPeriodId != oldPeriodId) {
       // Evitar conflicto si ya hay otro modal abierto (ej. loader)
       if (!isDialogOpen) {
         isDialogOpen = true;
-     
+
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (_) => OpenShiftModal(
             periodId: currentPeriodId,
             onConfirm: (openingAmount, description) async {
-              try{
-                 // Cerrar turno anterior y abrir nuevo
-              showLoader(context);
-            
-              await CashShiftModel.closeCashShiftTurno(
-                  id: currentTurnoId ?? 'x');
-              cashshift.periodId = currentPeriodId;
-              cashshift.description = description;
-              cashshift.openingAmount = openingAmount;
-              cashshift.createdAt = DateTime.now();
-              var newCashShift = await cashshift.openCashShift();
-              localStorage.setItem('currentTurnoId', newCashShift?.id ?? '');
-              localStorage.setItem('oldPeriodId', currentPeriodId.toString());
-              Navigator.pop(context);
-              Navigator.pop(context);
-              showTopSnackBar(context, message: 'TURNO ${newCashShift?.cashShiftNumber} CREADO!',color: Colors.green);
-              isDialogOpen = false;
-              }catch(e){
-                 Navigator.pop(context);
-                 showTopSnackBar(context, message: e.toString(),color: Colors.red);
+              try {
+                // Cerrar turno anterior y abrir nuevo
+                showLoader(context);
+
+                await CashShiftModel.closeCashShiftTurno(
+                    id: currentTurnoId ?? 'x');
+                cashshift.periodId = currentPeriodId;
+                cashshift.description = description;
+                cashshift.openingAmount = openingAmount;
+                cashshift.createdAt = DateTime.now();
+                var newCashShift = await cashshift.openCashShift();
+                localStorage.setItem('currentTurnoId_$currentInstanceId', newCashShift?.id ?? '');
+                localStorage.setItem('oldPeriodId_$currentInstanceId', currentPeriodId.toString());
+                Navigator.pop(context);
+                Navigator.pop(context);
+                showTopSnackBar(context,
+                    message: 'TURNO ${newCashShift?.cashShiftNumber} CREADO!',
+                    color: Colors.green);
+                isDialogOpen = false;
+              } catch (e) {
+                Navigator.pop(context);
+                showTopSnackBar(context,
+                    message: e.toString(), color: Colors.red);
               }
             },
           ),
@@ -958,7 +990,7 @@ int getPeriodIdByHour(DateTime now) {
   @override
   void initState() {
     if (!mounted) return;
-  
+
     var now = DateTime.now();
     var dateLocal = now;
 
@@ -995,6 +1027,7 @@ int getPeriodIdByHour(DateTime now) {
           .add(List.generate(columns.length, (_) => TextEditingController()));
       focusNodes.add(
           List.generate(columns.length, (_) => FocusNode(skipTraversal: true)));
+      rowDebounces = List.generate(widget.items.length, (_) => null);
 
       // mover foco a la nueva fila, primera columna
       x = widget.items.length - 1;
@@ -1078,7 +1111,7 @@ int getPeriodIdByHour(DateTime now) {
           currentNcfTypeId = '32';
         }
       }
-      currentCurrencyId = 1;
+      currentCurrencyId = widget.sale.currencyId ?? 1;
       currentPaymentMethodId = 1;
       currentPaymentModeId = 3;
       currentPaymentType = 1;
@@ -1114,24 +1147,24 @@ int getPeriodIdByHour(DateTime now) {
       _initAsync();
     });
 
-    Future.delayed(const Duration(milliseconds: 660),(){
+    if(widget.editing == false){
+       Future.delayed(const Duration(milliseconds: 660), () {
       validatePeriod();
     });
 
-    timer =  Timer.periodic(Duration(minutes: 5), (timer) {
+    timer = Timer.periodic(Duration(minutes: 5), (timer) {
       validatePeriod();
     });
+    }
 
     super.initState();
   }
-  
+
   @override
-  void dispose(){
+  void dispose() {
     timer?.cancel();
     super.dispose();
   }
-
-  
 
   double get montoAPagarReferencia {
     return (_calc['paidAmount'] ?? 0);
@@ -1258,8 +1291,7 @@ int getPeriodIdByHour(DateTime now) {
 
   _preConfirm() async {
     if (_formKey.currentState!.validate()) {
-      var completed = amountInputFormatter.doubleValue == 0 &&
-          (currentNcfTypeId != '60' && currentNcfTypeId != '50');
+      var completed = amountInputFormatter.doubleValue == 0;
 
       if (completed) {
         amount.value = amountInputFormatter.formatEditUpdate(
@@ -1298,7 +1330,7 @@ int getPeriodIdByHour(DateTime now) {
         createdAt = now;
 
         widget.sale.ncfTypeId = currentNcfTypeId;
-        widget.sale.cashShiftId = currentTurnoId;
+
         widget.sale.items = widget.items;
         widget.sale.net = _calc['net'];
         widget.sale.discount = _calc['discount'];
@@ -1310,7 +1342,7 @@ int getPeriodIdByHour(DateTime now) {
         widget.sale.clientId = client?.id ?? taxPayer?.taxPayerId;
         widget.sale.clientIdentification = rncOrId.text.replaceAll('-', '');
         widget.sale.typeIncomeId = currentTypeIncomeId;
-        widget.sale.description = description.text;
+        widget.sale.description = description.text.isEmpty ? null : description.text;
         widget.sale.clientName = clientName.text;
         widget.sale.retentionDate = retentionDate;
         widget.sale.currencyId = currentCurrencyId;
@@ -1331,6 +1363,10 @@ int getPeriodIdByHour(DateTime now) {
         widget.sale.coinBack = 0;
         widget.sale.paymentDate = paymentDate;
         widget.sale.ncfListId = ncfList?.id;
+        widget.sale.creditCardDescription = creditCardDescription.text.isEmpty
+            ? null
+            : creditCardDescription.text;
+        widget.sale.brancheId = brancheId;
         if (ncfList == null) {
           throw 'NO TIENE SECUENCIA REGISTRADA PARA EL COMPROBANTE TIPO: $currentNcfTypeId';
         }
@@ -1360,10 +1396,10 @@ int getPeriodIdByHour(DateTime now) {
           amount = 0;
         }
 
-        if (currentNcfTypeId == '60' || currentNcfTypeId == '50') {
+        /*if (currentNcfTypeId == '60' || currentNcfTypeId == '50') {
           amountx = 0;
           amount = 0;
-        }
+        }*/
 
         if (rate.text.isNotEmpty) {
           widget.sale.rate = double.tryParse(rate.text);
@@ -1413,6 +1449,16 @@ int getPeriodIdByHour(DateTime now) {
         } else {
           widget.sale.prefix = 'B';
           widget.sale.maxSequence = 8;
+        }
+
+        if (allowOnlyCashShiftElectronic == true) {
+          if (widget.sale.prefix == 'E') {
+            widget.sale.cashShiftId = currentTurnoId;
+          } else {
+            widget.sale.cashShiftId = null;
+          }
+        } else {
+          widget.sale.cashShiftId = currentTurnoId;
         }
 
         if (widget.sale.prefix == 'E') {
@@ -1563,18 +1609,20 @@ int getPeriodIdByHour(DateTime now) {
         }
 
         if (noEsElectronico) {
-          if (widget.sale is SaleProduct) {
-            await Products.updateMinusStock(
-                items: sale!.items, ncfTypeId: sale.ncfTypeId!);
-            await LogHandler.printEvent(
-                'EL STOCK FUE ACTUALIZADO - ${sale.ncf}');
-          }
+          if (widget.generateNcfFromProforma == false) {
+            if (widget.sale is SaleProduct) {
+              await Products.updateMinusStock(
+                  items: sale!.items, ncfTypeId: sale.ncfTypeId!);
+              await LogHandler.printEvent(
+                  'EL STOCK FUE ACTUALIZADO - ${sale.ncf}');
+            }
 
-          if (widget.sale is CreditNoteAsProduct) {
-            await Products.updateAddStock(
-                items: sale!.items, ncfTypeId: sale.ncfTypeId!);
-            await LogHandler.printEvent(
-                'EL STOCK FUE ACTUALIZADO - ${sale.ncf}');
+            if (widget.sale is CreditNoteAsProduct) {
+              await Products.updateAddStock(
+                  items: sale!.items, ncfTypeId: sale.ncfTypeId!);
+              await LogHandler.printEvent(
+                  'EL STOCK FUE ACTUALIZADO - ${sale.ncf}');
+            }
           }
         }
 
@@ -1593,6 +1641,18 @@ int getPeriodIdByHour(DateTime now) {
         showTopSnackBar(context,
             message: widget.editing ? 'FACTURA EDITADA' : 'FACTURA CREADA',
             color: Colors.green);
+
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('DEVUELTA: ${sale?.coinBack?.abs().toDop()}'),
+          duration: Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'CERRAR',
+            textColor: Theme.of(context).primaryColor,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ));
       } catch (e) {
         _reset();
         await LogHandler.printEvent(e.toString());
@@ -1773,11 +1833,14 @@ int getPeriodIdByHour(DateTime now) {
         }
       }
     }
+    
+
 
     double xquantity = double.tryParse(count.text) ?? quantity;
 
     double price =
         xelement?.price ?? double.tryParse(priceController.text) ?? 0;
+
 
     double priceAmountx = price * xquantity;
     double net = price;
@@ -1825,11 +1888,15 @@ int getPeriodIdByHour(DateTime now) {
       if (discountId != null) {
         var d = 0.0;
         if (xelement?.discountSymbol == '%') {
+          rate = xelement?.discountRate;
           d = (xelement?.discountRate ?? 0) / 100;
           discount = d * net;
+          discountSymbol = '%';
         } else {
+          rate = xelement?.discountRate;
           d = xelement?.discountRate ?? 0;
           discount = d;
+          discountSymbol = '\$';
         }
       }
       netFinal = net - discount;
@@ -1848,11 +1915,15 @@ int getPeriodIdByHour(DateTime now) {
       if (discountId != null) {
         var d = 0.0;
         if (xelement?.discountSymbol == '%') {
+          rate = xelement?.discountRate;
           d = (xelement?.discountRate ?? 0) / 100;
           discount = d * net;
+          discountSymbol = '%';
         } else {
+          rate = xelement?.discountRate;
           d = xelement?.discountRate ?? 0;
           discount = d;
+          discountSymbol = '\$';
         }
       }
       netFinal = net - discount;
@@ -1869,11 +1940,15 @@ int getPeriodIdByHour(DateTime now) {
       if (discountId != null) {
         var d = 0.0;
         if (xelement?.discountSymbol == '%') {
+          rate = xelement?.discountRate;
           d = (xelement?.discountRate ?? 0) / 100;
           discount = d * net;
+          discountSymbol = '%';
         } else {
+          rate = xelement?.discountRate;
           d = xelement?.discountRate ?? 0;
           discount = d;
+          discountSymbol = '\$';
         }
       }
       netFinal = net - discount;
@@ -1916,7 +1991,10 @@ int getPeriodIdByHour(DateTime now) {
     total = netFinal + tax + law10;
 
     if (enabledRender) {
-      description.text = element?.name ?? '';
+      description.text = element?.name ??
+          item.productName ??
+          item.serviceName ??
+          description.text;
       count.text = xquantity.toStringAsFixed(2);
     }
 
@@ -1983,15 +2061,26 @@ int getPeriodIdByHour(DateTime now) {
     var count = controllers[rowIndex][2];
     var price = controllers[rowIndex][3];
     SaleElement? element;
+
     try {
       count.text = '1.00';
 
       if (code.length >= 3) {
         if (widget.mode == SaleMode.product) {
-          element = await Products.findByCode(code: code.trim());
+          element = await Products.findByCode(
+              code: code
+                  .trim()
+                  .replaceAll('/', '%2F')
+                  .replaceAll('?', '%3F')
+                  .replaceAll(':', '%3A'));
         }
         if (widget.mode == SaleMode.service) {
-          element = await Services.findByCode(code: code.trim());
+          element = await Services.findByCode(
+              code: code
+                  .trim()
+                  .replaceAll('/', '%2F')
+                  .replaceAll('?', '%3F')
+                  .replaceAll(':', '%3A'));
         }
       } else {
         element = null;
@@ -2084,6 +2173,7 @@ int getPeriodIdByHour(DateTime now) {
         c5.text = e.tax?.toStringAsFixed(2) ?? '';
         c6.text = e.total?.toStringAsFixed(2) ?? '';
 
+   
         return e is SaleItemService
             ? CreditNoteService(
                 id: e.id,
@@ -2329,12 +2419,19 @@ int getPeriodIdByHour(DateTime now) {
                                                     offsets[0] = x;
                                                     offsets[1] = y;
                                                   },
-                                                  onChanged: (code) =>
+                                                  onChanged: (code) {
+                                                    rowDebounces[index]
+                                                        ?.cancel();
+                                                    rowDebounces[index] = Timer(
+                                                        const Duration(
+                                                            milliseconds: 100),
+                                                        () {
                                                       _onHandlerCode(
-                                                          code, index),
+                                                          code, index);
+                                                    });
+                                                  },
                                                   textInputAction:
                                                       TextInputAction.none,
-                                               
                                                   keyboardType:
                                                       TextInputType.text,
                                                   decoration: InputDecoration(
@@ -2386,7 +2483,8 @@ int getPeriodIdByHour(DateTime now) {
                                                       readOnly: esNotaCredito ||
                                                           widget
                                                               .generateNcfFromProforma ||
-                                                          widget.editing,
+                                                          widget.editing ||
+                                                          row.editable == false,
                                                       onTap: () {
                                                         x = index;
                                                         y = 1;
@@ -2828,10 +2926,8 @@ int getPeriodIdByHour(DateTime now) {
                                             if (event is KeyDownEvent) {
                                               if (event.logicalKey ==
                                                   LogicalKeyboardKey.enter) {
-                                                FocusScope.of(context)
-                                                    .nextFocus();
-                                                FocusScope.of(context)
-                                                    .nextFocus();
+                                                    amountFocus.requestFocus();
+
                                                 return KeyEventResult.handled;
                                               }
                                             }
@@ -3034,83 +3130,95 @@ int getPeriodIdByHour(DateTime now) {
                                     ),
                                   ),
                                   const Divider(),
-                                  Row(children: [
-                                    Expanded(
-                                        child: Container(
-                                            margin: EdgeInsets.symmetric(
-                                                vertical: kDefaultPadding / 3),
-                                            child: DropdownButtonFormField<
-                                                    int?>(
-                                                focusNode: FocusNode(
-                                                    skipTraversal: true),
-                                                initialValue: currentCurrencyId,
-                                                validator: (val) => val == null
-                                                    ? 'CAMPO OBLIGATORIO'
-                                                    : null,
-                                                isExpanded: true,
-                                                decoration: InputDecoration(
-                                                    isDense: true,
-                                                    labelText: 'MONEDA'),
-                                                items: List.generate(
-                                                    currencies.length, (index) {
-                                                  var currency =
-                                                      currencies[index];
-                                                  return DropdownMenuItem(
-                                                      value: currency.id,
-                                                      child: Text(
-                                                          currency.name ??
-                                                              ' '));
-                                                }),
-                                                onChanged: widget.editing ||
-                                                        esNotaCredito
-                                                    ? null
-                                                    : (option) {
-                                                        currentCurrencyId =
-                                                            option;
-                                                        setState(() {});
-                                                      }))),
-                                    currentCurrencyId == 2 &&
-                                            currentNcfTypeId != '50'
-                                        ? Expanded(
-                                            child: Container(
-                                                margin: EdgeInsets.only(
-                                                    left: kDefaultPadding / 2),
-                                                child: TextFormField(
-                                                  focusNode: FocusNode(
-                                                      skipTraversal: true),
-                                                  key: ValueKey(
-                                                      'editortext_rate'),
-                                                  controller: rate,
-                                                  readOnly: widget.editing ||
-                                                      esNotaCredito,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyMedium,
-                                                  keyboardType: TextInputType
-                                                      .numberWithOptions(
-                                                          decimal: true),
-                                                  inputFormatters: [
-                                                    FilteringTextInputFormatter
-                                                        .allow(
-                                                      RegExp(
-                                                          r'^\d*\.?\d{0,2}$'),
-                                                    ),
-                                                  ],
-                                                  validator: (val) =>
-                                                      val!.isEmpty
+                                  enabledFullGeneratorTableInvoice == false
+                                      ? SizedBox()
+                                      : Row(children: [
+                                          Expanded(
+                                              child: Container(
+                                                  margin: EdgeInsets.symmetric(
+                                                      vertical: kDefaultPadding /
+                                                          3),
+                                                  child: DropdownButtonFormField<
+                                                          int?>(
+                                                      focusNode: FocusNode(
+                                                          skipTraversal: true),
+                                                      initialValue:
+                                                          currentCurrencyId,
+                                                      validator: (val) => val ==
+                                                              null
                                                           ? 'CAMPO OBLIGATORIO'
                                                           : null,
-                                                  onChanged: (_) {
-                                                    setState(() {});
-                                                  },
-                                                  decoration: InputDecoration(
-                                                      isDense: true,
-                                                      labelText:
-                                                          'TASA DE CAMBIO',
-                                                      hintText: '0.00'),
-                                                )))
-                                        : SizedBox(),
-                                  ]),
+                                                      isExpanded: true,
+                                                      decoration:
+                                                          InputDecoration(
+                                                              isDense: true,
+                                                              labelText:
+                                                                  'MONEDA'),
+                                                      items: List.generate(
+                                                          currencies.length,
+                                                          (index) {
+                                                        var currency =
+                                                            currencies[index];
+                                                        return DropdownMenuItem(
+                                                            value: currency.id,
+                                                            child: Text(
+                                                                currency.name ??
+                                                                    ' '));
+                                                      }),
+                                                      onChanged: widget
+                                                                  .editing ||
+                                                              esNotaCredito
+                                                          ? null
+                                                          : (option) {
+                                                              rate.clear();
+                                                              currentCurrencyId =
+                                                                  option;
+                                                              setState(() {});
+                                                            }))),
+                                          currentCurrencyId == 2 &&
+                                                  currentNcfTypeId != '50'
+                                              ? Expanded(
+                                                  child: Container(
+                                                      margin: EdgeInsets.only(
+                                                          left:
+                                                              kDefaultPadding /
+                                                                  2),
+                                                      child: TextFormField(
+                                                        focusNode: FocusNode(
+                                                            skipTraversal:
+                                                                true),
+                                                        key: ValueKey(
+                                                            'editortext_rate'),
+                                                        controller: rate,
+                                                        readOnly:
+                                                            widget.editing ||
+                                                                esNotaCredito,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodyMedium,
+                                                        keyboardType: TextInputType
+                                                            .numberWithOptions(
+                                                                decimal: true),
+                                                        inputFormatters: [
+                                                          FilteringTextInputFormatter
+                                                              .allow(
+                                                            RegExp(
+                                                                r'^\d*\.?\d{0,2}$'),
+                                                          ),
+                                                        ],
+                                                        validator: (val) => val!
+                                                                .isEmpty
+                                                            ? 'CAMPO OBLIGATORIO'
+                                                            : null,
+                                                      
+                                                        decoration: InputDecoration(
+                                                            isDense: true,
+                                                            labelText:
+                                                                'TASA DE CAMBIO',
+                                                            hintText: '0.00'),
+                                                      )))
+                                              : SizedBox(),
+                                        ]),
                                   Row(
                                     children: [
                                       Expanded(
@@ -3141,8 +3249,22 @@ int getPeriodIdByHour(DateTime now) {
                                                                       '')))
                                                       .toList(),
                                                   onChanged: (option) {
+                                                    creditCardDescription
+                                                        .clear();
+                                                    transfRef.clear();
+                                                    amount.clear();
+                                                    amountInputFormatter
+                                                        .clear();
                                                     currentPaymentMethodId =
                                                         option;
+                                                    creditCardDescriptionFocus
+                                                        .requestFocus();
+
+                                                    if (currentPaymentMethodId ==
+                                                        1) {
+                                                      amountFocus
+                                                          .requestFocus();
+                                                    }
 
                                                     if (currentPaymentMethodId ==
                                                         4) {
@@ -3193,7 +3315,9 @@ int getPeriodIdByHour(DateTime now) {
                                       )
                                     ],
                                   ),
-                                  esNotaCredito
+                                  esNotaCredito ||
+                                          enabledFullGeneratorTableInvoice ==
+                                              false
                                       ? SizedBox()
                                       : Container(
                                           margin: EdgeInsets.symmetric(
@@ -3223,11 +3347,34 @@ int getPeriodIdByHour(DateTime now) {
                                                     icon: Icon(
                                                         Icons.calendar_month))),
                                           )),
+                                  currentPaymentMethodId == 2
+                                      ? Container(
+                                          margin: EdgeInsets.only(
+                                              top: kDefaultPadding / 2,
+                                              bottom: kDefaultPadding),
+                                          child: TextFormField(
+                                            controller: creditCardDescription,
+                                            focusNode:
+                                                creditCardDescriptionFocus,
+                                            validator: (val) => val!.isEmpty
+                                                ? 'CAMPO OBLIGATORIO'
+                                                : null,
+                                            onFieldSubmitted: (_) {
+                                              amountFocus.requestFocus();
+                                            },
+                                            decoration: InputDecoration(
+                                                isDense: true,
+                                                labelText:
+                                                    'REFERENCIA DE TARJETA',
+                                                hintText: 'VISA XXXX...'),
+                                          ))
+                                      : Container(),
                                   currentPaymentMethodId == 3
                                       ? Column(
                                           children: [
                                             Container(
                                                 margin: EdgeInsets.only(
+                                                    top: kDefaultPadding / 2,
                                                     bottom: kDefaultPadding),
                                                 child: DropdownButtonFormField(
                                                     focusNode: FocusNode(
@@ -3256,7 +3403,11 @@ int getPeriodIdByHour(DateTime now) {
                                                     bottom: kDefaultPadding),
                                                 child: TextFormField(
                                                   focusNode: FocusNode(
-                                                      skipTraversal: true),
+                                                      skipTraversal: false),
+
+                                                  onFieldSubmitted:(_){
+                                                    amountFocus.requestFocus();
+                                                  },
                                                   key: ValueKey(
                                                       'editortext_bank_ref'),
                                                   controller: transfRef,
@@ -3274,6 +3425,23 @@ int getPeriodIdByHour(DateTime now) {
                                           ],
                                         )
                                       : SizedBox(),
+
+                                  
+                                    enabledInvoiceNotes ? Container(
+
+                                       margin: EdgeInsets.only(
+                                                    bottom: kDefaultPadding),
+                                    child: TextFormField(
+                                      controller: description,
+                                      keyboardType: TextInputType.multiline,
+                                      maxLines: 3,
+                                      decoration: InputDecoration(
+                                        labelText: 'NOTAS',
+                                        hintText: 'Escribir algo...',
+                                        isDense: true
+                                      ),
+                                    ),
+                                    ):SizedBox(),
                                   Row(
                                     children: [
                                       Expanded(
@@ -3322,6 +3490,7 @@ int getPeriodIdByHour(DateTime now) {
                                                             }
                                                           });
                                                         }))),
+
                                       currentPaymentModeId == 2 ||
                                               currentPaymentModeId == 1
                                           ? SizedBox()
@@ -3353,6 +3522,8 @@ int getPeriodIdByHour(DateTime now) {
                                                         },
                                                         child: TextFormField(
                                                           controller: amount,
+                                                          focusNode:
+                                                              amountFocus,
                                                           autofocus: widget
                                                               .generateNcfFromProforma,
                                                           keyboardType:

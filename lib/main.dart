@@ -9,18 +9,28 @@ import 'package:moment_dart/moment_dart.dart';
 import 'package:moment_dart/src/types.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart';
+import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/pages/login_page.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
+import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/startup-loader.dart';
+import 'package:uuid/uuid.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_onscreen_keyboard/flutter_onscreen_keyboard.dart';
 
-void main() async {
+void main(List<String> args) async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
     await windowManager.ensureInitialized();
     await initLocalStorage();
+    await LogHandler.init();
+    currentInstanceId = Uuid().v4();
+    windowManager.addListener(MyWindowListener());
+
+    isTerminal = args.contains('--modo=terminal');
+
+    currentTerminalId = await getMotherboardUUID();
 
     Moment.setGlobalLocalization(
         MomentLocalizations.byLanguage('es', countryCode: 'DO')!);
@@ -36,7 +46,7 @@ void main() async {
     localVersion = packageInfo.version;
 
     pdfrxFlutterInitialize();
-   /* SubscriptionModel.productId =
+    /* SubscriptionModel.productId =
         kDebugMode ? 'PROD-6JV205632W210245R' : 'PROD-6G003192PN109623E';
     SubscriptionModel.clientId = kDebugMode
         ? 'AS1SCEgA8c2TfYDvRyYm7Fyv741whzVsWpkeSjGVyoBACA6FbhG_hi38oe5kwj2lPz8AhHDajiZB4T_5'
@@ -80,17 +90,15 @@ void main() async {
     final sizeWindow = Size(width, height);
 
     WindowOptions windowOptions = WindowOptions(
-        size: sizeWindow,
-        minimumSize: sizeWindow,
-        center: true,
-        title: 'URESAX INVOICE SYS');
+      size: sizeWindow,
+      minimumSize: sizeWindow,
+      center: true,
+      title: 'URESAX INVOICE SYS',
+    );
 
-
-  
     if (dirPath == null) {
       errors.add('URESAX_INVOICE_STATIC_LOCAL_SERVER_PATH,\n');
     }
-
 
     if (errors.isNotEmpty) {
       errors.insert(
@@ -105,6 +113,7 @@ void main() async {
       await windowManager.focus();
       await windowManager.setMinimizable(true);
       await windowManager.setMaximizable(true);
+      await windowManager.setPreventClose(true);
     });
   } catch (e) {
     await FlutterPlatformAlert.playAlertSound();
@@ -133,11 +142,9 @@ class _MyAppState extends State<MyApp> {
 
   _initAsync() async {
     try {
-  
       await Future.delayed(const Duration(seconds: 1));
       loading = false;
     } catch (e) {
-   
       loading = false;
       error = true;
       errorMessage = e.toString();
@@ -184,6 +191,7 @@ class _MyAppState extends State<MyApp> {
     return PlatformMenuBar(
         menus: [PlatformMenuItem(label: 'URESAX INVOICE SYS')],
         child: MaterialApp(
+          navigatorKey: rootScaffoldStateKey,
           title: 'URESAX INVOICE SYS',
           locale: Locale('es', 'ES'),
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -365,6 +373,45 @@ class EsDO extends MomentLocalization {
       return 'hace ${duration.inHours.abs()} horas';
     } else {
       return 'hace ${duration.inDays.abs()} días';
+    }
+  }
+}
+
+class MyWindowListener extends WindowListener {
+  @override
+  void onWindowClose() async {
+    var isConfirm = await showConfirm(rootScaffoldStateKey.currentContext!,
+        title: '¿Deseas Cerrar la Aplicación?');
+    if (isConfirm == true) {
+
+      windowManager.hide();
+      certPassword.clear();
+      certPath.clear();
+      certFile = null;
+
+      currentUser = null;
+      company = null;
+      currentClientContado = null;
+      discounts = [];
+      retentionsTaxes = [];
+      retentionsIsrs = [];
+      taxes = [];
+      typesIncomes = [];
+      overrideCodes = [];
+      paymentsMethods = [];
+      paymentsTypes = [];
+      paymentsModes = [];
+      symbols = [];
+      dgiiStates = [];
+      boxes = [];
+      wareHouses = [];
+      branches = [];
+      await CashShiftModel.closeCashShiftTurno(
+          id: localStorage.getItem('currentTurnoId_$currentInstanceId') ?? 'x');
+      localStorage.removeItem('currentTurnoId_$currentInstanceId');
+      localStorage.removeItem('oldPeriodId_$currentInstanceId');
+      windowManager.close();
+      windowManager.destroy();
     }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:uresax_invoice_sys_cloud/models/invoice.model.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
+import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 
 class InvoicesModelsPage extends StatefulWidget {
   const InvoicesModelsPage({super.key});
@@ -24,29 +25,27 @@ class _InvoicesModelsPageState extends State<InvoicesModelsPage> {
         id: 2,
         name: 'EPIC RED INVOICE',
         imageAsset: 'assets/imgs/EPICREDINVOICE.png'),
-            InvoiceModel(
+    InvoiceModel(
         id: 3,
         name: 'EPIC BLUE INVOICE',
         imageAsset: 'assets/imgs/EPICBLUEINVOICE.png'),
-     
-            InvoiceModel(
+    InvoiceModel(
         id: 4,
         name: 'JULY MOTORS INVOICE',
         imageAsset: 'assets/imgs/JULYMOTORSINVOICE.png'),
-               InvoiceModel(
+    InvoiceModel(
         id: 5,
         name: 'INVOICE STORE',
         imageAsset: 'assets/imgs/INVOICESTORE.png'),
-                       InvoiceModel(
+    InvoiceModel(
         id: 6,
         name: 'IDEAL TIME INVOICE',
         imageAsset: 'assets/imgs/IDEALTIMEINVOICE.png'),
-                             InvoiceModel(
+    InvoiceModel(
         id: 7,
         name: 'R LOPEZ INVOICE',
         imageAsset: 'assets/imgs/RLOPEZINVOICE.png'),
-
-                                    InvoiceModel(
+    InvoiceModel(
         id: 8,
         name: 'TECHO INVOICE',
         imageAsset: 'assets/imgs/TECHOINVOICE.png'),
@@ -57,9 +56,8 @@ class _InvoicesModelsPageState extends State<InvoicesModelsPage> {
   @override
   void initState() {
     if (!mounted) return;
-    var value = localStorage.getItem('CURRENT_INVOICE_INDEX') ?? '0';
 
-    currentSelected = int.parse(value);
+    currentSelected = currentInvoiceIndex ?? 0;
     setState(() {});
 
     super.initState();
@@ -86,12 +84,20 @@ class _InvoicesModelsPageState extends State<InvoicesModelsPage> {
           itemBuilder: (ctx, i) {
             var invoice = invoices[i];
             return GestureDetector(
-              onTap: () {
-                setState(() {
-                  currentSelected = i;
-                  localStorage.setItem(
-                      'CURRENT_INVOICE_INDEX', currentSelected.toString());
-                });
+              onTap: () async {
+                try {
+                  showLoader(context);
+                  await InvoiceModel.updateInvoiceIndex(i);
+                  Navigator.pop(context);
+                  setState(() {
+                    currentSelected = i;
+                    currentInvoiceIndex = i;
+                  });
+                } catch (e) {
+                  Navigator.pop(context);
+                  showTopSnackBar(context,
+                      message: e.toString(), color: Colors.red);
+                }
               },
               child: Card(
                 shape: OutlineInputBorder(

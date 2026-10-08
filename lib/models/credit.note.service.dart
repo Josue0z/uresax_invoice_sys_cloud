@@ -170,7 +170,14 @@ class CreditNoteAsService implements Sale {
       this.law10Local = 0,
       this.taxLocal = 0,
       this.totalLocal = 0,
-      this.cashShiftId});
+      this.cashShiftId,
+      this.creditCardDescription,
+      this.brancheId,
+      this.brancheName,
+      this.branchePhone1,
+      this.branchePhone2,
+      this.brancheAddress,
+      this.brancheEmail});
 
   @override
   Future<CreditNoteAsService?> create() async {
@@ -255,7 +262,9 @@ class CreditNoteAsService implements Sale {
       'currencyId': currencyId,
       'rate': rate,
       'maxSequence': maxSequence,
-      'cashShiftId':cashShiftId
+      'cashShiftId':cashShiftId,
+      'creditCardDescription':creditCardDescription,
+      'brancheId': brancheId
     };
   }
 
@@ -300,7 +309,9 @@ class CreditNoteAsService implements Sale {
       'issueDate': issueDate?.toIso8601String(),
       'retentionDate': retentionDate?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
-      'cashShiftId':cashShiftId
+      'cashShiftId':cashShiftId,
+      'creditCardDescription':creditCardDescription,
+      'brancheId': brancheId
     };
   }
 
@@ -470,6 +481,13 @@ class CreditNoteAsService implements Sale {
             ? double.parse(map['retentionIsrLocal'])
             : 0,
                 totalLocal: map['totalLocal'] != null ? double.parse(map['totalLocal']) : 0,
+      creditCardDescription: map['creditCardDescription'],
+      brancheId: map['brancheId'],
+      brancheName: map['brancheName'],
+      branchePhone1: map['branchePhone1'],
+      branchePhone2: map['branchePhone2'],
+      brancheAddress: map['brancheAddress'],
+      brancheEmail: map['brancheEmail']
         );
   }
 
@@ -480,7 +498,7 @@ class CreditNoteAsService implements Sale {
 
   @override
   String toString() {
-    return 'CreditNote(checkOrTransf: $checkOrTransf, clientId: $clientId, clientName: $clientName, clientType: $clientType, createdAt: $createdAt, creditCard: $creditCard, description: $description, discount: $discount, effective: $effective, id: $id, items: $items, law10: $law10, ncf: $ncf, ncfAffected: $ncfAffected, ncfTypeId: $ncfTypeId, net: $net, paymentMethodId: $paymentMethodId, prefix: $prefix, retentionDate: $retentionDate, retentionIsr: $retentionIsr, retentionTax: $retentionTax, saleId: $saleId, saleToCredit: $saleToCredit, tax: $tax, total: $total, typeIncomeId: $typeIncomeId, clientAddress: $clientAddress)';
+    return 'CreditNote(checkOrTransf: $checkOrTransf, clientId: $clientId, clientName: $clientName, clientType: $clientType, createdAt: $createdAt, creditCard: $creditCard, description: $description, discount: $discount, effective: $effective, id: $id, items: $items, law10: $law10, ncf: $ncf, ncfAffected: $ncfAffected, ncfTypeId: $ncfTypeId, net: $net, paymentMethodId: $paymentMethodId, prefix: $prefix, retentionDate: $retentionDate, retentionIsr: $retentionIsr, retentionTax: $retentionTax, saleId: $saleId, saleToCredit: $saleToCredit, tax: $tax, total: $total, typeIncomeId: $typeIncomeId, clientAddress: $clientAddress,creditCardDescription: $creditCardDescription, brancheId: $brancheId, brancheName: $brancheName, branchePhone1: $branchePhone1, branchePhone2: $branchePhone2, brancheAddress: $brancheAddress, brancheEmail: $brancheEmail)';
   }
 
   @override
@@ -932,4 +950,25 @@ class CreditNoteAsService implements Sale {
 
   @override
   String? cashShiftId;
+
+  @override
+  String? creditCardDescription;
+
+  @override
+  String? brancheAddress;
+
+  @override
+  String? brancheEmail;
+
+  @override
+  int? brancheId;
+
+  @override
+  String? brancheName;
+
+  @override
+  String? branchePhone1;
+
+  @override
+  String? branchePhone2;
 }

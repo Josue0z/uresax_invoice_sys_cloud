@@ -115,8 +115,10 @@ class _InvoiceItemGeneratorWidgetState
   FocusNode focusNode = FocusNode();
 
   double startQuantity = 0;
-  double price = 0;
+  double pricex = 0;
   bool editingField = false;
+
+  final GlobalKey selectorKey = GlobalKey();
 
   String get title {
     if (widget.saleItem is SaleItemService) {
@@ -201,7 +203,7 @@ class _InvoiceItemGeneratorWidgetState
     _calc();
   }
 
-  _calc() {
+  _calc({bool editingAmount = false}) {
     double xnet = 0;
     double net16 = 0;
     double net18 = 0;
@@ -219,11 +221,15 @@ class _InvoiceItemGeneratorWidgetState
     double xtotal = 0;
     int indicadorFacturacion = 1;
 
-    double price = el?.price ?? widget.saleItem.priceItem ?? 0;
+    double price = editingAmount ? pricex : el?.price ?? widget.saleItem.priceItem ?? 0;
+
+  
     double xquantity = widget.saleItem.quantity ?? 1;
 
     double priceAmount = price * xquantity;
     int? taxId = el?.taxId ?? widget.saleItem.taxId;
+
+ 
 
     if (discountEl?.symbolName != null) {
       if (discountEl?.symbolName == '%') {
@@ -263,6 +269,7 @@ class _InvoiceItemGeneratorWidgetState
       tax18 = xtax;
       tax16 = 0;
       tax3 = 0;
+   
     }
 
     if (taxId == null) {
@@ -292,6 +299,8 @@ class _InvoiceItemGeneratorWidgetState
       tax3 = xtax;
       exemptAmount = 0;
     }
+
+  
     if (widget.esEspecial || widget.esMenor) {
       indicadorFacturacion = 4;
       xnet = priceAmount;
@@ -337,8 +346,8 @@ class _InvoiceItemGeneratorWidgetState
     widget.saleItem.indicadorFacturacion = indicadorFacturacion;
     widget.saleItem.serviceName = el?.name ?? widget.saleItem.serviceName;
     widget.saleItem.productName = el?.name ?? widget.saleItem.productName;
-    widget.saleItem.price = el?.price;
-    widget.saleItem.priceItem = el?.price;
+    widget.saleItem.price = price;
+    widget.saleItem.priceItem = price;
     widget.saleItem.chassis = el?.chassis;
     widget.saleItem.licensePlate = el?.licensePlate;
     widget.saleItem.colorName = el?.colorName;
@@ -379,7 +388,9 @@ class _InvoiceItemGeneratorWidgetState
     widget.saleItem.conversionFactor =
         el?.conversionFactor ?? widget.saleItem.conversionFactor;
 
-    net.text = widget.saleItem.net?.toStringAsFixed(2) ?? '0.00';
+    if(!editingAmount){
+        net.text = widget.saleItem.net?.toStringAsFixed(2) ?? '0.00';
+    }
     tax.text = widget.saleItem.tax?.toStringAsFixed(2) ?? '0.00';
     unitSuite.text = widget.saleItem.unitSuite ?? '';
     clientSuite.text = widget.saleItem.clientSuite ?? '';
@@ -504,7 +515,7 @@ class _InvoiceItemGeneratorWidgetState
 
     law10.text = widget.saleItem.law10?.toStringAsFixed(2) ?? '0.00';
 
-    price = widget.saleItem.priceItem ?? 0;
+    pricex = widget.saleItem.priceItem ?? 0;
 
     _calc();
   }
@@ -670,12 +681,51 @@ class _InvoiceItemGeneratorWidgetState
             width: 250,
             child: SelectorItemWidget<SaleElement>(
                 context: context,
+                key:selectorKey,
                 title: title,
                 initialValue: el,
                 enabledModeEditor: true,
                 editingController: descriptionController,
                 focusNode: focusNode,
                 hintText: title,
+               /* onFocus: (details) async {
+                  final RenderBox box = selectorKey.currentContext!
+                      .findRenderObject() as RenderBox;
+                  final Offset position = box.localToGlobal(Offset.zero);
+
+                  final selected = await showMenu<String>(
+                    context: context,
+                    constraints: const BoxConstraints(
+                      minWidth: 250,
+                      maxWidth: 250,
+                    ),
+                    position: RelativeRect.fromLTRB(
+                      position.dx,
+                      position.dy +
+                          box.size.height - (kDefaultPadding * 2), // 👈 justo debajo del widget
+                      position.dx + box.size.width,
+                      position.dy,
+                    ),
+                    items: [
+                      const PopupMenuItem(
+                          value: 'filtrar', child: Text('Filtrar servicios')),
+                      const PopupMenuItem(
+                          value: 'agregar', child: Text('Agregar servicio')),
+                    ],
+                  );
+
+                  if (selected == 'filtrar') {
+                  } else if (selected == 'agregar') {
+                    await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (ctx) => widget.saleItem is SaleItemService
+                                ? ServicesPage(selectedMode: true)
+                                : ProductsPage(
+                                    selectedMode: true,
+                                    items: widget.saleItems)));
+                  }
+                },*/
                 enabled: !widget.editing &&
                     !widget.isProForma &&
                     (widget.saleItem is SaleItemProduct ||
@@ -771,14 +821,12 @@ class _InvoiceItemGeneratorWidgetState
               readOnly: widget.editing ||
                   widget.isProForma ||
                   widget.saleItem is CreditNoteService ||
-                  widget.saleItem is CreditNoteProduct ||
-                  !enabledTextEditor,
+                  widget.saleItem is CreditNoteProduct,
               focusNode: netFocus,
               onChanged: (val) {
-                price = double.tryParse(val) ?? 0;
-                widget.saleItem.net = 0;
-
-                _calc();
+                pricex = double.tryParse(val) ?? 0;
+            
+                _calc(editingAmount: true);
               },
               decoration: InputDecoration(labelText: 'NETO', hintText: '0.00'),
             ),

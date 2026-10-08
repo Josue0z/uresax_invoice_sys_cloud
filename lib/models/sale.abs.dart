@@ -167,7 +167,14 @@ abstract class Sale {
   double? retentionIsrLocal;
 
   String? cashShiftId;
-
+  
+  String? creditCardDescription;
+  int? brancheId;
+  String? brancheName;
+  String? branchePhone1;
+  String? branchePhone2;
+  String? brancheAddress;
+  String? brancheEmail;
   bool get isPaid {
     throw UnimplementedError();
   }
