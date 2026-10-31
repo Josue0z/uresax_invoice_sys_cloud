@@ -22,6 +22,7 @@ import 'package:uresax_invoice_sys_cloud/pages/clients_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/cotizations_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/credit.notes_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/entries_purchases_page.dart';
+import 'package:uresax_invoice_sys_cloud/pages/event.stock.page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/invoice_generator_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/invoices_models_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/login_page.dart';
@@ -31,7 +32,6 @@ import 'package:uresax_invoice_sys_cloud/pages/ordens_purchases_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/pos_screen.dart';
 import 'package:uresax_invoice_sys_cloud/pages/products_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/providers_page.dart';
-import 'package:uresax_invoice_sys_cloud/pages/reports-sales-page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/sales.607.form_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/sales_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/services_page.dart';
@@ -39,6 +39,7 @@ import 'package:uresax_invoice_sys_cloud/pages/table_invoice_generator.dart';
 import 'package:uresax_invoice_sys_cloud/pages/units_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/users_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/warehouses_page.dart';
+import 'package:uresax_invoice_sys_cloud/pages/workdays_page.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
@@ -114,16 +115,17 @@ class _HomePageState extends State<HomePage> {
       'title': 'TUS FACTURAS',
       'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
     },
+     {
+      'id': 20,
+      'title': 'VER TUS COTIZACIONES',
+      'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
+    },
     {
       'id': 10,
       'title': 'TUS NOTAS DE CREDITO',
       'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
     },
-    {
-      'id': 20,
-      'title': 'VER TUS COTIZACIONES',
-      'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
-    },
+   
     {
       'id': 21,
       'title': 'VER TURNOS DE CAJA',
@@ -159,11 +161,20 @@ class _HomePageState extends State<HomePage> {
       'title': 'VER UNIDADES DE MEDIDA',
       'svg': 'assets/svgs/undraw_report_k55w.svg'
     },
-
-      {
+    {
       'id': 22,
       'title': 'VER SUCURSALES',
       'svg': 'assets/svgs/undraw_logistics_xpdj.svg'
+    },
+    {
+      'id': 23,
+      'title': 'ENTRADA DE INVENTARIO',
+      'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg'
+    },
+    {
+      'id': 24,
+      'title': 'JORNADAS',
+      'svg': 'assets/svgs/undraw_alarm-clock_zgtg.svg'
     },
   ];
   ScrollController scrollControllerY = ScrollController();
@@ -288,9 +299,20 @@ class _HomePageState extends State<HomePage> {
     await Navigator.push(
         context, MaterialPageRoute(builder: (ctx) => CashShiftsPage()));
   }
-  _showBranchesPage()async{
-      await Navigator.push(
+
+  _showBranchesPage() async {
+    await Navigator.push(
         context, MaterialPageRoute(builder: (ctx) => BranchesPage()));
+  }
+
+  _showEventStockPage() async {
+    await Navigator.push(
+        context, MaterialPageRoute(builder: (ctx) => EventStockPage()));
+  }
+
+  _showWorkDaysPage() async {
+    await Navigator.push(
+        context, MaterialPageRoute(builder: (ctx) => WorkdayListPage()));
   }
 
   _showPage(int id) {
@@ -367,8 +389,15 @@ class _HomePageState extends State<HomePage> {
         _showCashShiftsPage();
         break;
       case 22:
-      _showBranchesPage();
-      break;
+        _showBranchesPage();
+        break;
+
+      case 23:
+        _showEventStockPage();
+        break;
+      case 24:
+        _showWorkDaysPage();
+        break;
       default:
     }
   }
@@ -376,9 +405,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     defaultOptions = [...options];
-    WidgetsBinding.instance.addPostFrameCallback((d){
-      if(isTerminal){
-        showTopSnackBar(context, message: 'EL USUARIO: ${currentUser?.name} ENTRO EN MODO TERMINAL',color: Colors.green);
+    WidgetsBinding.instance.addPostFrameCallback((d) {
+      if (isTerminal) {
+        showTopSnackBar(context,
+            message: 'EL USUARIO: ${currentUser?.name} ENTRO EN MODO TERMINAL',
+            color: Colors.green);
       }
     });
     super.initState();
@@ -461,10 +492,16 @@ class _HomePageState extends State<HomePage> {
       options.removeWhere((e) => e['id'] == 21);
     }
 
-       if (!currentUser!.permissions!.contains('ALLOW_VIEW_BRANCHES')) {
+    if (!currentUser!.permissions!.contains('ALLOW_VIEW_BRANCHES')) {
       options.removeWhere((e) => e['id'] == 22);
     }
+    if (!currentUser!.permissions!.contains('ALLOW_VIEW_EVENTS_ENTRIES')) {
+      options.removeWhere((e) => e['id'] == 23);
+    }
 
+    if (!currentUser!.permissions!.contains('ALLOW_VIEW_WORKDAYS')) {
+      options.removeWhere((e) => e['id'] == 24);
+    }
 
     return UpdaterWidget(
         context: context,
@@ -598,46 +635,56 @@ class _HomePageState extends State<HomePage> {
                     CircleAvatar(
                       child: IconButton(
                           onPressed: () async {
+                            var confirm = await showConfirm(context,
+                                title: '¿Deseas Cerrar la Sesión?');
+                            if (confirm == true) {
+                              Navigator.pushAndRemoveUntil(
+                                  context,
+                                  PageRouteTransitionBuilder(
+                                      page: LoginPage(),
+                                      effect: TransitionEffect.topToBottom),
+                                  (_) => false);
+                              await LogHandler.printEvent(
+                                  '${currentUser?.name} CERRO SESION');
 
-                            var confirm = await showConfirm(context,title:'¿Deseas Cerrar la Sesión?');
-                            if(confirm == true){
-                               Navigator.pushAndRemoveUntil(
-                                context,
-                                PageRouteTransitionBuilder(
-                                    page: LoginPage(),
-                                    effect: TransitionEffect.topToBottom),
-                                (_) => false);
-                            await LogHandler.printEvent(
-                                '${currentUser?.name} CERRO SESION');
+                              if (company?.allowCloseCashShift == true) {
+                                await CashShiftModel.closeCashShiftTurno(
+                                    id: localStorage.getItem(
+                                            'currentTurnoId_$currentInstanceId') ??
+                                        'x');
+                                localStorage.removeItem(
+                                    'currentTurnoId_$currentInstanceId');
+                              }
 
-                          
-                            await CashShiftModel.closeCashShiftTurno(
-                                id: localStorage.getItem('currentTurnoId_$currentInstanceId') ??
-                                    'x');
-                            localStorage.removeItem('currentTurnoId_$currentInstanceId');
-                            localStorage.removeItem('oldPeriodId_$currentInstanceId');
-                            certPassword.clear();
-                            certPath.clear();
-                            certFile= null;
-                            
-                     
-                            currentUser = null;
-                            company = null;
-                            currentClientContado = null;
-                            discounts = [];
-                            retentionsTaxes = [];
-                            retentionsIsrs = [];
-                            taxes = [];
-                            typesIncomes = [];
-                            overrideCodes = [];
-                            paymentsMethods = [];
-                            paymentsTypes = [];
-                            paymentsModes = [];
-                            symbols = [];
-                            dgiiStates = [];
-                            boxes = [];
-                            wareHouses = [];
-                            branches = [];
+                              localStorage
+                                  .removeItem('oldPeriodId_$currentInstanceId');
+                              localStorage.removeItem(
+                                  'expirationCashShift_$currentInstanceId');
+                              localStorage.removeItem(
+                                  'currentWorkdayId_$currentInstanceId');
+                              certPassword.clear();
+                              certPath.clear();
+                              certFile = null;
+
+                              currentUser = null;
+                              company = null;
+                              currentClientContado = null;
+                              discounts = [];
+                              retentionsTaxes = [];
+                              retentionsIsrs = [];
+                              taxes = [];
+                              typesIncomes = [];
+                              overrideCodes = [];
+                              paymentsMethods = [];
+                              paymentsTypes = [];
+                              paymentsModes = [];
+                              symbols = [];
+                              dgiiStates = [];
+                              boxes = [];
+                              wareHouses = [];
+                              branches = [];
+                              workdays = [];
+                              ncfsLists = [];
                             }
                           },
                           icon: Icon(Icons.power_settings_new_outlined)),
@@ -746,12 +793,13 @@ class __CardHoverState extends State<_CardHover> {
                       children: [
                         SvgPicture.asset(widget.option['svg'], width: 60),
                         SizedBox(height: kDefaultPadding),
-                        Flexible(child: Text(widget.option['title'],
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(fontSize: 12),
-                            textAlign: TextAlign.center))
+                        Flexible(
+                            child: Text(widget.option['title'],
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(fontSize: 12),
+                                textAlign: TextAlign.center))
                       ],
                     ),
                   )),

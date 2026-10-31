@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class Providers {
   int? id;
@@ -20,6 +21,7 @@ class Providers {
       this.createdAt});
   static Future<List<Providers>> get({String? search}) async {
     try {
+            await User.authClient();
       String params = '?';
 
       if (search != null) {
@@ -42,6 +44,7 @@ class Providers {
 
   Future<Providers?> create() async {
     try {
+            await User.authClient();
       var parameters = toMap();
       parameters.remove('id');
       parameters.remove('createdAt');
@@ -61,6 +64,7 @@ class Providers {
 
   Future<Providers?> update() async {
     try {
+            await User.authClient();
       var parameters = toMap();
       parameters.remove('id');
       parameters.remove('createdAt');

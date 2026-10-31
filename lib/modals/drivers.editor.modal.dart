@@ -87,6 +87,7 @@ class _DriversEditorModalState extends State<DriversEditorModal> {
                         margin: EdgeInsets.symmetric(vertical: kDefaultPadding),
                         child: TextFormField(
                           controller: name,
+                          autofocus: true,
                           validator: (val) =>
                               val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                           decoration: InputDecoration(

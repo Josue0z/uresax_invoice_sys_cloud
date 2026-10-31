@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.element.abs.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class Services implements SaleElement {
   @override
@@ -50,6 +51,7 @@ class Services implements SaleElement {
  }
    static Future<Services?> findByCode({required String code}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/services/findservicebycode/$code');
 
       if (res.statusCode == 200) {
@@ -63,6 +65,7 @@ class Services implements SaleElement {
 
   Future<Services?> create() async {
     try {
+            await User.authClient();
       var res= await apiUresax.post('/services/create',data: {
             'name': name,
             'price': price,
@@ -89,6 +92,7 @@ class Services implements SaleElement {
 
   Future<Services?> update() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/services/update/$id',data: {
             'name': name,
             'price': price,
@@ -115,6 +119,7 @@ class Services implements SaleElement {
   @override
   Future<Services?> deleteImage() async {
     try {
+            await User.authClient();
       var res = await apiUresax.delete('/services/delete-image/$id');
 
       if(res.statusCode == 200){
@@ -130,7 +135,7 @@ class Services implements SaleElement {
       {String? search, List<int>? categories}) async {
     try {
 
-      
+            await User.authClient();
        final queryParams = <String>[];
 
       if (search != null && search.isNotEmpty) {

@@ -56,27 +56,35 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
 
   _onSubmit() async {
     if (_formKey.currentState!.validate()) {
+      showLoader(context);
       try {
-        widget.service.name = name.text.trim();
-        widget.service.price = amountInputFormatter.doubleValue;
-        widget.service.taxId = currentTaxId;
-        widget.service.categoryId = currentCategoryId;
-        widget.service.imageBase64 = imageBase64;
-        widget.service.code = code.text.isEmpty ? null : code.text;
-        widget.service.maxDiscount = double.tryParse(maxDiscount.text) ?? 90.00;
-        widget.service.editable = editable;
-        widget.service.priceSuite = priceSuiteFormatter.doubleValue;
-        widget.service.rateSuite =
+        Services service = Services(
+          id: widget.service.id
+        );
+        service.name = name.text.trim();
+        service.price = amountInputFormatter.doubleValue;
+        service.taxId = currentTaxId;
+        service.categoryId = currentCategoryId;
+        service.imageBase64 = imageBase64;
+        service.code = code.text.isEmpty ? null : code.text;
+        service.maxDiscount = double.tryParse(maxDiscount.text) ?? 90.00;
+        service.editable = editable;
+        service.priceSuite = priceSuiteFormatter.doubleValue;
+        service.rateSuite =
             double.tryParse(rateSuite.text.replaceAll(',', '')) ?? 0.00;
         if (!widget.editing) {
-          await widget.service.create();
+          await service.create();
+          widget.service = service;
           await LogHandler.printEvent(
               'SERVICIO: ${widget.service.name} CREADO');
+          Navigator.pop(context);
           Navigator.pop(context, 'CREATE');
         } else {
-          await widget.service.update();
+          await service.update();
+          widget.service = service;
           await LogHandler.printEvent(
               'SERVICIO: ${widget.service.name} ACTUALIZADO');
+          Navigator.pop(context);
           Navigator.pop(context, 'UPDATE');
           showTopSnackBar(context,
               message: widget.editing ? 'SERVICIO EDITADO' : 'SERVICIO CREADO',
@@ -84,6 +92,7 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
         }
       } catch (e) {
         await LogHandler.printError(e.toString());
+        Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
       }
     }
@@ -190,6 +199,7 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
                               top: kDefaultPadding, bottom: kDefaultPadding),
                           child: TextFormField(
                             controller: name,
+                            autofocus: true,
                             validator: (val) =>
                                 val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                             decoration: InputDecoration(

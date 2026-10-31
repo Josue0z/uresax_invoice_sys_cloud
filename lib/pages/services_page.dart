@@ -23,18 +23,19 @@ class ServicesPage extends StatefulWidget {
 
 class _ServicesPageState extends State<ServicesPage> {
   List<Services> services = [];
-  List<Category> _categories=[];
+  List<Category> _categories = [];
   Future? future;
   final TextEditingController _searchController = TextEditingController();
   ScrollController scrollControllerY = ScrollController();
 
-    List<int> get xcategories {
+  List<int> get xcategories {
     return _categories.map((e) => e.id).toList().cast<int>();
   }
 
   _showModal({bool editing = false, required Services service}) async {
     var res = await showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (ctx) => ServiceEditorModal(
               editing: editing,
               service: service,
@@ -55,7 +56,7 @@ class _ServicesPageState extends State<ServicesPage> {
 
   _initAsync([String? words]) async {
     try {
-      services = await Services.get(search: words,categories: xcategories);
+      services = await Services.get(search: words, categories: xcategories);
     } catch (e) {
       print(e);
     } finally {
@@ -67,6 +68,7 @@ class _ServicesPageState extends State<ServicesPage> {
     return ScrollMoveEventWidget(
         scrollControllerY: scrollControllerY,
         child: ListView.separated(
+            key: PageStorageKey('services_list'),
             controller: scrollControllerY,
             separatorBuilder: (ctx, i) => const Divider(),
             itemCount: services.length,
@@ -105,7 +107,8 @@ class _ServicesPageState extends State<ServicesPage> {
                                       height: 100,
                                       decoration: BoxDecoration(
                                         image: DecorationImage(
-                                          image: NetworkImage(service.imageUrl ?? ''),
+                                          image: NetworkImage(
+                                              service.imageUrl ?? ''),
                                           fit: BoxFit.cover,
                                         ),
                                         borderRadius:
@@ -133,12 +136,15 @@ class _ServicesPageState extends State<ServicesPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
-                                        width: MediaQuery.of(context).size.width/2,
+                                    width:
+                                        MediaQuery.of(context).size.width / 2,
                                     margin: EdgeInsets.only(
                                         bottom: kDefaultPadding / 2),
                                     child: Text(service.name ?? ''),
                                   ),
-                                  service.code != null ? Text(service.code ?? '') : SizedBox(),
+                                  service.code != null
+                                      ? Text(service.code ?? '')
+                                      : SizedBox(),
                                   Row(
                                     children: [
                                       Container(
@@ -160,8 +166,6 @@ class _ServicesPageState extends State<ServicesPage> {
                                               fontSize: 14),
                                         ),
                                       ),
-
-                   
                                     ],
                                   ),
                                 ],
@@ -175,12 +179,17 @@ class _ServicesPageState extends State<ServicesPage> {
                             spacing: kDefaultPadding,
                             children: [
                               Text(service.price?.toCoin() ?? ''),
-                             currentUser!.permissions!.contains('ALLOW_EDIT_SERVICE')? IconButton(
-                                onPressed: () {
-                                  _showModal(service: service, editing: true);
-                                },
-                                icon: Icon(Icons.edit, color: Colors.black38),
-                              ):SizedBox(),
+                              currentUser!.permissions!
+                                      .contains('ALLOW_EDIT_SERVICE')
+                                  ? IconButton(
+                                      onPressed: () {
+                                        _showModal(
+                                            service: service, editing: true);
+                                      },
+                                      icon: Icon(Icons.edit,
+                                          color: Colors.black38),
+                                    )
+                                  : SizedBox(),
                             ],
                           ),
                         ),
@@ -210,7 +219,7 @@ class _ServicesPageState extends State<ServicesPage> {
     );
   }
 
-    _showFiltersModal() async {
+  _showFiltersModal() async {
     categories = [Category(name: 'CATEGORIA'), ...await Category.get()];
     var res = await showDialog(
         context: context,
@@ -234,7 +243,9 @@ class _ServicesPageState extends State<ServicesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Text('TUS SERVICIOS (${services.length})'),
+          toolbarHeight: kToolbarHeight + 50,
           actions: [
             Wrap(
               runAlignment: WrapAlignment.center,
@@ -251,6 +262,9 @@ class _ServicesPageState extends State<ServicesPage> {
                       });
                     },
                     decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(style: BorderStyle.none, width: 0)),
                         hintText: 'Nombre...',
                         fillColor: Colors.white,
                         filled: true,
@@ -258,25 +272,31 @@ class _ServicesPageState extends State<ServicesPage> {
                   ),
                 ),
                 SizedBox(width: kDefaultPadding),
-
-                   IconButton(
-                  onPressed: _showFiltersModal,
-                  icon: Icon(Icons.tune_outlined)),
-              SizedBox(width: kDefaultPadding),
-              currentUser!.permissions!.contains('ALLOW_ADD_SERVICE') ? Container(
-                margin: EdgeInsets.only(
-                  right: kDefaultPadding
-                ),
-                child:  CircleAvatar(
+                IconButton(
+                    onPressed: _showFiltersModal,
+                    icon: Icon(Icons.tune_outlined)),
+                SizedBox(width: kDefaultPadding),
+                currentUser!.permissions!.contains('ALLOW_ADD_SERVICE')
+                    ? Container(
+                        margin: EdgeInsets.only(right: kDefaultPadding),
+                        child: CircleAvatar(
+                          child: IconButton(
+                              tooltip: 'AGREGAR SERVICIO',
+                              onPressed: () {
+                                _showModal(service: Services());
+                              },
+                              icon: Icon(Icons.add)),
+                        ),
+                      )
+                    : SizedBox(),
+                CircleAvatar(
                   child: IconButton(
-                      tooltip: 'AGREGAR SERVICIO',
                       onPressed: () {
-                        _showModal(service: Services());
+                        Navigator.pop(context);
                       },
-                      icon: Icon(Icons.add)),
+                      icon: Icon(Icons.close)),
                 ),
-               ):SizedBox(),
-                
+                SizedBox(width: kDefaultPadding)
               ],
             )
           ],
@@ -314,7 +334,7 @@ class _ServicesPageState extends State<ServicesPage> {
                   onPressed: () {
                     setState(() {
                       _searchController.clear();
-                      _categories=[];
+                      _categories = [];
                       future = _initAsync();
                     });
                   },

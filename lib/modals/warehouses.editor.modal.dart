@@ -29,22 +29,29 @@ class _WareHousesEditorModalState extends State<WareHousesEditorModal> {
 
   Future<void> _onSubmit() async {
     if (_formKey.currentState!.validate()) {
-      WareHouses? wareHouse;
+      showLoader(context);
+      WareHouses wareHouse = WareHouses(
+        id: widget.wareHouse.id
+      );
       try {
-        widget.wareHouse.name = name.text;
+        wareHouse.name = name.text;
 
         if (widget.editing) {
-          await widget.wareHouse.update();
+          await wareHouse.update();
+          widget.wareHouse = wareHouse;
           await LogHandler.printEvent(
               'ALMACEN: ${widget.wareHouse.name} ACTUALIZADO');
         } else {
-          wareHouse = await widget.wareHouse.create();
+          await wareHouse.create();
+          widget.wareHouse = wareHouse;
           await LogHandler.printEvent(
               'ALMACEN: ${widget.wareHouse.name} CREADO');
         }
+        Navigator.pop(context);
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
       } catch (e) {
         await LogHandler.printError(e.toString());
+        Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
       }
     }
@@ -88,6 +95,7 @@ class _WareHousesEditorModalState extends State<WareHousesEditorModal> {
                   margin: EdgeInsets.only(bottom: kDefaultPadding),
                   child: TextFormField(
                     controller: name,
+                    autofocus: true,
                     validator: (val) =>
                         val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                     decoration: InputDecoration(

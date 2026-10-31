@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:amount_input_formatter/amount_input_formatter.dart';
@@ -37,6 +38,7 @@ import 'package:uresax_invoice_sys_cloud/models/sale.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/service.dart';
 import 'package:uresax_invoice_sys_cloud/models/taxpayer.dart';
 import 'package:uresax_invoice_sys_cloud/pages/cotizations_page.dart';
+import 'package:uresax_invoice_sys_cloud/pages/sales_page.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
@@ -64,7 +66,8 @@ class TableInvoiceGenerator extends StatefulWidget {
   State<TableInvoiceGenerator> createState() => _TableInvoiceGeneratorState();
 }
 
-class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
+class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
+    with TickerProviderStateMixin {
   List<List<TextEditingController>> controllers = [];
   List<Timer?> rowDebounces = [];
   List<List<FocusNode>> focusNodes = [];
@@ -100,7 +103,12 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   int? maxSequence;
   List<NcfType> _ncfs = [];
 
+  Sale? sale;
+  bool loading = false;
+
   bool showNumericKeyboard = false;
+
+  final FocusNode _printerPosFocus = FocusNode();
 
   NcfsList? ncfList;
   double oldTotalRetencionItbis = 0;
@@ -138,7 +146,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   final ScrollController _scrollController2 = ScrollController();
 
   int? get brancheId {
-    return int.tryParse(localStorage.getItem('URESAX_INVOICE_BRANCHE_ID_${company?.id}') ?? 'x');
+    return int.tryParse(
+        localStorage.getItem('URESAX_INVOICE_BRANCHE_ID_${company?.id}') ??
+            'x');
   }
 
   List<Map<String, dynamic>> law10Modes = [
@@ -337,6 +347,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
       widget.sale.paymentDate = null;
       widget.sale.typeIncomeId = null;
       widget.sale.transfRef = null;
+      ncfList = null;
 
       if (isSale) {
         currentTypeIncomeId = '01';
@@ -356,9 +367,13 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
         } else if (enabledOnlySeller) {
           currentNcfTypeId = '60';
           currentPrefix = 'C';
-          currentPaymentMethodId = 4;
-          currentPaymentType = 2;
-          currentPaymentModeId = 2;
+     
+        if(currentUser!.permissions!.contains('ALLOW_SETUP_ONLY_SELLER')){
+             currentPaymentMethodId = 4;
+             currentPaymentType = 2;
+             currentPaymentModeId = 2;
+         
+          }
         } else {
           clientName.text = '';
           rncOrId.text = '';
@@ -389,6 +404,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
         currentPaymentType = 1;
         currentPaymentModeId = 3;
       }
+
+      _onCheckNcf();
 
       setState(() {
         if (isSale) {
@@ -436,9 +453,34 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
       showTopSnackBar(context, message: e.toString(), color: Colors.red);
     }
   }
+  _checkNcfStatus()async{
+    try{
+       if(currentNcfTypeId != null){
+          await NcfsList(ncfTypeId: currentNcfTypeId).findNcfStatus();
+        }
+    }catch(e){
+    setState(() {
+        isValid = false;
+    });
+     showTopSnackBar(context, message: e.toString(),color: Colors.red);
+    }
+  }
+  _onCheckNcf() async {
+      if (currentNcfTypeId != null) {
+        ncfList = ncfsLists.firstWhere((x) => x.ncfTypeId == currentNcfTypeId);
+
+        if (ncfList != null) {
+          fechaVencimiento = ncfList!.expirationDate!;
+          fechaVencimientoController.value = TextEditingValue(
+              text: fechaVencimiento.format(payload: 'DD/MM/YYYY'));
+        }
+      }
+  
+  }
 
   _onSelectedNcf(String? option) async {
-    ncfList = null;
+   
+      ncfList = null;
     currentNcfTypeId = option;
     currentPrefix = 'E';
     maxSequence = 10;
@@ -492,7 +534,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
               priceItem: item.priceItem,
               discountId: item.discountId,
               discount: item.discount,
-              discountRate:item.discountRate,
+              discountRate: item.discountRate,
               discountSymbol: item.discountSymbol,
               retentionIsrId: null,
               retentionIsr: 0,
@@ -522,7 +564,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
               price: item.price,
               priceItem: item.priceItem,
               discount: item.discount,
-              discountRate:item.discountRate,
+              discountRate: item.discountRate,
               discountSymbol: item.discountSymbol,
               retentionIsrId: item.retentionIsrId,
               retentionIsr: item.retentionIsr,
@@ -580,7 +622,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
           law10 = item.law10 ?? 0;
 
           if (item.discountSymbol == '%') {
-            discount = ((item.discountRate?? 1) / 100) * priceAmountx;
+            discount = ((item.discountRate ?? 1) / 100) * priceAmountx;
           }
 
           if (item.discountSymbol == '\$') {
@@ -606,7 +648,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
               law10: law10,
               taxId: type,
               discount: item.discount,
-              discountRate:item.discountRate,
+              discountRate: item.discountRate,
               discountSymbol: item.discountSymbol,
               retentionTaxId: item.retentionTaxId,
               retentionTax: item.retentionTax,
@@ -620,60 +662,15 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
           widget.items[i] = newItem;
         }
-
-
       }
-
-
-
+      _onCheckNcf();
+      _checkNcfStatus();
 
       setState(() {
         widget.items = List.from(widget.items);
       });
     }
-    try {
-      if (currentNcfTypeId != null) {
-        ncfList = await NcfsList(ncfTypeId: currentNcfTypeId).findNcf();
 
-        if (ncfList != null) {
-          fechaVencimiento = ncfList!.expirationDate!;
-          fechaVencimientoController.value = TextEditingValue(
-              text: fechaVencimiento.format(payload: 'DD/MM/YYYY'));
-
-          var msg = await ncfList?.checkIfExistAvailable();
-          if (msg != null) {
-            var errorMsg = msg['error'];
-
-            if (errorMsg != null) {
-              setState(() {
-                isValid = false;
-              });
-              await LogHandler.printError(errorMsg);
-              showTopSnackBar(context,
-                  message: msg['error'], color: Colors.red);
-            }
-          }
-        } else {
-          throw 'NO EXISTEN COMPROBANTES TIPO: $currentNcfTypeId DISPONIBLES';
-        }
-        int umbral = 1;
-        var checkObj =
-            await NcfSecuencia(id: currentNcfTypeId).checkNcfs(umbral: umbral);
-
-        if (checkObj != null) {
-          for (var item in checkObj) {
-            int dif = item['dif'];
-            String name = item['name'];
-            throw 'QUEDAN $dif $name';
-          }
-        }
-      }
-    } catch (e) {
-      setState(() {
-        isValid = false;
-      });
-      showTopSnackBar(context, message: e.toString(), color: Colors.red);
-    }
   }
 
   void addRow() {
@@ -778,6 +775,12 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
   Future<void> _onHandlerKeyboard(KeyEvent event) async {
     if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.f7 || event.logicalKey == LogicalKeyboardKey.escape) {
+        if (sale != null && loading == false) {
+          closeAllSnackbars();
+          printPos();
+        }
+      }
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         x = offsets[0];
         y = offsets[1];
@@ -868,9 +871,16 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
             context, MaterialPageRoute(builder: (ctx) => CotizationsPage()));
       }
 
+       if (event.logicalKey == LogicalKeyboardKey.f5) {
+        await Navigator.push(
+            context, MaterialPageRoute(builder: (ctx) => SalesPage()));
+      }
+
       if (event.logicalKey == LogicalKeyboardKey.f11) {
-        currentNcfTypeId = '32';
-        _onSelectedNcf(currentNcfTypeId);
+        if(enabledOnlySeller == false){
+           currentNcfTypeId = '32';
+          _onSelectedNcf(currentNcfTypeId);
+        }
       }
 
       if (event.logicalKey == LogicalKeyboardKey.f12) {
@@ -881,6 +891,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   }
 
   Future<void> _initAsync() async {
+
+  
     if (widget.editing == false) {
       if (widget.generateNcfFromProforma == false) {
         if (isSale) {
@@ -917,17 +929,28 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
       }
     }
 
-    setState(() {});
+   
   }
 
   bool isDialogOpen = false;
   Timer? timer;
 
+  DateTime? expiredCashShift;
+
   String? get currentTurnoId {
     return localStorage.getItem('currentTurnoId_$currentInstanceId');
   }
 
+  int? get currentWorkdayId {
+    var store = int.tryParse(
+        localStorage.getItem('currentWorkdayId_$currentInstanceId') ?? 'x');
+    if (store != null) return store;
+
+    return company?.currentWorkdayId;
+  }
+
   int getPeriodIdByHour(DateTime now) {
+ 
     if (now.hour >= 6 && now.hour < 12) {
       return 1; // Mañana
     } else if (now.hour >= 12 && now.hour < 19) {
@@ -940,12 +963,23 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   Future<void> validatePeriod() async {
     var cashshift =
         CashShiftModel(createdBy: currentUser?.id, boxId: currentUser?.boxId);
-    int currentPeriodId = getPeriodIdByHour(DateTime.now());
+    var now = DateTime.now();
+    int currentPeriodId = getPeriodIdByHour(now);
 
-    int oldPeriodId =
-        int.tryParse(localStorage.getItem('oldPeriodId_$currentInstanceId') ?? 'x') ?? -1;
 
-    if (currentPeriodId != oldPeriodId) {
+
+    var expired = DateTime.tryParse(
+        localStorage.getItem('expirationCashShift_$currentInstanceId') ?? 'x');
+
+    // Validación
+    bool shouldOpenModal = false;
+
+    // Jornada diaria: abrir solo si expiró
+   // shouldOpenModal = expired == null || now.isAfter(expired);
+   shouldOpenModal = currentTurnoId == null;
+
+ 
+    if (shouldOpenModal) {
       // Evitar conflicto si ya hay otro modal abierto (ej. loader)
       if (!isDialogOpen) {
         isDialogOpen = true;
@@ -955,20 +989,84 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
           barrierDismissible: false,
           builder: (_) => OpenShiftModal(
             periodId: currentPeriodId,
-            onConfirm: (openingAmount, description) async {
+            workdayId: currentWorkdayId,
+            onConfirm: (openingAmount, description, period, workdayId,
+                xworkday) async {
               try {
                 // Cerrar turno anterior y abrir nuevo
                 showLoader(context);
 
-                await CashShiftModel.closeCashShiftTurno(
-                    id: currentTurnoId ?? 'x');
+                /*await CashShiftModel.closeCashShiftTurno(
+                    id: currentTurnoId ?? 'x');*/
                 cashshift.periodId = currentPeriodId;
                 cashshift.description = description;
                 cashshift.openingAmount = openingAmount;
+                cashshift.workdayId = currentWorkdayId;
                 cashshift.createdAt = DateTime.now();
+
+
+                if (xworkday != null) {
+
+             
+                  var now = cashshift.createdAt;
+           
+
+                  // Construir la fecha/hora de inicio de la jornada
+                  var startNow = DateTime(
+                    now!.year,
+                    now.month,
+                    now.day,
+                    xworkday.startHour!.hour,
+                    xworkday.startHour!.minute,
+                  );
+
+                     
+                 
+                  // Construir la fecha/hora de fin de la jornada
+                  var endNow = DateTime(
+                    now.year,
+                    now.month,
+                    now.day,
+                    xworkday.endHour!.hour,
+                    xworkday.endHour!.minute,
+                  );
+
+                  // Si la jornada cruza medianoche (ej. 20:00 a 06:00), ajustar al día siguiente
+                  if (endNow.isBefore(now)) {
+                    endNow = endNow.add(const Duration(days: 1));
+                  }
+
+            
+                  expiredCashShift = endNow;
+
+               
+           
+
+            
+                } else {
+                  throw 'NO EXISTE UNA JORNADA SELECCIONADA (DEBES IR AL MODULO DE JORNADAS PARA AGREGAR UNA)';
+                }
+
+
+                
                 var newCashShift = await cashshift.openCashShift();
-                localStorage.setItem('currentTurnoId_$currentInstanceId', newCashShift?.id ?? '');
-                localStorage.setItem('oldPeriodId_$currentInstanceId', currentPeriodId.toString());
+                       // Guardar el ID de la jornada actual
+                localStorage.setItem(
+                    'currentWorkdayId_$currentInstanceId',
+                    xworkday.id.toString(),
+                  );
+
+                localStorage.setItem('currentTurnoId_$currentInstanceId',
+                    newCashShift?.id ?? '');
+                localStorage.setItem('oldPeriodId_$currentInstanceId',
+                    currentPeriodId.toString());
+
+                // Guardar la fecha de expiración en formato ISO
+                 localStorage.setItem(
+                    'expirationCashShift_$currentInstanceId',
+                    expiredCashShift!.toIso8601String(),
+                  );
+
                 Navigator.pop(context);
                 Navigator.pop(context);
                 showTopSnackBar(context,
@@ -995,6 +1093,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
     var dateLocal = now;
 
     createdAt = now;
+
+    paymentDate = now;
 
     paymentDateController.text =
         paymentDate?.format(payload: 'DD/MM/YYYY') ?? '';
@@ -1136,25 +1236,31 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
           currentNcfTypeId = '60';
           currentPrefix = 'C';
-          currentPaymentMethodId = 4;
-          currentPaymentType = 2;
-          currentPaymentModeId = 2;
+          
+          if(currentUser!.permissions!.contains('ALLOW_SETUP_ONLY_SELLER')){
+             currentPaymentMethodId = 4;
+             currentPaymentType = 2;
+             currentPaymentModeId = 2;
+         
+          }
         }
       }
     }
+
+    _onCheckNcf();
 
     setState(() {
       _initAsync();
     });
 
-    if(widget.editing == false){
-       Future.delayed(const Duration(milliseconds: 660), () {
-      validatePeriod();
-    });
+    if (widget.editing == false) {
+      Future.delayed(const Duration(milliseconds: 660), () {
+        validatePeriod();
+      });
 
-    timer = Timer.periodic(Duration(minutes: 5), (timer) {
-      validatePeriod();
-    });
+      timer = Timer.periodic(Duration(minutes: 5), (timer) {
+        validatePeriod();
+      });
     }
 
     super.initState();
@@ -1163,6 +1269,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
   @override
   void dispose() {
     timer?.cancel();
+    ncfList = null;
     super.dispose();
   }
 
@@ -1253,13 +1360,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
   _handlerCommands(KeyEvent event) async {
     if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.enter &&
-          HardwareKeyboard.instance.logicalKeysPressed
-              .contains(LogicalKeyboardKey.controlLeft)) {
-        if (_formKey.currentState!.validate()) {
-          _onSubmit();
-        }
-      }
+     
 
       if (event.logicalKey == LogicalKeyboardKey.f1) {
         _reset();
@@ -1271,8 +1372,10 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
       }
 
       if (event.logicalKey == LogicalKeyboardKey.f11) {
-        currentNcfTypeId = '32';
-        _onSelectedNcf(currentNcfTypeId);
+         if(enabledOnlySeller == false){
+          currentNcfTypeId = '32';
+         _onSelectedNcf(currentNcfTypeId);
+         }
       }
 
       if (event.logicalKey == LogicalKeyboardKey.f12) {
@@ -1293,13 +1396,16 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
     if (_formKey.currentState!.validate()) {
       var completed = amountInputFormatter.doubleValue == 0;
 
-      if (completed) {
+      if(currentUser!.permissions!.contains('ALLOW_SETUP_ONLY_SELLER') == false){
+        if (completed) {
         amount.value = amountInputFormatter.formatEditUpdate(
             TextEditingValue.empty,
             TextEditingValue(text: montoAPagarReferencia.toStringAsFixed(2)));
       }
+      }
       var res = await showPreConfirmInvoice(
           context: context,
+          sale: widget.sale,
           amountPaid: totalString,
           paid: amountString,
           debt: debt,
@@ -1311,8 +1417,21 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
     }
   }
 
+  printPos() async {
+    if (sale != null) {
+      var bytes = await createDefaultTicket(sale: sale!);
+
+      await PrinterHandler.printBytes(devicePos ?? '', bytes);
+
+      await LogHandler.printEvent('SE IMPRIMIO LA FACTURA ${sale?.ncf}');
+
+      sale = null;
+    }
+  }
+
   _onSubmit({bool completed = false}) async {
     if (_formKey.currentState!.validate()) {
+      loading = true;
       showLoader(context);
       try {
         if (eCommerceMode) {
@@ -1330,7 +1449,6 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
         createdAt = now;
 
         widget.sale.ncfTypeId = currentNcfTypeId;
-
         widget.sale.items = widget.items;
         widget.sale.net = _calc['net'];
         widget.sale.discount = _calc['discount'];
@@ -1342,7 +1460,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
         widget.sale.clientId = client?.id ?? taxPayer?.taxPayerId;
         widget.sale.clientIdentification = rncOrId.text.replaceAll('-', '');
         widget.sale.typeIncomeId = currentTypeIncomeId;
-        widget.sale.description = description.text.isEmpty ? null : description.text;
+        widget.sale.description =
+            description.text.isEmpty ? null : description.text;
         widget.sale.clientName = clientName.text;
         widget.sale.retentionDate = retentionDate;
         widget.sale.currencyId = currentCurrencyId;
@@ -1520,8 +1639,6 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
           widget.sale.issueDate = issueDate;
         }
 
-        Sale? sale;
-
         if (!widget.editing) {
           sale = await widget.sale.create();
 
@@ -1535,19 +1652,19 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
         if (widget.sale.prefix == 'E' &&
             sale != null &&
-            sale.signatureDate == null) {
+            sale?.signatureDate == null) {
           widget.sale.paid = amountx * xrate;
 
-          if (sale.debt == 0 && eCommerceMode) {
-            sale.issueDate = issueDate;
-            await enviarEcf(sale);
+          if (sale?.debt == 0 && eCommerceMode) {
+            sale?.issueDate = issueDate;
+            await enviarEcf(sale!);
           } else if (eCommerceMode == false) {
-            sale.issueDate = issueDate;
-            await enviarEcf(sale);
+            sale?.issueDate = issueDate;
+            await enviarEcf(sale!);
           }
 
           await LogHandler.printEvent(
-              '${sale.ncfTypeName} ${sale.ncf} FUE ENVIADA A DGII, RNC/CEDULA: ${sale.clientId}, EL CLIENTE: ${sale.clientName}');
+              '${sale?.ncfTypeName} ${sale?.ncf} FUE ENVIADA A DGII, RNC/CEDULA: ${sale?.clientId}, EL CLIENTE: ${sale?.clientName}');
         }
 
         late File file;
@@ -1568,7 +1685,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                   sale = xsale;
                 } else {
                   showLoader(context);
-                  await enviarEcf(sale);
+                  await enviarEcf(sale!);
                 }
               } else {
                 showLoader(context);
@@ -1576,11 +1693,13 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
             }
           }
           printInvoice() async {
-            var bytes = await createDefaultTicket(sale: sale!);
-
-            await PrinterHandler.printBytes(devicePos ?? '', bytes);
-
-            await LogHandler.printEvent('SE IMPRIMIO LA FACTURA ${sale.ncf}');
+            if (company?.notAllowAutoPrint == true) {
+              if (widget.sale.prefix == 'E') {
+                printPos();
+              }
+            } else {
+              printPos();
+            }
           }
 
           if (devicePos != null) {
@@ -1589,13 +1708,14 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
         } else {
           var doc = await createInvoice(sale!);
 
-          var fileName = '${sale.clientName}_${sale.ncf}_${company?.name}.PDF';
+          var fileName =
+              '${sale!.clientName}_${sale!.ncf}_${company?.name}.PDF';
 
           var dir = await getUresaxInvoiceDir();
           var filePath = path.join(
               dir.path,
               esNotaCredito ? 'NOTAS DE CREDITO' : 'VENTAS',
-              sale.createdAt!.format(payload: 'YYYYMM'),
+              sale!.createdAt!.format(payload: 'YYYYMM'),
               'PDFS',
               fileName);
           file = File(filePath);
@@ -1612,16 +1732,16 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
           if (widget.generateNcfFromProforma == false) {
             if (widget.sale is SaleProduct) {
               await Products.updateMinusStock(
-                  items: sale!.items, ncfTypeId: sale.ncfTypeId!);
+                  items: sale!.items, ncfTypeId: sale!.ncfTypeId!);
               await LogHandler.printEvent(
-                  'EL STOCK FUE ACTUALIZADO - ${sale.ncf}');
+                  'EL STOCK FUE ACTUALIZADO - ${sale!.ncf}');
             }
 
             if (widget.sale is CreditNoteAsProduct) {
               await Products.updateAddStock(
-                  items: sale!.items, ncfTypeId: sale.ncfTypeId!);
+                  items: sale!.items, ncfTypeId: sale!.ncfTypeId!);
               await LogHandler.printEvent(
-                  'EL STOCK FUE ACTUALIZADO - ${sale.ncf}');
+                  'EL STOCK FUE ACTUALIZADO - ${sale!.ncf}');
             }
           }
         }
@@ -1640,20 +1760,29 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
 
         showTopSnackBar(context,
             message: widget.editing ? 'FACTURA EDITADA' : 'FACTURA CREADA',
+            alignment: Alignment.topCenter,
             color: Colors.green);
+        loading = false;
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('DEVUELTA: ${sale?.coinBack?.abs().toDop()}'),
-          duration: Duration(seconds: 10),
-          action: SnackBarAction(
-            label: 'CERRAR',
-            textColor: Theme.of(context).primaryColor,
-            onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            },
-          ),
-        ));
+        if(eCommerceMode || enabledStore){
+          showTopSnackBar(context,
+            message:
+                'FACTURADO: ${sale?.total?.toCoin()} DEVUELTA: ${sale?.coinBack?.abs().toCoin()}',
+            alignment: Alignment.bottomCenter,
+            color: Colors.black,
+            timeout: Duration(hours: 2),
+            actions: [
+              IconButton(
+                  focusNode: _printerPosFocus,
+                  onPressed: () async {
+                    printPos();
+                  },
+                  icon: Icon(Icons.print, color: Colors.white))
+            ]);
+        }
       } catch (e) {
+        loading = false;
+        sale = null;
         _reset();
         await LogHandler.printEvent(e.toString());
         Navigator.pop(context);
@@ -1833,14 +1962,11 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
         }
       }
     }
-    
-
 
     double xquantity = double.tryParse(count.text) ?? quantity;
 
     double price =
         xelement?.price ?? double.tryParse(priceController.text) ?? 0;
-
 
     double priceAmountx = price * xquantity;
     double net = price;
@@ -2173,7 +2299,6 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
         c5.text = e.tax?.toStringAsFixed(2) ?? '';
         c6.text = e.total?.toStringAsFixed(2) ?? '';
 
-   
         return e is SaleItemService
             ? CreditNoteService(
                 id: e.id,
@@ -2280,6 +2405,11 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
     var size = MediaQuery.of(context).size;
     var w = size.width;
     var h = size.height;
+
+
+  final scaleX = size.width / 1024;   // ancho base
+  final scaleY = size.height / 768;   // alto base
+  final scale = math.min(scaleX, scaleY);
     return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -2870,7 +3000,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                               ),
                             ))),
                     Expanded(
-                        child: GestureDetector(
+                        child:  GestureDetector(
                       onTap: () => _focusCommands.requestFocus(),
                       child: KeyboardListener(
                           focusNode: _focusCommands,
@@ -2878,7 +3008,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                               widget.editing || widget.generateNcfFromProforma
                                   ? null
                                   : _handlerCommands,
-                          child: Container(
+                          child:
+                          Container(
+                        
                             decoration: BoxDecoration(
                                 border: Border(
                                     left: BorderSide(
@@ -2926,7 +3058,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                                             if (event is KeyDownEvent) {
                                               if (event.logicalKey ==
                                                   LogicalKeyboardKey.enter) {
-                                                    amountFocus.requestFocus();
+                                                amountFocus.requestFocus();
 
                                                 return KeyEventResult.handled;
                                               }
@@ -2968,8 +3100,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                                       isValid = xisValid;
                                     },
                                     onEnter: () {
-                                      FocusScope.of(context).nextFocus();
-                                      FocusScope.of(context).nextFocus();
+                                      amountFocus.requestFocus();
                                     },
                                   ),
                                   SizedBox(height: kDefaultPadding),
@@ -3210,7 +3341,6 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                                                                 .isEmpty
                                                             ? 'CAMPO OBLIGATORIO'
                                                             : null,
-                                                      
                                                         decoration: InputDecoration(
                                                             isDense: true,
                                                             labelText:
@@ -3404,8 +3534,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                                                 child: TextFormField(
                                                   focusNode: FocusNode(
                                                       skipTraversal: false),
-
-                                                  onFieldSubmitted:(_){
+                                                  onFieldSubmitted: (_) {
                                                     amountFocus.requestFocus();
                                                   },
                                                   key: ValueKey(
@@ -3425,23 +3554,22 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                                           ],
                                         )
                                       : SizedBox(),
-
-                                  
-                                    enabledInvoiceNotes ? Container(
-
-                                       margin: EdgeInsets.only(
-                                                    bottom: kDefaultPadding),
-                                    child: TextFormField(
-                                      controller: description,
-                                      keyboardType: TextInputType.multiline,
-                                      maxLines: 3,
-                                      decoration: InputDecoration(
-                                        labelText: 'NOTAS',
-                                        hintText: 'Escribir algo...',
-                                        isDense: true
-                                      ),
-                                    ),
-                                    ):SizedBox(),
+                                  enabledInvoiceNotes
+                                      ? Container(
+                                          margin: EdgeInsets.only(
+                                              bottom: kDefaultPadding),
+                                          child: TextFormField(
+                                            controller: description,
+                                            keyboardType:
+                                                TextInputType.multiline,
+                                            maxLines: 3,
+                                            decoration: InputDecoration(
+                                                labelText: 'NOTAS',
+                                                hintText: 'Escribir algo...',
+                                                isDense: true),
+                                          ),
+                                        )
+                                      : SizedBox(),
                                   Row(
                                     children: [
                                       Expanded(
@@ -3490,7 +3618,6 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                                                             }
                                                           });
                                                         }))),
-
                                       currentPaymentModeId == 2 ||
                                               currentPaymentModeId == 1
                                           ? SizedBox()
@@ -3752,8 +3879,11 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator> {
                                 ],
                               ),
                             ),
-                          )),
-                    ))
+                          ))
+                          ),
+                    )
+                    
+                     
                   ],
                 ))));
   }

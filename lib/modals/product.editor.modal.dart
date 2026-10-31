@@ -94,37 +94,42 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
     if (_formKey.currentState!.validate()) {
       showLoader(context);
       try {
-        widget.product.name = name.text.trim();
-        widget.product.price = amountInputFormatter.doubleValue;
-        widget.product.cost = costInputFormatter.doubleValue;
-        widget.product.quantity =  double.tryParse(quantity.text);
-        widget.product.chassis =
+        Products product = Products(
+          id: widget.product.id
+        );
+        product.name = name.text.trim();
+        product.price = amountInputFormatter.doubleValue;
+        product.cost = costInputFormatter.doubleValue;
+        product.quantity =  double.tryParse(quantity.text);
+        product.chassis =
             chassis.text.isEmpty ? null : chassis.text.trim();
-        widget.product.licensePlate =
+        product.licensePlate =
             licensePlate.text.isEmpty ? null : licensePlate.text.trim();
-        widget.product.colorName =
+        product.colorName =
             colorName.text.isEmpty ? null : colorName.text.trim();
-        widget.product.taxId = currentTaxId;
-        widget.product.wareHouseId = currentWareHouseId;
-        widget.product.providerId = currentProviderId;
-        widget.product.code = code.text.isEmpty ? null : code.text.trim();
-        widget.product.categoryId = currentCategoryId;
-        widget.product.unitId = currentUnitId;
-        widget.product.imageBase64 = imageBase64;
-        widget.product.discountId = currentDiscountId;
-        widget.product.editable = editable;
-        widget.product.maxDiscount = double.tryParse(maxDiscount.text) ?? 90;
-        widget.product.isUnique = isUnique;
-        widget.product.parentId =  widget.parentProduct?.id;
-        widget.product.factor = double.tryParse(factor.text) ?? 1.0;
+        product.taxId = currentTaxId;
+        product.wareHouseId = currentWareHouseId;
+        product.providerId = currentProviderId;
+        product.code = code.text.isEmpty ? null : code.text.trim();
+        product.categoryId = currentCategoryId;
+        product.unitId = currentUnitId;
+        product.imageBase64 = imageBase64;
+        product.discountId = currentDiscountId;
+        product.editable = editable;
+        product.maxDiscount = double.tryParse(maxDiscount.text) ?? 90;
+        product.isUnique = isUnique;
+        product.parentId =  widget.parentProduct?.id;
+        product.factor = double.tryParse(factor.text) ?? 1.0;
         if (!widget.editing) {
-          var product = await widget.product.create();
+          await product.create();
+          widget.product = product;
           await LogHandler.printEvent(
               'PRODUCTO: ${widget.product.name} CREADO');
           Navigator.pop(context);
           Navigator.pop(context, product);
         } else {
-          var product = await widget.product.update();
+          await product.update();
+          widget.product = product;
           await LogHandler.printEvent(
               'PRODUCTO: ${widget.product.name} ACTUALIZADO');
           Navigator.pop(context);
@@ -228,6 +233,7 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      
       child: Form(
           key: _formKey,
           child: Container(

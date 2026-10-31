@@ -8,6 +8,7 @@ import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/apis/sql.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.element.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 
 class Products implements SaleElement {
@@ -124,6 +125,7 @@ class Products implements SaleElement {
 
   Future<Products?> create() async {
     try {
+            await User.authClient();
       var res = await apiUresax.post('/products/create', data: {
         'name': name,
         'price': price,
@@ -159,6 +161,7 @@ class Products implements SaleElement {
    @override
     Future<Products?> deleteImage() async {
     try {
+            await User.authClient();
       var res = await apiUresax.delete('/products/delete-image/$id');
 
       if(res.statusCode == 200){
@@ -192,6 +195,7 @@ class Products implements SaleElement {
     if ((ncfTypeId != '50' && ncfTypeId != '60') ||
         enabledProformaUpdateStock) {
       try {
+        await User.authClient();
         await apiUresax.put('/products/update-minus-stock',
             data: {'items': items.map((e) => e.toMap()).toList()});
       } on DioException catch (e) {
@@ -206,6 +210,7 @@ class Products implements SaleElement {
   }) async {
     if (ncfTypeId != '50' || enabledProformaUpdateStock || ncfTypeId != '60') {
       try {
+        await User.authClient();
         await apiUresax.put('/products/update-add-stock',
             data: {'items': items.map((e) => e.toMap()).toList()});
       } on DioException catch (e) {
@@ -243,6 +248,7 @@ class Products implements SaleElement {
 
   Future<Products?> update() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/products/update/$id', data: {
         'name': name,
         'price': price,
@@ -278,6 +284,7 @@ class Products implements SaleElement {
 
   Future<Products?> delete() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/products/delete/$id');
 
       if (res.statusCode == 200) {
@@ -293,6 +300,7 @@ class Products implements SaleElement {
   static Future<List<Products>> get(
       {String? search, List<int>? categories, int? parentId}) async {
     try {
+            await User.authClient();
       final queryParams = <String>[];
 
       if (search != null && search.isNotEmpty) {
@@ -351,6 +359,7 @@ class Products implements SaleElement {
 
   static Future<Products?> findByCode({required String code}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/products/findproductbycode/$code');
 
       if (res.statusCode == 200) {

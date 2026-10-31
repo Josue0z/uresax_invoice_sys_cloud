@@ -109,10 +109,12 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
   final ScrollController _scrollControllerY = ScrollController();
   final ScrollController _scrollControllerX = ScrollController();
 
-
   int? get brancheId {
-    return int.tryParse(localStorage.getItem('URESAX_INVOICE_BRANCHE_ID_${company?.id}') ?? 'x');
+    return int.tryParse(
+        localStorage.getItem('URESAX_INVOICE_BRANCHE_ID_${company?.id}') ??
+            'x');
   }
+
   bool get esGubernamental {
     return currentNcfTypeId == '45' || currentNcfTypeId == '15';
   }
@@ -171,8 +173,6 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
     return regexNumerico.hasMatch(code) || regexAlfanumerico.hasMatch(code);
   }
 
- 
-
   _reset() async {
     try {
       amount.text = '';
@@ -220,6 +220,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
       widget.sale.paymentDate = null;
       widget.sale.typeIncomeId = null;
       widget.sale.transfRef = null;
+      ncfList = null;
 
       if (isSale) {
         currentTypeIncomeId = '01';
@@ -255,6 +256,8 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
         currentPaymentType = null;
         currentPaymentModeId = null;
       }
+
+      _checkNcf();
 
       setState(() {
         widget.items = [];
@@ -298,6 +301,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
         createdAt = now;
 
         widget.sale.ncfTypeId = currentNcfTypeId;
+
         widget.sale.items = widget.items;
         widget.sale.net = calcs[0];
         widget.sale.discount = calcs[1];
@@ -596,11 +600,28 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
     }
   }
 
+  _checkNcf() async {
+   
+      if (currentNcfTypeId != null) {
+        ncfList = ncfsLists.firstWhere((x) => x.ncfTypeId == currentNcfTypeId);
+
+        if (ncfList != null) {
+          fechaVencimiento = ncfList!.expirationDate!;
+          fechaVencimientoController.value = TextEditingValue(
+              text: fechaVencimiento.format(payload: 'DD/MM/YYYY'));
+        }
+      }
+  
+  }
+
   _onSelectedNcf(String? option) async {
-    currentNcfTypeId = option;
+   
+      currentNcfTypeId = option;
 
     currentPrefix = 'E';
     maxSequence = 10;
+
+    ncfList = null;
     if (option == '60') {
       currentPrefix = 'C';
       currentPaymentMethodId = 4;
@@ -649,8 +670,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
               priceSuite: item.priceSuite,
               indicadorFacturacion: item.indicadorFacturacion,
               exemptAmount: item.netFinal,
-              total: item.total
-              );
+              total: item.total);
 
           widget.items[i] = newItem;
         }
@@ -774,58 +794,14 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
         }
       }
 
+      _checkNcf();
+      _checkNcfStatus();
+
       setState(() {
         widget.items = List.from(widget.items);
       });
     }
 
-    try {
-      if (currentNcfTypeId != null) {
-        ncfList = await NcfsList(ncfTypeId: currentNcfTypeId).findNcf();
-
-        if (ncfList != null) {
-          if (ncfList?.expirationDate != null) {
-            fechaVencimiento = ncfList!.expirationDate!;
-
-            fechaVencimientoController.value = TextEditingValue(
-                text: fechaVencimiento.format(payload: 'DD/MM/YYYY'));
-          }
-
-          var msg = await ncfList?.checkIfExistAvailable();
-          if (msg != null) {
-            var errorMsg = msg['error'];
-
-            if (errorMsg != null) {
-              setState(() {
-                isValid = false;
-              });
-              await LogHandler.printError(errorMsg);
-              showTopSnackBar(context,
-                  message: msg['error'], color: Colors.red);
-            }
-          }
-        } else {
-          throw 'NO EXISTEN COMPROBANTES TIPO: $currentNcfTypeId DISPONIBLES';
-        }
-
-        int umbral = 1;
-        var checkObj =
-            await NcfSecuencia(id: currentNcfTypeId).checkNcfs(umbral: umbral);
-
-        if (checkObj != null) {
-          for (var item in checkObj) {
-            int dif = item['dif'];
-            String name = item['name'];
-            throw 'QUEDAN $dif $name';
-          }
-        }
-      }
-    } catch (e) {
-      setState(() {
-        isValid = false;
-      });
-      showTopSnackBar(context, message: e.toString(), color: Colors.red);
-    }
   }
 
   _addSaleItemService() async {
@@ -1298,44 +1274,22 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
           }
         }
       }
-      if (currentNcfTypeId != null) {
-        int umbral = 1;
-        var checkObj =
-            await NcfSecuencia(id: currentNcfTypeId).checkNcfs(umbral: umbral);
-
-        if (checkObj != null) {
-          for (var item in checkObj) {
-            int dif = item['dif'];
-            String name = item['name'];
-            showTopSnackBar(context,
-                message: 'QUEDAN $dif $name', color: Colors.red);
-          }
-        }
-
-        ncfList = await NcfsList(ncfTypeId: currentNcfTypeId).findNcf();
-
-        if (ncfList != null) {
-          fechaVencimiento = ncfList!.expirationDate!;
-          fechaVencimientoController.text =
-              fechaVencimiento.format(payload: 'DD/MM/YYYY');
-
-          var msg = await ncfList?.checkIfExistAvailable();
-          if (msg != null) {
-            var errorMsg = msg['error'];
-            if (errorMsg != null) {
-              setState(() {
-                isValid = false;
-              });
-              await LogHandler.printError(errorMsg);
-              showTopSnackBar(context,
-                  message: msg['error'], color: Colors.red);
-            }
-          }
-        }
-      }
 
       setState(() {});
     } catch (_) {}
+  }
+
+  _checkNcfStatus()async{
+    try{
+       if(currentNcfTypeId != null){
+          await NcfsList(ncfTypeId: currentNcfTypeId).findNcfStatus();
+        }
+    }catch(e){
+    setState(() {
+        isValid = false;
+    });
+     showTopSnackBar(context, message: e.toString(),color: Colors.red);
+    }
   }
 
   @override
@@ -1393,6 +1347,8 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
 
     var now = DateTime.now();
     var dateLocal = now;
+
+    paymentDate = now;
 
     if (!widget.generateNcfFromProforma) {
       createdAt = widget.sale.createdAt ?? dateLocal;
@@ -1486,6 +1442,10 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
         }
       }
     }
+
+    _checkNcf();
+   _checkNcfStatus();
+
     setState(() {
       future = _initAsync();
     });
@@ -1577,7 +1537,6 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
 
       var items = await res.getSaleData();
 
-
       items = items
           .map((e) => e is SaleItemService
               ? CreditNoteService(
@@ -1668,11 +1627,9 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                   priceItem: e.priceItem))
           .toList();
 
-   
       for (int i = 0; i < items.length; i++) {
         var item = items[i];
         widget.items.add(item);
-   
       }
 
       setState(() {});
@@ -1688,14 +1645,11 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
               automaticallyImplyLeading: false,
               title: Row(
                 children: [
-                    Icon(Icons.receipt_long_outlined),
-                    SizedBox(
-                      width: kDefaultPadding
-                    ),
-                  Text(title,style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600
-              ))
+                  Icon(Icons.receipt_long_outlined),
+                  SizedBox(width: kDefaultPadding),
+                  Text(title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white, fontWeight: FontWeight.w600))
                 ],
               ),
               centerTitle: false,
@@ -1704,17 +1658,20 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   runAlignment: WrapAlignment.center,
                   children: [
-                 
-                  esNotaCredito ?  ToolButtonWidget(
-                        icon: Icons.document_scanner, onTap: _scanInvoice):SizedBox(),
-                  eCommerceMode ?   ToolButtonWidget(
-                        icon: Icons.print,
-                        onTap: () async {
-                          devicePos = await Navigator.push<String?>(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (ctx) => PrintersPage()));
-                        }):SizedBox(),
+                    esNotaCredito
+                        ? ToolButtonWidget(
+                            icon: Icons.document_scanner, onTap: _scanInvoice)
+                        : SizedBox(),
+                    eCommerceMode
+                        ? ToolButtonWidget(
+                            icon: Icons.print,
+                            onTap: () async {
+                              devicePos = await Navigator.push<String?>(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (ctx) => PrintersPage()));
+                            })
+                        : SizedBox(),
                     ToolButtonWidget(
                         icon: Icons.close_outlined,
                         onTap: () => Navigator.pop(context)),
@@ -1748,7 +1705,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                   validator: (val) =>
                                       val == null ? 'CAMPO OBLIGATORIO' : null,
                                   decoration: InputDecoration(
-                                    isDense: true,
+                                      isDense: true,
                                       hintText:
                                           'SELECCIONA UN TIPO DE COMPROBANTE',
                                       labelText: 'TIPO DE COMPROBANTE'),
@@ -1791,7 +1748,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                         ? 'CAMPO OBLIGATORIO'
                                         : null,
                                     decoration: InputDecoration(
-                                      isDense: true,
+                                        isDense: true,
                                         labelText: 'TIPO DE INGRESO'),
                                     items: typesIncomes
                                         .map((e) => DropdownMenuItem(
@@ -1817,7 +1774,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                               ? 'CAMPO OBLIGATORIO'
                                               : null,
                                           decoration: InputDecoration(
-                                            isDense: true,
+                                              isDense: true,
                                               labelText: 'CODIGO MODIFICACION'),
                                           items: overrideCodes
                                               .map((e) => DropdownMenuItem(
@@ -1844,7 +1801,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                           .textTheme
                                           .bodyMedium,
                                       decoration: InputDecoration(
-                                        isDense: true,
+                                          isDense: true,
                                           labelText: 'FECHA DE CREACION',
                                           hintText: 'DD/MM/YYYY',
                                           suffixIcon: IconButton(
@@ -1867,7 +1824,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                             .textTheme
                                             .bodyMedium,
                                         decoration: InputDecoration(
-                                          isDense: true,
+                                            isDense: true,
                                             labelText: 'FECHA DE RETENCION',
                                             hintText: 'DD/MM/YYYY',
                                             suffixIcon: IconButton(
@@ -1892,7 +1849,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                 readOnly: true,
                                 style: Theme.of(context).textTheme.bodyMedium,
                                 decoration: InputDecoration(
-                                  isDense: true,
+                                    isDense: true,
                                     labelText: 'FECHA DE VENCIMIENTO',
                                     hintText: 'DD/MM/YYYY',
                                     suffixIcon: IconButton(
@@ -1947,7 +1904,6 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                     setState(() {});
                                   },
                                   onChanged: (saleItem) {
-                               
                                     setState(() {});
                                   },
                                 );
@@ -2228,12 +2184,13 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                     onChanged: widget.editing || esNotaCredito
                                         ? null
                                         : (option) {
-                                           rate.clear();
+                                            rate.clear();
                                             currentCurrencyId = option;
                                             setState(() {});
                                           }),
                               ),
-                         currentCurrencyId == 2 ?   Column(
+                              currentCurrencyId == 2
+                                  ? Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
@@ -2269,7 +2226,8 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                           ),
                                         )
                                       ],
-                                    ):SizedBox(),
+                                    )
+                                  : SizedBox(),
                               Container(
                                 margin: EdgeInsets.symmetric(
                                     vertical: kDefaultPadding / 2),
@@ -2294,7 +2252,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                       if (currentPaymentMethodId == 4) {
                                         currentPaymentType = 2;
                                         currentPaymentModeId = 2;
-                                      }else{
+                                      } else {
                                         currentPaymentType = 1;
                                         currentPaymentModeId = 3;
                                       }
@@ -2388,7 +2346,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                               bottom: kDefaultPadding),
                                           child: DropdownButtonFormField(
                                               decoration: InputDecoration(
-                                                   isDense: true,
+                                                  isDense: true,
                                                   labelText: 'BANCO'),
                                               validator: (val) => val == null
                                                   ? 'CAMPO OBLIGATORIO'
@@ -2460,35 +2418,34 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
                                       : Expanded(
                                           flex: 2,
                                           child: Container(
-                                            margin: EdgeInsets.only(
-                                                right: kDefaultPadding / 2),
-                                            child: TextFormField(
-                                              key:
-                                                  ValueKey('editortext_amount'),
-                                              controller: amount,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                              onChanged: (_) {
-                                                setState(() {});
-                                              },
-                                              validator: (val) => val!.isEmpty
-                                                  ? 'CAMPO OBLIGATORIO'
-                                                  : (esNotaCredito &&
-                                                          amountInputFormatter
-                                                                  .doubleValue >
-                                                              debt)
-                                                      ? 'EL MONTO ES MAYOR'
-                                                      : null,
-                                              inputFormatters: [
-                                                amountInputFormatter
-                                              ],
-                                              decoration: InputDecoration(
-                                                  isDense: true,
-                                                  labelText: 'MONTO',
-                                                  hintText: '0.00'),
-                                            ))
-                                          ),
+                                              margin: EdgeInsets.only(
+                                                  right: kDefaultPadding / 2),
+                                              child: TextFormField(
+                                                key: ValueKey(
+                                                    'editortext_amount'),
+                                                controller: amount,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium,
+                                                onChanged: (_) {
+                                                  setState(() {});
+                                                },
+                                                validator: (val) => val!.isEmpty
+                                                    ? 'CAMPO OBLIGATORIO'
+                                                    : (esNotaCredito &&
+                                                            amountInputFormatter
+                                                                    .doubleValue >
+                                                                debt)
+                                                        ? 'EL MONTO ES MAYOR'
+                                                        : null,
+                                                inputFormatters: [
+                                                  amountInputFormatter
+                                                ],
+                                                decoration: InputDecoration(
+                                                    isDense: true,
+                                                    labelText: 'MONTO',
+                                                    hintText: '0.00'),
+                                              ))),
                                   Expanded(
                                       child: SizedBox(
                                     width: double.infinity,

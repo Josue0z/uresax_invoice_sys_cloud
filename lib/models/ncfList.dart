@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
+import 'package:uresax_invoice_sys_cloud/settings.dart';
 
 class NcfsList {
   int? id;
@@ -12,6 +14,7 @@ class NcfsList {
   DateTime? expirationDate;
   DateTime? createdAt;
   bool? finish;
+  int? lastNumber;
   NcfsList(
       {this.id,
       this.ncfTypeId,
@@ -20,7 +23,8 @@ class NcfsList {
       this.end,
       this.expirationDate,
       this.createdAt,
-      this.finish = false});
+      this.finish = false,
+      this.lastNumber = 1});
 
   Color get color {
     return finish == true ? Colors.green : Colors.red;
@@ -32,11 +36,13 @@ class NcfsList {
 
   static Future<List<NcfsList>> get() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/ncfslist/all');
       if (res.statusCode == 200) {
         var data = res.data;
-        return List<NcfsList>.from(
+        ncfsLists = List<NcfsList>.from(
             (data as List).map((x) => NcfsList.fromMap(x)));
+      return ncfsLists;
       }
 
       return [];
@@ -47,7 +53,7 @@ class NcfsList {
 
   Future<NcfsList?> findNcf() async {
     try {
-    
+           await User.authClient();
       var res = await apiUresax.get('/ncfslist/findncf/$ncfTypeId');
       if (res.statusCode == 200) {
         return NcfsList.fromMap(res.data);
@@ -64,10 +70,48 @@ class NcfsList {
     }
   }
 
+    Future<NcfsList?> findNcfStatus() async {
+    try {
+          await User.authClient();
+      var res = await apiUresax.post('/ncfslist/find-ncf-status',data: {
+        'ncfTypeId':ncfTypeId
+      });
+      if (res.statusCode == 200) {
+  
+        return NcfsList.fromMap(res.data);
+      }
+
+
+      return null;
+    } on DioException catch (e) {
+          throw e.response?.data['message'] ?? e.error.toString();
+    }
+  }
+
+
   Future<NcfsList?> create() async {
     try {
-
+      await User.authClient();
       var res = await apiUresax.post('/ncfslist/create',data:{
+        ...toMapInsert(),
+        'ncfTypeName':ncfTypeName
+      });
+
+      if(res.statusCode == 200){
+        return NcfsList.fromMap(res.data);
+      }
+      
+      return null;
+    } on DioException catch (e) {
+       throw e.response?.data['message'] ?? e.error.toString();
+    }
+  }
+
+
+  Future<NcfsList?> update() async {
+    try {
+      await User.authClient();
+      var res = await apiUresax.put('/ncfslist/update/$id',data:{
         ...toMapInsert(),
         'ncfTypeName':ncfTypeName
       });
@@ -84,6 +128,7 @@ class NcfsList {
 
   Future<NcfsList?> updateFinish({int? ncfListId = 1, int? currentNcf = 1}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/ncfslist/update-finish/$ncfTypeId',data: {
         'ncfListId':ncfListId,
         'currentNcf':currentNcf
@@ -100,6 +145,7 @@ class NcfsList {
 
   Future<Map<String, dynamic>?> checkIfExistAvailable() async {
     try {
+            await User.authClient();
       var res = await apiUresax.post('/ncfslist/check-if-exist-availables',data: {
         'ncfTypeId':ncfTypeId,
         'ncfTypeName':ncfTypeName
@@ -138,6 +184,7 @@ class NcfsList {
       'start': start,
       'end': end,
       'expirationDate': expirationDate,
+      'lastNumber':lastNumber,
       'createdAt': createdAt
     };
   }
@@ -147,6 +194,7 @@ class NcfsList {
       'ncfTypeId': ncfTypeId,
       'start': start,
       'end': end,
+      'lastNumber':lastNumber,
       'expirationDate': expirationDate?.toIso8601String()
     };
   }
@@ -164,6 +212,7 @@ class NcfsList {
         createdAt: map['createdAt'] != null
             ? DateTime.parse(map['createdAt']).toLocal()
             : null,
+        lastNumber: map['lastNumber'],
         finish: map['finish']);
   }
 
@@ -174,7 +223,7 @@ class NcfsList {
 
   @override
   String toString() {
-    return 'NcfsList(id: $id, ncfTypeId: $ncfTypeId, start: $start, end: $end, expirationDate: $expirationDate, createdAt: $createdAt)';
+    return 'NcfsList(id: $id, ncfTypeId: $ncfTypeId, start: $start, end: $end, lastNumber: $lastNumber, expirationDate: $expirationDate, createdAt: $createdAt)';
   }
 
   @override

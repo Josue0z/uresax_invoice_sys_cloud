@@ -13,6 +13,7 @@ import 'package:uresax_invoice_sys_cloud/models/credit.note.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.service.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:image/image.dart' as img;
@@ -322,7 +323,7 @@ Future<List<Sale>> getSales(
     }
 
     params = '&${query.join('&')}';
-
+       await User.authClient();
     var res = await apiUresax.get(
         '/sales/all?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -354,7 +355,7 @@ Future<List<Sale>> getCotizations(
     }
 
     params = '&${query.join('&')}';
-
+      await User.authClient();
     var res = await apiUresax.get(
         '/quotations/all?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -386,7 +387,7 @@ Future<List<Sale>> getCreditNotes(
     }
 
     params = '&${query.join('&')}';
-
+       await User.authClient();
     var res = await apiUresax.get(
         '/creditnotes/all?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -438,6 +439,7 @@ Future<Map<String, dynamic>> getSalesTypeIncomesReport({
     params = '&${query.join('&')}';
 
     List<Map<String, dynamic>> typesincomes = [];
+       await User.authClient();
     var res = await apiUresax.get(
         '/reports/get-sales-report-by-typesincomes?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -598,7 +600,7 @@ Future<Map<String, dynamic>> getSalesReportByTypeNcf(
     params = '&${query.join('&')}';
 
     List<Map<String, dynamic>> ncfs = [];
-
+       await User.authClient();
     var res = await apiUresax.get(
         '/reports/get-sales-report-by-ncf?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -769,7 +771,7 @@ Future<List<Sale>> getSalesListByIdAndNcf(
     }
 
     String params = '?${query.join('&')}';
-
+      await User.authClient();
     var res = await apiUresax.get('/sales/get-sales-list-by-id-and-ncf$params');
     if (res.statusCode == 200) {
       var data = res.data;
@@ -830,7 +832,7 @@ Future<double> getCreditNoteAmountByNcf({
 }) async {
   try {
     String date = ncfAffectedCreatedAt.toUtc().format(payload: 'YYYY-MM-DD');
-
+      await User.authClient();
     var res = await apiUresax.get(
         '/creditnotes/get-credit-note-amount-by-ncf?saleId=$saleId&date=$date&ncfAffected=$ncfAffected');
 
@@ -878,7 +880,7 @@ Future<Map<String, dynamic>> getSalesReportGlobal(
     }
 
     params = '&${query.join('&')}';
-
+       await User.authClient();
     var res = await apiUresax.get(
         '/reports/get-sales-report-global?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -1302,7 +1304,7 @@ Future<List<int>?> generateExcelSalesReport(
     params = '&${query.join('&')}';
 
     var sales = [];
-
+      await User.authClient();
     var res = await apiUresax.get(
         '/reports/get-sales-report-of-excel?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -1423,7 +1425,7 @@ Future<Map<String, dynamic>> getSalesReportBoxes(
     }
 
     params = '&${query.join('&')}';
-
+      await User.authClient();
     var res = await apiUresax.get(
         '/reports/get-sales-report-of-boxes?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -1630,7 +1632,7 @@ Future<Map<String, dynamic>> getReportDebtsOfClients({
 
     List<Map<String, dynamic>> debtsClients = [];
     List<Map<String, dynamic>> debtsNcfs = [];
-
+   await User.authClient();
     var res = await apiUresax.get(
         '/reports/get-sales-report-of-debts?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -1876,7 +1878,7 @@ Future<Map<String, dynamic>> getSalesReportByConcepts(
     }
 
     params = '&${query.join('&')}';
-
+    await User.authClient();
     var res = await apiUresax.get(
         '/reports/get-sales-report-by-concepts?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 
@@ -2031,7 +2033,7 @@ Future<Map<String, dynamic>> getSalesReportBoxesByHour(
     }
 
     params = '&${query.join('&')}';
-
+       await User.authClient();
     var res = await apiUresax.get(
         '/reports/get-sales-report-by-boxes-pos?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}$params');
 

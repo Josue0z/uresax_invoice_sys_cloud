@@ -39,6 +39,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
   _showModal({bool editing = false, required Category category}) async {
     var res = await showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (ctx) => CategoryEditorModal(
               editing: editing,
               category: category,
@@ -81,6 +82,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
     return ScrollMoveEventWidget(
         scrollControllerY: scrollControllerY,
         child: ListView.separated(
+          key: PageStorageKey('categories_list'),
             controller: scrollControllerY,
             itemBuilder: (ctx, index) {
               var category = categories[index];
@@ -189,7 +191,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text('$title (${categories.length})'),
+          automaticallyImplyLeading: false,
+          title: Text('TUS $title (${categories.length})'),
+          toolbarHeight: kToolbarHeight + 50,
           actions: [
             Wrap(
               runAlignment: WrapAlignment.center,
@@ -206,6 +210,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
                       });
                     },
                     decoration: InputDecoration(
+                             border: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(style: BorderStyle.none, width: 0)),
                         hintText: 'Nombre...',
                         fillColor: Colors.white,
                         filled: true,
@@ -221,7 +228,15 @@ class _CategoriesPageState extends State<CategoriesPage> {
                   },
                   icon: Icon(Icons.add),
                 )),
-                SizedBox(width: kDefaultPadding),
+                 SizedBox(width: kDefaultPadding),
+                CircleAvatar(
+                  child: IconButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      icon: Icon(Icons.close)),
+                ),
+                SizedBox(width: kDefaultPadding)
               ],
             )
           ],

@@ -95,6 +95,7 @@ class _BrancheEditorModalState extends State<BrancheEditorModal> {
               ),
               TextFormField(
                 controller: nameController,
+                autofocus: true,
                 validator: (val) => val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                 decoration: InputDecoration(
                     labelText: 'NOMBRE DE LA SUCURSAL',

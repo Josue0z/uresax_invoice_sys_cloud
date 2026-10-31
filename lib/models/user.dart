@@ -7,10 +7,17 @@ import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/models/branche.dart';
 import 'package:uresax_invoice_sys_cloud/models/company.dart';
 import 'package:uresax_invoice_sys_cloud/models/discount.dart';
+import 'package:uresax_invoice_sys_cloud/models/ncfList.dart';
 import 'package:uresax_invoice_sys_cloud/models/warehouse.dart';
+import 'package:uresax_invoice_sys_cloud/models/workday.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/models/box.dart' as bx;
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
+
+
+final String clientId = 'j/Bi+QmBnyTv+uEzR1WlJ5YOQK5B5wK9lHZavRaZsHsC4jI8L0v4qaYwljAICh+Ekhd6etsmd/RaKBQjqa7+YWlqOwO4LFS3sJQJukdcMTzqT2r39ulTTaljwleMvou5ZwhNvi2ZRYZe2J9oZvjYznm6Ju7jzberuWeR1UB7kQM=';
+
+final String secretId = 'PjvltZImklqkjdNaXIW3kkdRgW438dW7TJnNVqs8oZTIK4xfomSbku9GKdmUJ2g3uQas7hxnBbT8iBSLXEW8TtCGuqnI8Hs7ElItGu6xfECJyiVG+5Ic/JLGNaQ07dLwT+u/sa04q4DO6qIK8+1I+1YUgI+NsS4DJg+pUBClyIE=';
 
 class User {
   String? id;
@@ -26,6 +33,7 @@ class User {
   int? boxId;
   String? boxName;
   Company? company;
+  String? cashShiftId;
   User(
       {this.id,
       this.username,
@@ -39,10 +47,59 @@ class User {
       this.roleName,
       this.boxId,
       this.boxName,
-      this.company});
+      this.company,
+      this.cashShiftId});
+  
+  static Future<bool?> authClient()async{
+     try{
+       dynamic res;
 
+       var authJson = {};
+
+       var tokenStorage = localStorage.getItem('authToken');
+
+       if(tokenStorage != null){
+        authJson = jsonDecode(tokenStorage);
+        var tokenData = authJson['token'];
+        apiUresax.options.headers['x-authtoken'] = tokenData;
+
+  
+        var now = DateTime.now().toUtc();
+
+        var expiredAt = DateTime.parse(authJson['expiredAt']);
+
+
+        
+        if(now.isBefore(expiredAt)){
+          print('no ha vencido el token');
+          return true;
+        }
+
+       }
+    
+
+       res  = await apiUresax.post('/auth/oauth2',data: {
+        'clientId':clientId,
+        'secretId':secretId
+      });
+
+      if(res.statusCode == 200){
+        var xtoken = res.data;
+        var tokenData = xtoken['token'];
+        apiUresax.options.headers['x-authtoken'] = tokenData;
+        localStorage.setItem('authToken', jsonEncode(xtoken));
+        print('se genero un token');
+        return true;
+      }
+      return false;
+     }catch(e){
+      print(e);
+      return false;
+     }
+  }
   static Future<List<User>> get() async {
     try {
+      await authClient();
       var res = await apiUresax.get('/users/all');
 
       if (res.statusCode == 200) {
@@ -57,6 +114,7 @@ class User {
 
   static Future<User?> login(String username, String password) async {
     try {
+      await authClient();
       var res = await apiUresax.post('/users/login',
           data: {'username': username, 'password': password});
 
@@ -72,7 +130,6 @@ class User {
             headers: {
               'x-companyid': user.company?.id,
               'x-userid': user.id,
-              'x-token':Platform.environment['URESAX_INVOICE_API_TOKEN'],
               'Content-Type':'application/json'
             }
           )
@@ -93,7 +150,13 @@ class User {
         boxes = [bx.Box(name: 'CAJA'), ...await bx.Box.get()];
 
         branches =  [BrancheModel(name:'SUCURSAL'),...await BrancheModel.get()];
-    
+
+        workdays =  await WorkdayModel.get();
+
+        ncfsLists = await NcfsList.get();
+
+   
+     
         return user;
       }
 
@@ -106,6 +169,7 @@ class User {
 
   Future<User?> create() async {
     try {
+      await authClient();
       var res = await apiUresax.post('/users/create', data: {
         'username': username,
         'password': password,
@@ -130,6 +194,7 @@ class User {
 
   Future<User?> update() async {
     try {
+            await authClient();
       var res = await apiUresax.put('/users/update/$id', data: {
         'username': username,
         'name': name,
@@ -146,6 +211,24 @@ class User {
       }
 
       return null;
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? e.error.toString();
+    }
+  }
+
+    Future<bool?> verifyUser() async {
+    try {
+            await authClient();
+      var res = await apiUresax.post('/users/verify-users-allow-entries', data: {
+        'username': username,
+        'password': password
+      });
+
+      if (res.statusCode == 200) {
+        return true;
+      }
+
+      return false;
     } on DioException catch (e) {
       throw e.response?.data['message'] ?? e.error.toString();
     }
@@ -203,8 +286,8 @@ class User {
             : null,
         roleId: map['roleId'],
         roleName: map['roleName'],
-        boxId:localStorage.getItem('URESAX_INVOICE_CURRENT_BOX_ID_${map['id']}') ??  map['boxId'],
         boxName: map['boxName'],
+        cashShiftId: map['cashShiftId'],
         company:
             map['company'] != null ? Company.fromMap(map['company']) : null);
   }

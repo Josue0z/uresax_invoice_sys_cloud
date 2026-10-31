@@ -23,7 +23,7 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
   TextEditingController email = TextEditingController();
   TextEditingController address = TextEditingController();
 
-  String oldIdentification='';
+  String oldIdentification = '';
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   String get title {
@@ -41,33 +41,33 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
   _onSubmit() async {
     if (_formKey.currentState!.validate()) {
       try {
-
-      
+        showLoader(context);
         widget.client.name = name.text.trim();
         widget.client.identification = identification.text.trim();
         widget.client.email = email.text.isEmpty ? null : email.text.trim();
         widget.client.phone = phone.text.isEmpty ? null : phone.text.trim();
-        widget.client.address = address.text.isEmpty ? null : address.text.trim();
+        widget.client.address =
+            address.text.isEmpty ? null : address.text.trim();
 
         if (!widget.editing) {
           await widget.client.create();
           await LogHandler.printEvent('CLIENTE: ${widget.client.name} CREADO');
           Navigator.pop(context, 'CREATE');
         } else {
-
           var isChanged = oldIdentification != identification.text;
 
-          if(isChanged)
-          {
-               var exist = await Client.checkIfExistInvoices(identification: oldIdentification);
-               if(exist){
-                throw 'ESTE RNC/CEDULA ($oldIdentification) NO SE PUEDE CAMBIAR TIENE FACTURAS ACTIVAS';
-               }
+          if (isChanged) {
+            var exist = await Client.checkIfExistInvoices(
+                identification: oldIdentification);
+            if (exist) {
+              throw 'ESTE RNC/CEDULA ($oldIdentification) NO SE PUEDE CAMBIAR TIENE FACTURAS ACTIVAS';
+            }
           }
-      
+
           await widget.client.update();
           await LogHandler.printEvent(
               'CLIENTE: ${widget.client.name} ACTUALIZADO');
+          Navigator.pop(context);
           Navigator.pop(context, 'UPDATE');
           showTopSnackBar(context,
               message: widget.editing ? 'CLIENTE EDITADO' : 'CLIENTE CREADO',
@@ -75,6 +75,7 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
         }
       } catch (e) {
         await LogHandler.printError(e.toString());
+        Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
       }
     }
@@ -83,7 +84,7 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
   @override
   void initState() {
     super.initState();
-    oldIdentification= widget.client.identification ?? '';
+    oldIdentification = widget.client.identification ?? '';
 
     name.value = TextEditingValue(text: widget.client.name ?? '');
     identification.value =
@@ -98,11 +99,10 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
     return Dialog(
       child: Form(
           key: _formKey,
-          child: SizedBox(
+          child: Container(
               width: 350,
-              child: ListView(
-                shrinkWrap: true,
-                padding: EdgeInsets.all(kDefaultPadding),
+              padding: EdgeInsets.all(kDefaultPadding),
+              child: Column(
                 children: [
                   Row(
                     children: [
@@ -120,63 +120,77 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
                           icon: Icon(Icons.close))
                     ],
                   ),
-                  SizedBox(
-                    height: kDefaultPadding,
-                  ),
-                  TextFormField(
-                    controller: name,
-                    readOnly: esContado,
-                    validator: (val) =>
-                        val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
-                    decoration: InputDecoration(
-                        labelText: 'NOMBRE', hintText: 'Escribir nombre...'),
-                  ),
-                  SizedBox(
-                    height: kDefaultPadding,
-                  ),
-                  TextFormField(
-                    controller: identification,
-                    readOnly: esContado,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    maxLength: 11,
-                    validator: (val) =>
-                        val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
-                    decoration: InputDecoration(
-                        labelText: 'RNC/CEDULA', hintText: 'Escribir algo...'),
-                  ),
-                  SizedBox(
-                    height: kDefaultPadding,
-                  ),
-                  TextFormField(
-                    controller: phone,
-                    inputFormatters: [
-                      MultiMaskedTextInputFormatter(
-                          masks: ['xxx-xxx-xxxx'], separator: '-')
-                    ],
-                    decoration: InputDecoration(
-                        labelText: 'TELEFONO', hintText: '809 000 0000'),
-                  ),
-                  SizedBox(
-                    height: kDefaultPadding,
-                  ),
-                  TextFormField(
-                    controller: email,
-                    decoration: InputDecoration(
-                        labelText: 'CORREO', hintText: 'correo@example.com'),
-                  ),
-                  SizedBox(
-                    height: kDefaultPadding,
-                  ),
-                  TextFormField(
-                    controller: address,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                        labelText: 'DIRECCION',
-                        hintText: 'Escribir direccion...'),
-                  ),
-                  SizedBox(
-                    height: kDefaultPadding,
-                  ),
+                  Expanded(
+                      child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: kDefaultPadding,
+                        ),
+                        TextFormField(
+                          controller: name,
+                          autofocus: true,
+                          readOnly: esContado,
+                          validator: (val) =>
+                              val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
+                          decoration: InputDecoration(
+                              labelText: 'NOMBRE',
+                              hintText: 'Escribir nombre...'),
+                        ),
+                        SizedBox(
+                          height: kDefaultPadding,
+                        ),
+                        TextFormField(
+                          controller: identification,
+                          readOnly: esContado,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          maxLength: 11,
+                          validator: (val) =>
+                              val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
+                          decoration: InputDecoration(
+                              labelText: 'RNC/CEDULA',
+                              hintText: 'Escribir algo...'),
+                        ),
+                        SizedBox(
+                          height: kDefaultPadding,
+                        ),
+                        TextFormField(
+                          controller: phone,
+                          inputFormatters: [
+                            MultiMaskedTextInputFormatter(
+                                masks: ['xxx-xxx-xxxx'], separator: '-')
+                          ],
+                          decoration: InputDecoration(
+                              labelText: 'TELEFONO', hintText: '809 000 0000'),
+                        ),
+                        SizedBox(
+                          height: kDefaultPadding,
+                        ),
+                        TextFormField(
+                          controller: email,
+                          decoration: InputDecoration(
+                              labelText: 'CORREO',
+                              hintText: 'correo@example.com'),
+                        ),
+                        SizedBox(
+                          height: kDefaultPadding,
+                        ),
+                        TextFormField(
+                          controller: address,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                              labelText: 'DIRECCION',
+                              hintText: 'Escribir direccion...'),
+                        ),
+                        SizedBox(
+                          height: kDefaultPadding,
+                        ),
+                      ],
+                    ),
+                  )),
                   SizedBox(
                     width: double.infinity,
                     height: 50,

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 
 
@@ -28,6 +29,7 @@ class BrancheModel {
 
     static Future<List<BrancheModel>> get() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/branches/all');
 
       if (res.statusCode == 200) {
@@ -43,6 +45,7 @@ class BrancheModel {
 
   Future<BrancheModel?> create() async {
     try {
+            await User.authClient();
       var res = await apiUresax.post('/branches/create', data: toMap());
 
       if (res.statusCode == 200) {
@@ -58,6 +61,7 @@ class BrancheModel {
 
   Future<BrancheModel?> update() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/branches/update/$id', data: toMap());
 
       if(res.statusCode ==  200) {

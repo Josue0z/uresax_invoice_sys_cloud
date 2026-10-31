@@ -135,7 +135,21 @@ class _NcfsSequencesPageState extends State<NcfsSequencesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('TUS COMPROBANTES (${ncfs.length})'),
+         toolbarHeight: kToolbarHeight + 50,
+         actions: [
+            CircleAvatar(
+                  child: IconButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      icon: Icon(Icons.close)),
+                ),
+                SizedBox(
+                  width: kDefaultPadding,
+                )
+         ],
       ),
       body: FutureBuilder(
           future: future,

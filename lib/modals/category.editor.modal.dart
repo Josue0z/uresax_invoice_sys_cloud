@@ -30,6 +30,7 @@ class _CategoryEditorModalState extends State<CategoryEditorModal> {
 
   _onSubmit() async {
     if (_formKey.currentState!.validate()) {
+      showLoader(context);
       try {
         widget.category.name = name.text;
 
@@ -46,9 +47,11 @@ class _CategoryEditorModalState extends State<CategoryEditorModal> {
           await LogHandler.printEvent(
               'CATEGORIA: ${widget.category.name} ACTUALIZADA');
         }
+        Navigator.pop(context);
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
       } catch (e) {
         await LogHandler.printError(e.toString());
+        Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
       }
     }
@@ -91,6 +94,7 @@ class _CategoryEditorModalState extends State<CategoryEditorModal> {
                     margin: EdgeInsets.symmetric(vertical: kDefaultPadding),
                     child: TextFormField(
                       controller: name,
+                      autofocus: true,
                       validator: (val) =>
                           val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                       decoration: InputDecoration(

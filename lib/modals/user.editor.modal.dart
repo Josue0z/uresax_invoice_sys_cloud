@@ -28,7 +28,7 @@ class _UserEditorModalState extends State<UserEditorModal> {
   int? currentBoxId;
 
   final List<String> _superUsersPermissions = [
-    'ALLOW_VIEW_USERS',
+     'ALLOW_VIEW_USERS',
     'ALLOW_EDIT_COMPANY',
     'ALLOW_VIEW_CREATE_SALE_SERVICE',
     'ALLOW_VIEW_CREATE_SALE_PRODUCT',
@@ -40,6 +40,7 @@ class _UserEditorModalState extends State<UserEditorModal> {
     'ALLOW_VIEW_PRODUCTS',
     'ALLOW_VIEW_CLIENTS',
     'ALLOW_VIEW_CREATE_FORM_607',
+    'ALLOW_VIEW_ELECTRONIC_SETTINGS',
     'ALLOW_VIEW_BOXES',
     'ALLOW_VIEW_WAREHOUSES',
     'ALLOW_VIEW_ORDENS_PURCHASES',
@@ -51,7 +52,20 @@ class _UserEditorModalState extends State<UserEditorModal> {
     'ALLOW_DELETE_PRODUCT',
     'ALLOW_ADD_SERVICE',
     'ALLOW_EDIT_SERVICE',
-    'ALLOW_VIEW_REPORTS'
+    'ALLOW_VIEW_REPORTS',
+    'ALLOW_VIEW_STATUS_CASH_SHIFT',
+    'ALLOW_VIEW_SALES_TOTALS',
+    'ALLOW_VIEW_CASH_SHIFT_DETAILS',
+    'ALLOW_CHANGE_BRANCHE',
+    'ALLOW_VIEW_BRANCHES',
+    'ALLOW_CHANGE_BOX_ID',
+    'ALLOW_VIEW_CATEGORIES',
+    'ALLOW_VIEW_COTIZATIONS',
+    'ALLOW_VIEW_PRODUCT_QUANTITY',
+    'ALLOW_CREATE_FISCAL_INVOICE',
+    'ALLOW_VIEW_ENTRIES_PURCHASES',
+    'ALLOW_VIEW_NCFS_EDITOR',
+    'ALLOW_VIEW_NCFS_LIST_EDITOR'
   ];
 
   final List<String> _adminPermissions = [
@@ -79,7 +93,20 @@ class _UserEditorModalState extends State<UserEditorModal> {
     'ALLOW_DELETE_PRODUCT',
     'ALLOW_ADD_SERVICE',
     'ALLOW_EDIT_SERVICE',
-    'ALLOW_VIEW_REPORTS'
+    'ALLOW_VIEW_REPORTS',
+    'ALLOW_VIEW_STATUS_CASH_SHIFT',
+    'ALLOW_VIEW_SALES_TOTALS',
+    'ALLOW_VIEW_CASH_SHIFT_DETAILS',
+    'ALLOW_VIEW_BRANCHES',
+    'ALLOW_CHANGE_BOX_ID',
+    'ALLOW_VIEW_CATEGORIES',
+    'ALLOW_VIEW_COTIZATIONS',
+    'ALLOW_VIEW_PRODUCT_QUANTITY',
+    'ALLOW_CREATE_FISCAL_INVOICE',
+    'ALLOW_VIEW_ENTRIES_PURCHASES',
+    'ALLOW_VIEW_NCFS_EDITOR',
+    'ALLOW_VIEW_NCFS_LIST_EDITOR'
+
   ];
 
   final List<String> _cashierPermissions = [
@@ -93,7 +120,10 @@ class _UserEditorModalState extends State<UserEditorModal> {
     'ALLOW_VIEW_PRODUCTS',
     'ALLOW_VIEW_CLIENTS',
     'ALLOW_VIEW_CREATE_FORM_607',
+    'ALLOW_CREATE_FISCAL_INVOICE'
   ];
+
+  var user =  User();
   List<String> _userPermissions = [];
 
   String get title {
@@ -119,39 +149,52 @@ class _UserEditorModalState extends State<UserEditorModal> {
   _onSubmit() async {
     if (_formKey.currentState!.validate()) {
       try {
-        widget.user.name = name.text;
-        widget.user.username = username.text;
+        user = User(
+          id: widget.user.id
+        );
+        user.name = name.text;
+        user.username = username.text;
 
-        widget.user.password = password.text;
+        user.password = password.text;
 
-        widget.user.phone = phone.text;
-        widget.user.email = email.text;
-        widget.user.roleId = currentRoleId;
-        widget.user.boxId = currentBoxId;
+        user.phone = phone.text;
+        user.email = email.text;
+        user.roleId = currentRoleId;
 
-        widget.user.permissions = _userPermissions;
+        var currentRole = roles.firstWhere((x)=> x.id == user.roleId);
+
+        user.permissions = _userPermissions;
         if (!widget.editing) {
-          await widget.user.create();
-          await LogHandler.printEvent('USUARIO: ${widget.user.name} CREADO');
+
+          showLoader(context);
+          await user.create();
+        
+          widget.user = user;
+          await LogHandler.printEvent('USUARIO: ${user.name} CREADO');
         } else {
-          await widget.user.update();
+              showLoader(context);
+          await user.update();
+          widget.user = user;
           await LogHandler.printEvent(
               'USUARIO: ${widget.user.name} ACTUALIZADO');
-          if (currentUser?.id == widget.user.id) {
-            currentUser?.name = widget.user.name;
-            currentUser?.username = widget.user.username;
-            currentUser?.roleId = widget.user.roleId;
-            currentUser?.roleName = widget.user.roleName;
+          if (currentUser?.id == user.id) {
+            currentUser?.name = user.name;
+            currentUser?.username = user.username;
+            currentUser?.roleId = user.roleId;
+            currentUser?.roleName = currentRole.name;
             currentUser?.permissions = _userPermissions;
-            currentUser?.boxId = widget.user.boxId;
           }
         }
+
+      Navigator.pop(context);
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
         showTopSnackBar(context,
             message: widget.editing ? 'USUARIO EDITADO' : 'USUARIO CREADO',
             color: Colors.green);
       } catch (e) {
+
         await LogHandler.printError(e.toString());
+        Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
       }
     }
@@ -160,13 +203,13 @@ class _UserEditorModalState extends State<UserEditorModal> {
   @override
   void initState() {
     if (widget.editing) {
+      user = widget.user;
       _userPermissions = [...widget.user.permissions ?? []];
       username.value = TextEditingValue(text: widget.user.username ?? '');
       name.value = TextEditingValue(text: widget.user.name ?? '');
       phone.value = TextEditingValue(text: widget.user.phone ?? '');
       email.value = TextEditingValue(text: widget.user.email ?? '');
       currentRoleId = widget.user.roleId;
-      currentBoxId = widget.user.boxId;
       setState(() {});
     }
     super.initState();
@@ -211,6 +254,7 @@ class _UserEditorModalState extends State<UserEditorModal> {
                             ),
                             TextFormField(
                               controller: username,
+                              autofocus: true,
                               validator: (val) =>
                                   val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                               decoration: InputDecoration(
@@ -232,7 +276,7 @@ class _UserEditorModalState extends State<UserEditorModal> {
                               height: kDefaultPadding,
                             ),
                             DropdownButtonFormField<int>(
-                                value: currentRoleId,
+                                initialValue: currentRoleId,
                                 validator: (val) =>
                                     val == null ? 'CAMPO OBLIGATORIO' : null,
                                 decoration: InputDecoration(labelText: 'ROL'),

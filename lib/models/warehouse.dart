@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class WareHouses {
   int? id;
@@ -14,6 +15,7 @@ class WareHouses {
   });
   static Future<List<WareHouses>> get({String? search}) async {
     try {
+      await User.authClient();
       String params = '?';
       if (search != null) {
         params += 'search=$search';
@@ -35,6 +37,7 @@ class WareHouses {
 
   Future<WareHouses?> create() async {
     try {
+        await User.authClient();
       var parameters = toMap();
       parameters.remove('id');
       parameters.remove('createdAt');
@@ -53,6 +56,7 @@ class WareHouses {
 
   Future<WareHouses?> update() async {
     try {
+        await User.authClient();
       var parameters = toMap();
 
       parameters.remove('createdAt');

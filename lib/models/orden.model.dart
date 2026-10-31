@@ -4,9 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:postgres/postgres.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
-import 'package:uresax_invoice_sys_cloud/apis/sql.dart';
 import 'package:uresax_invoice_sys_cloud/models/orden.item.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/payment.orden.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/models/warehouse.obj.dart';
 
 
@@ -89,6 +89,7 @@ class OrdenModel implements WareHouseElement<OrdenItemModel> {
       required DateTime? endDate,
       String? search}) async {
     try {
+            await User.authClient();
       String params = '';
       List<String> query = [];
 
@@ -116,6 +117,7 @@ class OrdenModel implements WareHouseElement<OrdenItemModel> {
   @override
   Future<List<OrdenItemModel>> getItems([TxSession? tx]) async {
     try {
+            await User.authClient();
       var res =
           await apiUresax.get('/ordenpurchases/get-ordenpurchase-items/$id');
 
@@ -134,6 +136,7 @@ class OrdenModel implements WareHouseElement<OrdenItemModel> {
   @override
   Future<List<PaymentOrden>> getPaymentsOrdens() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/ordenpurchases/get-payments-ordens/$id');
 
       if (res.statusCode == 200) {
@@ -151,6 +154,7 @@ class OrdenModel implements WareHouseElement<OrdenItemModel> {
   @override
   Future<OrdenModel?> create() async {
     try {
+            await User.authClient();
       var parameters = toMap();
 
       parameters.remove('ordenNum');
@@ -172,6 +176,7 @@ class OrdenModel implements WareHouseElement<OrdenItemModel> {
   @override
   Future<void> cancelOrden() async {
     try {
+            await User.authClient();
       await apiUresax.put('/ordenpurchases/cancel-orden/$id');
     } catch (e) {
       rethrow;

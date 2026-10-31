@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:localstorage/localstorage.dart';
 import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
@@ -37,6 +38,15 @@ class _CashShiftCloseModalState extends State<CashShiftCloseModal> {
       widget.cashShiftModel.denominations = denos;
 
       await widget.cashShiftModel.closeCashShiftReport();
+      var  turnoId = localStorage.getItem('currentTurnoId_$currentInstanceId');
+
+     if(widget.cashShiftModel.id == turnoId){
+      localStorage.removeItem('currentTurnoId_$currentInstanceId');
+      localStorage.removeItem('oldPeriodId_$currentInstanceId');
+      localStorage.removeItem('expirationCashShift_$currentInstanceId');
+      localStorage.removeItem('currentWorkdayId_$currentInstanceId') ;
+     }
+
       Navigator.pop(context);
       Navigator.pop(context, 'UPDATE');
     } catch (e) {

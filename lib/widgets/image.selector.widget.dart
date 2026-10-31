@@ -71,11 +71,12 @@ class _ImageSelectorWidgetState extends State<ImageSelectorWidget> {
 
   Widget get imageWidget {
     if (widget.imageUrl != null) {
-      print(widget.imageUrl);
-      return Image.network(widget.imageUrl ?? '', width: 180);
+      return Image.network(widget.imageUrl ?? '',
+          fit: BoxFit.contain, width: 180, height: 180);
     }
     if (widget.imageBase64 != null) {
-      return Image.memory(base64Decode(widget.imageBase64 ?? ''), width: 180);
+      return Image.memory(base64Decode(widget.imageBase64 ?? ''),
+          fit: BoxFit.contain, width: 180, height: 180);
     }
 
     return Container();
@@ -83,23 +84,21 @@ class _ImageSelectorWidgetState extends State<ImageSelectorWidget> {
 
   Widget get contentFilled {
     return Container(
-      width: double.infinity,
-      height: 250,
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black12)),
-      child: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
+        width: double.infinity,
+        height: 250,
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black12)),
+        child: Stack(
           children: [
-            imageWidget,
-            SizedBox(height: kDefaultPadding),
-            TextButton(onPressed: _removeImagen, child: Text('Eliminar Imagen'))
+            Positioned.fill(child: imageWidget),
+            Positioned(
+                bottom: 20,
+                right: 20,
+                child: ElevatedButton(onPressed: _removeImagen,child: Text('Eliminar Imagen')))
           ],
-        ),
-      ),
-    );
+        ));
   }
 
   Widget get contentDefault {

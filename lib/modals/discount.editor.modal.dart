@@ -92,6 +92,7 @@ class _DiscountEditorModalState extends State<DiscountEditorModal> {
                   ),
                   TextFormField(
                     controller: name,
+                    autofocus: true,
                     validator: (val) =>
                         val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                     decoration: InputDecoration(

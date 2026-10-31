@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class Discount {
   int? id;
@@ -17,6 +18,7 @@ class Discount {
   });
   static Future<List<Discount>> get() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/discounts/all');
 
       if (res.statusCode == 200) {
@@ -32,6 +34,7 @@ class Discount {
 
   Future<Discount?> create() async {
     try {
+            await User.authClient();
       var res = await apiUresax.post('/discounts/create',
           data: {'name': name, 'rate': rate, 'symbolId': symbolId});
       if (res.statusCode == 200) {
@@ -47,6 +50,7 @@ class Discount {
 
   Future<Discount?> update() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/discounts/update/$id',
           data: {'name': name, 'rate': rate, 'symbolId': symbolId});
 

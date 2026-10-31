@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class Category {
   int? id;
@@ -16,6 +17,7 @@ class Category {
 
   static Future<List<Category>> get({String? search, int? parentCategoryId}) async {
     try {
+      await User.authClient();
       var params = '';
 
       var query = [];
@@ -47,6 +49,7 @@ class Category {
 
   Future<Category?> create() async {
     try {
+            await User.authClient();
       var res = await apiUresax.post('/categories/create',data: {
         'name': name,
         'parentId':parentId
@@ -64,6 +67,7 @@ class Category {
 
   Future<Category?> update() async {
     try {
+            await User.authClient();
       var res =
           await apiUresax.put('/categories/update/$id', data: {'name': name});
       if (res.statusCode == 200) {

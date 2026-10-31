@@ -376,7 +376,8 @@ class SaleItemService implements SaleItem {
   @override
   Map<String, dynamic> toDisplayReceipt() {
     return {
-      'DESCRIPCION': '${quantity?.toStringAsFixed(2)} x ${price?.toCoin()}\n$serviceName',
+      'DESCRIPCION': '${quantity?.toStringAsFixed(2)} x ${price?.toCoin()}',
+      'DETAILS':serviceName,
       'ITBIS': tax?.toCoin(),
       'TOTAL': total?.toCoin() ?? ''
     };

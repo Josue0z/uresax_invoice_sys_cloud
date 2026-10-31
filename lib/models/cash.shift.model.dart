@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class Denominations {
   String? id;
@@ -158,20 +159,26 @@ class CashShiftModel {
   double? creditCardCalcElectronic;
   double? creditCardCalcPreventa;
 
+  int? workdayId;
+  String? workdayName;
+  String? startHourFormatted;
+  String? endHourFormatted;
+  double? workdaysHours;
+
   CashShiftModel(
       {this.id,
       this.description,
       this.cashShiftNumber,
       this.companyId,
       this.shiftDate,
-      this.openingAmount,
-      this.effective,
-      this.creditCard,
-      this.checkOrTransf,
-      this.saleToCredit,
-      this.totalAmount,
-      this.totalTax,
-      this.effectiveCount,
+      this.openingAmount = 0,
+      this.effective = 0,
+      this.creditCard = 0,
+      this.checkOrTransf = 0,
+      this.saleToCredit = 0,
+      this.totalAmount = 0,
+      this.totalTax = 0,
+      this.effectiveCount = 0,
       this.status,
       this.statusName,
       this.createdBy,
@@ -191,7 +198,12 @@ class CashShiftModel {
       this.transactionsCountElectronic = 0,
       this.transactionsCountPreventa = 0,
       this.creditCardCalcElectronic = 0,
-      this.creditCardCalcPreventa = 0});
+      this.creditCardCalcPreventa = 0,
+      this.workdayId,
+      this.workdayName,
+      this.startHourFormatted,
+      this.endHourFormatted,
+      this.workdaysHours});
 
   Color get color {
     if (status == 1 || status == 3 || status == 5) {
@@ -205,6 +217,7 @@ class CashShiftModel {
       required DateTime endDate,
       String? search}) async {
     try {
+            await User.authClient();
       var params = '';
 
       var parameters = [];
@@ -232,6 +245,7 @@ class CashShiftModel {
 
   Future<CashShiftModel?> openCashShift() async {
     try {
+            await User.authClient();
       var res = await apiUresax.post('/cash-shift/open', data: toMap());
 
       if (res.statusCode == 200) {
@@ -246,6 +260,7 @@ class CashShiftModel {
 
   Future<CashShiftModel?> closeCashShiftReport() async {
     try {
+            await User.authClient();
       var res =
           await apiUresax.put('/cash-shift/close-finish/$id', data: toMap());
 
@@ -261,6 +276,7 @@ class CashShiftModel {
 
   static Future<bool> closeCashShiftTurno({required String id}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/cash-shift/close/$id');
 
       if (res.statusCode == 200) {
@@ -348,6 +364,7 @@ class CashShiftModel {
       'boxId': boxId,
       'boxName': boxName,
       'denominations': denominations,
+      'workdayId':workdayId,
       'updatedAt': updatedAt?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String()
     };
@@ -364,25 +381,25 @@ class CashShiftModel {
             map['shiftDate'] != null ? DateTime.parse(map['shiftDate']) : null,
         openingAmount: map['openingAmount'] != null
             ? double.parse(map['openingAmount'])
-            : null,
+            : 0,
         effective:
-            map['effective'] != null ? double.parse(map['effective']) : null,
+            map['effective'] != null ? double.parse(map['effective']) : 0,
         creditCard:
-            map['creditCard'] != null ? double.parse(map['creditCard']) : null,
+            map['creditCard'] != null ? double.parse(map['creditCard']) : 0,
         checkOrTransf: map['checkOrTransf'] != null
             ? double.parse(map['checkOrTransf'])
-            : null,
+            : 0,
         saleToCredit: map['saleToCredit'] != null
             ? double.parse(map['saleToCredit'])
-            : null,
+            : 0,
         totalAmount: map['totalAmount'] != null
             ? double.parse(map['totalAmount'])
-            : null,
+            : 0,
         totalTax:
-            map['totalTax'] != null ? double.parse(map['totalTax']) : null,
+            map['totalTax'] != null ? double.parse(map['totalTax']) : 0,
         effectiveCount: map['effectiveCount'] != null
             ? double.parse(map['effectiveCount'])
-            : null,
+            : 0,
         status: map['status'] != null ? map['status'] as int : null,
         statusName:
             map['statusName'] != null ? map['statusName'] as String : null,
@@ -422,7 +439,12 @@ class CashShiftModel {
                 : 0,
             creditCardCalcElectronic: map['creditCardCalcElectronic'] != null
                 ? double.parse(map['creditCardCalcElectronic'])
-                : 0);
+                : 0,
+        workdayId: map['workdayId'],
+        workdayName: map['workdayName'],
+        startHourFormatted: map['startHourFormatted'],
+        endHourFormatted: map['endHourFormatted'],
+        workdaysHours: map['workdaysHours'] != null ? double.parse(map['workdaysHours']) : 0);
   }
 
   String toJson() => json.encode(toMap());
@@ -432,7 +454,7 @@ class CashShiftModel {
 
   @override
   String toString() {
-    return 'CashShiftModel(id: $id, description: $description, cashShiftNumber: $cashShiftNumber, companyId: $companyId, shiftDate: $shiftDate, openingAmount: $openingAmount, effective: $effective, creditCard: $creditCard, checkOrTransf: $checkOrTransf, saleToCredit: $saleToCredit, totalAmount: $totalAmount, totalTax: $totalTax, effectiveCount: $effectiveCount, status: $status, statusName: $statusName, createdBy: $createdBy, userName: $userName, periodId: $periodId, periodName: $periodName, boxId: $boxId, boxName: $boxName, denominations: $denominations, updatedAt: $updatedAt, createdAt: $createdAt)';
+    return 'CashShiftModel(id: $id, workdayId: $workdayId, description: $description, cashShiftNumber: $cashShiftNumber, companyId: $companyId, shiftDate: $shiftDate, openingAmount: $openingAmount, effective: $effective, creditCard: $creditCard, checkOrTransf: $checkOrTransf, saleToCredit: $saleToCredit, totalAmount: $totalAmount, totalTax: $totalTax, effectiveCount: $effectiveCount, status: $status, statusName: $statusName, createdBy: $createdBy, userName: $userName, periodId: $periodId, periodName: $periodName, boxId: $boxId, boxName: $boxName, denominations: $denominations, updatedAt: $updatedAt, createdAt: $createdAt)';
   }
 
   @override

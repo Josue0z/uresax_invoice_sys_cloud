@@ -8,6 +8,7 @@ import 'package:uresax_invoice_sys_cloud/apis/sql.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.item.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 
@@ -214,6 +215,7 @@ class CreditNoteAsProduct implements Sale {
   @override
   Future<CreditNoteAsProduct?> create() async {
     try {
+            await User.authClient();
       var map = toMapInsert();
       var res =
           await apiUresax.post('/creditnotes/create-creditnote-product', data: {
@@ -239,6 +241,7 @@ class CreditNoteAsProduct implements Sale {
   @override
   Future<bool?> delete() async {
     try {
+            await User.authClient();
       var res =
           await apiUresax.delete('/creditnotes/delete-creditnote-product/$id',data: {
              'ncfSeq':ncfSeq,
@@ -673,6 +676,7 @@ class CreditNoteAsProduct implements Sale {
   @override
   Future<List<CreditNoteProduct>> getSaleData() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/creditnotes/get-creditnote-items-products/$id');
 
 
@@ -756,6 +760,7 @@ class CreditNoteAsProduct implements Sale {
   @override
   Future<void> updateEcfInfo() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/creditnotes/update-ecf-info/$id', data: {
         'signatureDate': signatureDate?.toIso8601String(),
         'securityCode': securityCode,

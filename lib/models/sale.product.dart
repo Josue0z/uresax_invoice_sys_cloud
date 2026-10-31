@@ -7,6 +7,7 @@ import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.product.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 
@@ -476,6 +477,7 @@ class SaleProduct implements Sale {
   @override
   Future<SaleProduct?> create() async {
     try {
+            await User.authClient();
       var map = toMapInsert();
 
       var res = await apiUresax.post('/sales/create-sale-product',
@@ -494,6 +496,7 @@ class SaleProduct implements Sale {
   @override
   Future<bool?> delete() async {
     try {
+            await User.authClient();
       var res = await apiUresax.delete('/sales/delete-sale-product/$id',data: {
          'ncfSeq':ncfSeq,
         'ncfTypeId':ncfTypeId
@@ -512,6 +515,7 @@ class SaleProduct implements Sale {
   static Future<List<SaleProduct>> get(
       {required DateTime startDate, required DateTime endDate}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.get(
           '/sales/all?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}');
 
@@ -530,6 +534,7 @@ class SaleProduct implements Sale {
   @override
   Future<SaleProduct?> update() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/sales/update-sale-product/$id', data: {
         'net': net,
         'discount': discount,
@@ -576,7 +581,7 @@ class SaleProduct implements Sale {
   @override
   Future<Sale?> paySale(double amount) async {
     try {
-        
+              await User.authClient();
       var res =
           await apiUresax.post('/payments/create-pay-sale-product/$id', data: {
         'paymentMethodId': paymentMethodId,
@@ -729,6 +734,7 @@ class SaleProduct implements Sale {
   @override
   Future<List<SaleItem>> getSaleData() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/sales/get-sale-items-products/$id');
 
       if (res.statusCode == 200) {
@@ -809,6 +815,7 @@ class SaleProduct implements Sale {
   @override
   Future<void> updateEcfInfo() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/sales/update-ecf-info/$id', data: {
         'signatureDate': signatureDate?.toIso8601String(),
         'securityCode': securityCode,

@@ -4,6 +4,7 @@ import 'package:uresax_invoice_sys_cloud/modals/user.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/box.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
+import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
 
 class UsersPage extends StatefulWidget {
@@ -18,13 +19,20 @@ class _UsersPageState extends State<UsersPage> {
   Future? future;
 
   _showUserModal({required User user, bool editing = false}) async {
-    boxes = [Box(name: 'CAJA'), ...await Box.get()];
-    var res = await showDialog(
-        context: context,
-        builder: (ctx) => UserEditorModal(user: user, editing: editing));
+    try {
+      showLoader(context);
+      boxes = [Box(name: 'CAJA'), ...await Box.get()];
+      Navigator.pop(context);
+      var res = await showDialog(
+          context: context,
+          builder: (ctx) => UserEditorModal(user: user, editing: editing));
 
-    if (res == 'CREATE' || res == 'UPDATE') {
-      _initAsync();
+      if (res == 'CREATE' || res == 'UPDATE') {
+        _initAsync();
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
     }
   }
 
@@ -74,17 +82,29 @@ class _UsersPageState extends State<UsersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: Text('TUS USUARIOS (${users.length})'), actions: [
-          CircleAvatar(
-              child: IconButton(
-            tooltip: 'AGREGAR USUARIO',
-            icon: Icon(Icons.add),
-            onPressed: () {
-              _showUserModal(user: User());
-            },
-          )),
-          SizedBox(width: kDefaultPadding)
-        ]),
+        appBar: AppBar(
+            automaticallyImplyLeading: false,
+            title: Text('TUS USUARIOS (${users.length})'),
+            toolbarHeight: kToolbarHeight + 50,
+            actions: [
+              CircleAvatar(
+                  child: IconButton(
+                tooltip: 'AGREGAR USUARIO',
+                icon: Icon(Icons.add),
+                onPressed: () {
+                  _showUserModal(user: User());
+                },
+              )),
+              SizedBox(width: kDefaultPadding),
+              CircleAvatar(
+                child: IconButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: Icon(Icons.close)),
+              ),
+              SizedBox(width: kDefaultPadding)
+            ]),
         body: FutureBuilder(
             future: future,
             builder: (ctx, s) {

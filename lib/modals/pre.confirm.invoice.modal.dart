@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
+import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
+import 'package:uresax_invoice_sys_cloud/models/sale.service.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 
 Future<T?> showPreConfirmInvoice<T>(
     {required BuildContext context,
+    required Sale? sale,
     required String amountPaid,
     required String paid,
     required double debt,
     required String debtString}) {
+
+  bool isSale = sale is SaleService || sale is SaleProduct;
   return showDialog(
       context: context,
       builder: (ctx) {
@@ -58,7 +64,7 @@ Future<T?> showPreConfirmInvoice<T>(
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('TOTAL A PAGAR',
+                                Text(isSale ? 'TOTAL A PAGAR' :'TOTAL A DEVOLVER',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -76,7 +82,7 @@ Future<T?> showPreConfirmInvoice<T>(
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('HA PAGADO',
+                                Text(isSale ? 'HA PAGADO' : 'HA DEVUELTO',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium

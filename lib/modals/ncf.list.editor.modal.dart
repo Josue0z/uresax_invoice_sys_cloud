@@ -8,7 +8,9 @@ import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 
 class NcfListEditorModal extends StatefulWidget {
-  const NcfListEditorModal({super.key});
+  NcfsList? ncfList;
+  bool editing;
+  NcfListEditorModal({super.key,this.ncfList, this.editing = false});
 
   @override
   State<NcfListEditorModal> createState() => _NcfListEditorModalState();
@@ -20,6 +22,7 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
   NcfType? currentNcfType;
   DateTime expirationDate = DateTime.now().endOfYear();
   TextEditingController expirationDateController = TextEditingController();
+  TextEditingController lastNumber = TextEditingController();
   TextEditingController start = TextEditingController();
   TextEditingController end = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -27,30 +30,37 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
 
   _onSubmit() async {
     if (_formKey.currentState!.validate()) {
+
+      showLoader(context);
       try {
         int? xstart = int.tryParse(start.text);
         int? xend = int.tryParse(end.text);
+        int? xlastNumber = int.tryParse(lastNumber.text);
         var ncfList = NcfsList(
+            id: widget.ncfList?.id,
             ncfTypeId: currentNcfTypeId,
             ncfTypeName: currentNcfTypeName,
             start: xstart,
             end: xend,
+            lastNumber: xlastNumber,
             expirationDate: expirationDate);
 
-        var secuecia = NcfSecuencia(
-            id: currentNcfTypeId,
-            lastValue: xstart,
-            minValue: xstart,
-            maxValue: xend);
-        await ncfList.create();
+  
+        if (widget.editing) {
+          await ncfList.update();
+        } else {
+          await ncfList.create();
+        }
+
         await LogHandler.printEvent(
             'LISTA DE NCFS: ${ncfList.ncfTypeName} CREADA');
 
         await LogHandler.printEvent(
             'SECUENCIA DE NCFS: ${ncfList.ncfTypeName} ACTUALIZADA');
-
-        Navigator.pop(context, 'CREATE');
+        Navigator.pop(context);
+        Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
       } catch (e) {
+         Navigator.pop(context);
         await LogHandler.printError(e.toString());
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
       }
@@ -73,8 +83,20 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
 
   @override
   void initState() {
-    /* expirationDateController.value =
-        TextEditingValue(text: expirationDate.format(payload: 'DD/MM/YYYY'));*/
+    if(!mounted)return;
+    if (widget.editing && widget.ncfList != null) {
+      currentNcfTypeId = widget.ncfList?.ncfTypeId;
+      start.text = widget.ncfList!.start.toString();
+      end.text = widget.ncfList!.end.toString();
+      lastNumber.text = widget.ncfList!.lastNumber.toString();
+
+      expirationDate = widget.ncfList?.expirationDate ?? DateTime.now().endOfYear();
+      expirationDateController.value =
+          TextEditingValue(text: expirationDate.format(payload: 'DD/MM/YYYY'));
+        setState(() {
+          
+        });
+    }
     super.initState();
   }
 
@@ -93,7 +115,7 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
               children: [
                 Expanded(
                     child: Text(
-                  'AGREGANDO LISTA DE NCF',
+                 widget.editing ? 'EDITANDO LISTA DE NCF' : 'AGREGANDO LISTA DE NCF',
                   style: Theme.of(context)
                       .textTheme
                       .displayMedium
@@ -109,22 +131,20 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
             SizedBox(
               height: kDefaultPadding,
             ),
-            DropdownButtonFormField(
+            DropdownButtonFormField<String>(
                 isExpanded: true,
+                initialValue: currentNcfTypeId,
                 validator: (val) => val == null ? 'CAMPO OBLIGATORIO' : null,
                 items: List.generate(ncfs.length, (index) {
                   var ncf = ncfs[index];
                   return DropdownMenuItem(
                       value: ncf.id, child: Text(ncf.name ?? ''));
                 }),
-                onChanged: (id) async {
+                onChanged: widget.editing ? null : (id) async {
                   currentNcfTypeId = id;
                   currentNcfType = ncfs.firstWhere((e) => e.id == id);
                   currentNcfTypeName = currentNcfType?.name;
-                 setState(() {
-                   
-                 });
-
+                  setState(() {});
                 }),
             SizedBox(
               height: kDefaultPadding,
@@ -141,6 +161,11 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
                       : int.parse(val) < 1
                           ? 'NO PUEDE SER MENOR QUE 1'
                           : null,
+                  onChanged: (val){
+                
+                     lastNumber.text = start.text;
+                    
+                  },
                   decoration:
                       InputDecoration(labelText: 'INICIAL', hintText: '1'),
                 )),
@@ -164,6 +189,21 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
               height: kDefaultPadding,
             ),
             TextFormField(
+              controller:  lastNumber,
+                  maxLength:
+                      currentNcfType != null ? currentNcfType?.maxLimit : 8,
+                  validator: (val) => val!.isEmpty
+                      ? 'CAMPO OBLIGATORIO'
+                      : int.parse(val) < 1
+                          ? 'NO PUEDE SER MENOR QUE 1'
+                          : null,
+              decoration: InputDecoration(
+                  labelText: 'SECUENCIA ACTUAL', hintText: '0000000000'),
+            ),
+            SizedBox(
+              height: kDefaultPadding,
+            ),
+            TextFormField(
               controller: expirationDateController,
               readOnly: true,
               style: Theme.of(context).textTheme.bodyMedium,
@@ -182,7 +222,7 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
               width: double.infinity,
               height: 50,
               child:
-                  ElevatedButton(onPressed: _onSubmit, child: Text('AGREGAR')),
+                  ElevatedButton(onPressed: _onSubmit, child: Text(widget.editing ? 'EDITAR': 'AGREGAR')),
             )
           ],
         ),

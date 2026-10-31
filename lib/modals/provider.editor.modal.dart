@@ -5,7 +5,7 @@ import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 
 class ProviderEditorModal extends StatefulWidget {
-  final Providers provider;
+  Providers provider;
   bool editing;
   ProviderEditorModal(
       {super.key, required this.provider, this.editing = false});
@@ -32,25 +32,31 @@ class _ProviderEditorModalState extends State<ProviderEditorModal> {
 
   Future<void> _onSubmit() async {
     if (_formKey.currentState!.validate()) {
-      Providers? provider;
+      showLoader(context);
+      Providers provider = Providers(
+        id: widget.provider.id
+      );
       try {
-        widget.provider.name = name.text.trim();
-        widget.provider.rncOrId = rncOrId.text;
-        widget.provider.phone = phone.text.isEmpty ? null : phone.text;
-        widget.provider.email = email.text.isEmpty ? null : email.text;
-        widget.provider.address = address.text.isEmpty ? null : address.text;
+        provider.name = name.text.trim();
+        provider.rncOrId = rncOrId.text;
+        provider.phone = phone.text.isEmpty ? null : phone.text;
+        provider.email = email.text.isEmpty ? null : email.text;
+        provider.address = address.text.isEmpty ? null : address.text;
         if (widget.editing) {
-          await widget.provider.update();
+          await provider.update();
           await LogHandler.printEvent(
               'PROVEEDOR: ${widget.provider.name} ACTUALIZADO');
         } else {
-          provider = await widget.provider.create();
+          await provider.create();
+          widget.provider = provider;
           await LogHandler.printEvent(
               'PROVEEDOR: ${widget.provider.name} CREADO');
         }
+        Navigator.pop(context);
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
       } catch (e) {
         await LogHandler.printError(e.toString());
+        Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
       }
     }
@@ -97,6 +103,7 @@ class _ProviderEditorModalState extends State<ProviderEditorModal> {
                   margin: EdgeInsets.symmetric(vertical: kDefaultPadding),
                   child: TextFormField(
                     controller: rncOrId,
+                    autofocus: true,
                     validator: (val) =>
                         val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                     decoration: InputDecoration(

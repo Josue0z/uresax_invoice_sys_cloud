@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class PaymentType {
   int? id;
@@ -12,6 +13,7 @@ class PaymentType {
 
   static Future<List<PaymentType>> get() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/payment-type/all');
       if (res.statusCode == 200) {
         var data = res.data;

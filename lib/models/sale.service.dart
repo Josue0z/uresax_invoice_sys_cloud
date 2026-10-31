@@ -7,6 +7,7 @@ import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.service.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 
@@ -510,6 +511,7 @@ class SaleService implements Sale {
   @override
   Future<SaleService?> create() async {
     try {
+            await User.authClient();
       var map = toMapInsert();
 
       var res = await apiUresax.post('/sales/create-sale-service', data: {
@@ -532,6 +534,7 @@ class SaleService implements Sale {
   @override
   Future<bool?> delete() async {
     try {
+            await User.authClient();
       var res = await apiUresax.delete('/sales/delete-sale-service/$id',
           data: {'ncfSeq': ncfSeq, 'ncfTypeId': ncfTypeId});
 
@@ -548,6 +551,7 @@ class SaleService implements Sale {
   static Future<List<SaleService>> getSales607Form(
       {required String period}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/sales/get-sales-607?period=$period');
 
       if(res.statusCode ==200){
@@ -567,7 +571,7 @@ class SaleService implements Sale {
   @override
   Future<SaleService?> update() async {
     try {
-  
+        await User.authClient();
       var res = await apiUresax.put('/sales/update-sale-service/$id', data: {
         'description': description,
         'discount': discount,
@@ -613,6 +617,7 @@ class SaleService implements Sale {
   @override
   Future<Sale?> paySale(double amount) async {
     try {
+            await User.authClient();
       var res =
           await apiUresax.post('/payments/create-pay-sale-service/$id', data: {
         'paymentMethodId': paymentMethodId,
@@ -736,6 +741,7 @@ class SaleService implements Sale {
   @override
   Future<List<SaleItem>> getSaleData() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/sales/get-sale-items-services/$id');
 
       if (res.statusCode == 200) {
@@ -816,6 +822,7 @@ class SaleService implements Sale {
   @override
   Future<void> updateEcfInfo() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/sales/update-ecf-info/$id', data: {
         'signatureDate': signatureDate?.toIso8601String(),
         'securityCode': securityCode,

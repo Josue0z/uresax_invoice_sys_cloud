@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class RetentionIsr {
   String? id;
@@ -15,6 +16,7 @@ class RetentionIsr {
 
   static Future<List<RetentionIsr>> get() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/retentions-isrs/all');
 
       if(res.statusCode == 200){

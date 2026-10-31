@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/apis/sql.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class Company {
   String? id;
@@ -54,7 +55,14 @@ class Company {
   final bool enabledFirstComercialName;
   final bool enabledMultiplyBranches;
   final bool enabledInvoiceNotes;
+  final bool enabledLabelWhatsApp;
+  final bool enabledHideComercialName;
+  final bool notAllowAutoPrint;
+  final bool allowOnlyFiltersSales;
   int? currentInvoiceIndex;
+  int? currentWorkdayId;
+  double? defaultCashShiftAmount;
+  bool? allowCloseCashShift;
   Company({
     this.id,
     this.name,
@@ -104,7 +112,14 @@ class Company {
     this.enabledFirstComercialName = false,
     this.enabledMultiplyBranches = false,
     this.enabledInvoiceNotes = false,
-    this.currentInvoiceIndex = 0
+    this.enabledLabelWhatsApp = false,
+    this.enabledHideComercialName = false,
+    this.notAllowAutoPrint = false,
+    this.currentInvoiceIndex = 0,
+    this.defaultCashShiftAmount = 0.00,
+    this.currentWorkdayId,
+    this.allowCloseCashShift = true,
+    this.allowOnlyFiltersSales = false
   });
 
   static Future<Company?> get() async {
@@ -124,12 +139,30 @@ class Company {
 
   Future<Company?> update() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/companies/$id', data: toMap());
 
       if (res.statusCode == 200) {
         return Company.fromMap(res.data);
       }
       return null;
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? e.error.toString();
+    }
+  }
+
+   Future<bool?> updateCurrentWork() async {
+    try {
+            await User.authClient();
+      var res = await apiUresax.post('/workdays/update-current-workday', data: {
+        'currentWorkdayId':currentWorkdayId
+      });
+
+      if (res.statusCode == 200) {
+        return true;
+      }
+
+      return false;
     } on DioException catch (e) {
       throw e.response?.data['message'] ?? e.error.toString();
     }
@@ -187,6 +220,8 @@ class Company {
           Platform.environment['URESAX_INVOICE_COMPANY_COMERCIAL_NAME_${map['id']}'] ??
               map['comercialName'],
       rncOrId: map['rncOrId'],
+      currentWorkdayId: map['URESAX_INVOICE_CURRENT_WORKDAY'],
+      allowOnlyFiltersSales: map['URESAX_INVOICE_ALLOW_ONLY_FILTERS_SALES'],
       phone1:  localStorage.getItem('URESAX_INVOICE_BRANCHE_PHONE1_${map['id']}') ?? Platform.environment['URESAX_INVOICE_COMPANY_PHONE1'] ??
           map['phone1'],
       phone2: localStorage.getItem('URESAX_INVOICE_BRANCHE_PHONE2_${map['id']}') ?? Platform.environment['URESAX_INVOICE_COMPANY_PHONE2'] ??
@@ -197,11 +232,15 @@ class Company {
       address: localStorage.getItem('URESAX_INVOICE_BRANCHE_ADDRESS_${map['id']}') ?? Platform.environment['URESAX_INVOICE_COMPANY_ADDRESS_NAME'] ??
           map['address'],
       logo: map['logo'],
+      allowCloseCashShift: map['URESAX_INVOICE_ALLOW_CLOSE_CASH_SHIFT'],
       message: Platform.environment['URESAX_INVOICE_COMPANY_MESSAGE'] ??
           map['message'],
       bankInfo: map['bankInfo'],
       maxPreSales: map['maxPreSales'] ?? 99999999,
       instagramLink: map['instagramLink'],
+      defaultCashShiftAmount: map['defaultCashShiftAmount'] != null ? double.tryParse(map['defaultCashShiftAmount']) : 0.00,
+      enabledHideComercialName: map['URESAX_INVOICE_ENABLED_HIDE_COMERCIAL_NAME'],
+      enabledLabelWhatsApp: map['URESAX_INVOICE_ENABLED_LABEL_WHATSAPP'],
       enabledFirstComercialName: bool.tryParse(Platform
                   .environment['URESAX_INVOICE_ENABLED_FIRST_COMERCIAL_NAME'] ??
               (map['URESAX_INVOICE_ENABLED_FIRST_COMERCIAL_NAME']?.toString() ?? 'false')) ??
@@ -392,7 +431,8 @@ class Company {
               (map['URESAX_INVOICE_FILTER_INVOICES_BY_DAY']?.toString() ??
                   'false')) ?? false,
       currentInvoiceIndex: map['URESAX_INVOICE_CURRENT_INVOICE'],
-      enabledMultiplyBranches: map['URESAX_INVOICE_ENABLED_MULTIPLY_BRANCHES']
+      enabledMultiplyBranches: map['URESAX_INVOICE_ENABLED_MULTIPLY_BRANCHES'],
+      notAllowAutoPrint: map['URESAX_INVOICE_NOT_ALLOW_AUTO_PRINT']
     );
   }
 
@@ -403,7 +443,7 @@ class Company {
 
   @override
   String toString() {
-    return 'Company(id: $id, name: $name,comercialName: $comercialName, rncOrId: $rncOrId, phone1: $phone1, phone2: $phone2, email: $email, address: $address, logo: $logo, message: $message, bankInfo: $bankInfo, maxPreSales: $maxPreSales,instagramLink:$instagramLink)';
+    return 'Company(id: $id, name: $name,comercialName: $comercialName, rncOrId: $rncOrId, phone1: $phone1, phone2: $phone2, email: $email, address: $address, logo: $logo, message: $message, bankInfo: $bankInfo, maxPreSales: $maxPreSales,instagramLink:$instagramLink, notAllowAutoPrint: $notAllowAutoPrint)';
   }
 
   @override

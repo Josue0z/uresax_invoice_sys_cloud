@@ -107,13 +107,12 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
     showLoader(context);
     await _loadCashShifts(val);
     Navigator.pop(context);
-
   }
 
   @override
   void initState() {
-     if(!mounted)return;
-     setState(() {
+    if (!mounted) return;
+    setState(() {
       future = _loadCashShifts();
     });
     super.initState();
@@ -134,7 +133,7 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
                 width: 290,
                 child: DateRangeWidget(
                     dates: dates,
-                    onInitRender:false,
+                    onInitRender: false,
                     onChanged: (xdates) async {
                       dates = xdates;
                       dates = [
@@ -186,7 +185,6 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
             }
 
             if (s.hasError) {
-        
               return ContentErrorWidget(
                 error: s.error.toString(),
                 onRetry: () {
@@ -209,17 +207,17 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
                   ];
 
                   if (cash.status != 4) {
-                    if(cash.status != 5){
-                       if(cash.status != 3){
-                          options.insert(0, {'id': 1, 'name': 'APLICAR CIERRE'});
-                       }
+                    if (cash.status != 5) {
+                      if (cash.status != 3) {
+                        options.insert(0, {'id': 1, 'name': 'APLICAR CIERRE'});
+                      }
                     }
                   }
 
-                  if(currentUser!.permissions!.contains('ALLOW_VIEW_CASH_SHIFT_DETAILS')){
+                  if (currentUser!.permissions!
+                      .contains('ALLOW_VIEW_CASH_SHIFT_DETAILS')) {
                     options.insert(0, {'id': 3, 'name': 'VER DETALLES'});
                   }
-
 
                   return ListTile(
                       leading: Container(
@@ -244,34 +242,36 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
                               color: Theme.of(context).primaryColor)),
                       titleAlignment: ListTileTitleAlignment.center,
                       subtitle: Text(
-                          '${cash.description}\n${cash.boxName} - ${cash.periodName} - ${cash.userName} ~ ${cash.createdAt?.format(payload: 'DD/MM/YYYY')}'),
+                          '${cash.description}\n${cash.boxName} - ${cash.periodName}${cash.workdayName != null ? '\n${cash.workdayName}':''}\n${cash.userName} ~ ${cash.createdAt?.format(payload: 'DD/MM/YYYY')}'),
                       trailing: Wrap(
                         runAlignment: WrapAlignment.center,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Container(
-                            width: 50,
-                            height: 50,
+                            constraints: BoxConstraints(
+                                minWidth: 100, maxWidth: 130, minHeight: 50),
                             alignment: Alignment.center,
                             padding: EdgeInsets.all(kDefaultPadding * 0.6),
+                            margin: EdgeInsets.only(right: kDefaultPadding),
                             decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
-                                color: Colors.green.withOpacity(0.04)),
+                                color:cash.transactionsCount == 0 ? Colors.red.withOpacity(0.04) : Colors.green.withOpacity(0.04)),
                             child: Text(cash.transactionsCount.toString(),
-                                style: TextStyle(color: Colors.green)),
+                                style: TextStyle(color:cash.transactionsCount == 0 ? Colors.red : Colors.green)),
                           ),
-                          SizedBox(width: kDefaultPadding),
                           Container(
+                                  constraints: BoxConstraints(
+                                minWidth: 150, maxWidth: 160, minHeight: 50),
                             padding: EdgeInsets.all(kDefaultPadding / 2),
+                            alignment: Alignment.center,
                             decoration: BoxDecoration(
                                 color: cash.color.withOpacity(0.04),
-                                borderRadius: BorderRadius.circular(20)),
+                                borderRadius: BorderRadius.circular(90)),
                             child: Text(
                               cash.statusName ?? '',
                               style: TextStyle(fontSize: 16, color: cash.color),
                             ),
                           ),
-                          SizedBox(width: kDefaultPadding),
                           PopupMenuButton<int>(
                               onSelected: (int option) => _onSelected(
                                   option: option, cashShiftModel: cash),

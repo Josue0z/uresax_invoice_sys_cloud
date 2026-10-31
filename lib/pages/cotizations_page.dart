@@ -6,6 +6,7 @@ import 'package:moment_dart/moment_dart.dart';
 import 'package:open_file/open_file.dart';
 import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart';
 import 'package:uresax_invoice_sys_cloud/apis/printers.handler.dart';
+import 'package:uresax_invoice_sys_cloud/modals/filter.sales.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/dgiiStates.dart';
 import 'package:uresax_invoice_sys_cloud/models/ncftype.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
@@ -87,6 +88,37 @@ class _CotizationsPageState extends State<CotizationsPage> {
 
   ScrollController scrollControllerY = ScrollController();
 
+  List<String> get ncfsSelected {
+    return ['60'];
+  }
+
+  List<int> get dgiiStatesSelected {
+    return dgiiStates.map((e) => e.id!).toList();
+  }
+
+  Map<String, double> get totalSales {
+    Map<String, double> map = {};
+    var xtotal = 0.0;
+    var xtax = 0.0;
+    for (int i = 0; i < cotizations.length; i++) {
+      var sale = cotizations[i];
+      var rate = sale.rate ?? 1;
+      var retentionTax = sale.retentionTax ?? 0;
+      var retentionIsr = sale.retentionIsr ?? 0;
+      var total = sale.total ?? 0;
+
+      if (sale.ncfTypeId != '41') {
+        if (sale.ncfTypeId != '43') {
+          xtotal += (total - (retentionTax + retentionIsr)) * rate;
+          xtax += (sale.tax ?? 0) * rate;
+        }
+      }
+    }
+    map['total'] = xtotal;
+    map['tax'] = xtax;
+    return map;
+  }
+
   Future<void> _initAsync() async {
     try {
       cotizations = await getCotizations(
@@ -97,6 +129,254 @@ class _CotizationsPageState extends State<CotizationsPage> {
       print(e);
       setState(() {});
       rethrow;
+    }
+  }
+
+  _showReportByTypeNcf() async {
+    showLoader(context);
+    try {
+      var data = await getSalesReportByTypeNcf(
+          startDate: dates.first!,
+          endDate: dates.last!,
+          ncfTypeId: ncfTypeId,
+          ncfsTypes: ncfsSelected,
+          estadoDgii: estadoDgii,
+          dgiiStates: dgiiStatesSelected,
+          saleStatus: saleStatus);
+
+      var bytes = data['bytes'];
+
+      var dir = await getUresaxInvoiceDir();
+      var period = dates.first!.format(payload: 'YYYYMM');
+      var start = dates.first!.format(payload: 'DD-MM-YYYY');
+      var end = dates.last!.format(payload: 'DD-MM-YYYY');
+      var file = File(path.join(dir.path, 'REPORTES', 'PDFS', period,
+          'REPORTE_POR_TIPO_DE_NCF_${company?.name}_$start - $end.PDF'));
+
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes);
+
+      Navigator.pop(context);
+      await OpenFile.open(file.path);
+    } catch (e) {
+      Navigator.pop(context);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+  _showReportByTypeIncome() async {
+    showLoader(context);
+    try {
+      var data = await getSalesTypeIncomesReport(
+          startDate: dates.first!,
+          endDate: dates.last!,
+          ncfTypeId: ncfTypeId,
+          ncfsTypes: ncfsSelected,
+          estadoDgii: estadoDgii,
+          dgiiStates: dgiiStatesSelected,
+          saleStatus: saleStatus);
+
+      var bytes = data['bytes'];
+
+      var dir = await getUresaxInvoiceDir();
+      var period = dates.first!.format(payload: 'YYYYMM');
+      var start = dates.first!.format(payload: 'DD-MM-YYYY');
+      var end = dates.last!.format(payload: 'DD-MM-YYYY');
+      var file = File(path.join(dir.path, 'REPORTES', 'PDFS', period,
+          'REPORTE_POR_TIPO_DE_INGRESO_${company?.name}_$start - $end.PDF'));
+
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes);
+
+      Navigator.pop(context);
+      await OpenFile.open(file.path);
+    } catch (e) {
+      Navigator.pop(context);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+  _showReportGlobal() async {
+    showLoader(context);
+    try {
+      var result = await getSalesReportGlobal(
+          startDate: dates.first!,
+          endDate: dates.last!,
+          ncfTypeId: ncfTypeId,
+          ncfsTypes: ncfsSelected,
+          estadoDgii: estadoDgii,
+          dgiiStates: dgiiStatesSelected,
+          saleStatus: saleStatus);
+
+      var bytes = result['bytes'];
+
+      String period = dates.last!.format(payload: 'YYYYMM');
+
+      String date1 = dates.first!.format(payload: 'YYYYMMDD');
+      String date2 = dates.last!.format(payload: 'YYYYMMDD');
+
+      var dir = await getUresaxInvoiceDir();
+      var file = File(path.join(dir.path, 'REPORTES', 'PDFS', period,
+          'REPORTE_GLOBAL_${company?.name}_$date1-$date2.PDF'));
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes);
+      Navigator.pop(context);
+      await OpenFile.open(file.path);
+    } catch (e) {
+      Navigator.pop(context);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+  _showExcelReport() async {
+    showLoader(context);
+    try {
+      var result = await generateExcelSalesReport(
+          startDate: dates.first!,
+          endDate: dates.last!,
+          ncfsTypes: ncfsSelected,
+          dgiiStates: dgiiStatesSelected,
+          saleStatus: saleStatus);
+
+      var bytes = result;
+
+      String period = dates.last!.format(payload: 'YYYYMM');
+
+      String date1 = dates.first!.format(payload: 'YYYYMMDD');
+      String date2 = dates.last!.format(payload: 'YYYYMMDD');
+
+      var dir = await getUresaxInvoiceDir();
+      var file = File(path.join(dir.path, 'REPORTES', 'EXCEL', period,
+          'REPORTE_EXCEL_607_${company?.name}_$date1-$date2.XLS'));
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes!);
+      Navigator.pop(context);
+      await OpenFile.open(file.path);
+    } catch (e) {
+      Navigator.pop(context);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+  _showReportBoxes() async {
+    showLoader(context);
+    try {
+      var result = await getSalesReportBoxes(
+          startDate: dates.first!,
+          endDate: dates.last!,
+          ncfTypeId: ncfTypeId,
+          ncfsTypes: ncfsSelected,
+          estadoDgii: estadoDgii,
+          dgiiStates: dgiiStatesSelected,
+          saleStatus: saleStatus);
+
+      var bytes = result['bytes'];
+
+      String period = dates.last!.format(payload: 'YYYYMM');
+
+      String date1 = dates.first!.format(payload: 'YYYYMMDD');
+      String date2 = dates.last!.format(payload: 'YYYYMMDD');
+
+      var dir = await getUresaxInvoiceDir();
+      var file = File(path.join(dir.path, 'REPORTES', 'PDFS', period,
+          'REPORTE_CAJAS_${company?.name}_$date1-$date2.PDF'));
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes);
+      Navigator.pop(context);
+      await OpenFile.open(file.path);
+    } catch (e) {
+      Navigator.pop(context);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+  _showReportByConcepts() async {
+    showLoader(context);
+    try {
+      var result = await getSalesReportByConcepts(
+          startDate: dates.first!,
+          endDate: dates.last!,
+          ncfTypeId: ncfTypeId,
+          ncfsTypes: ncfsSelected,
+          estadoDgii: estadoDgii,
+          dgiiStates: dgiiStatesSelected,
+          saleStatus: saleStatus);
+
+      var bytes = result['bytes'];
+
+      String period = dates.last!.format(payload: 'YYYYMM');
+
+      String date1 = dates.first!.format(payload: 'YYYYMMDD');
+      String date2 = dates.last!.format(payload: 'YYYYMMDD');
+
+      var dir = await getUresaxInvoiceDir();
+      var file = File(path.join(dir.path, 'REPORTES', 'PDFS', period,
+          'REPORTE_CONCEPTOS_${company?.name}_$date1-$date2.PDF'));
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes);
+      Navigator.pop(context);
+      await OpenFile.open(file.path);
+    } catch (e) {
+      Navigator.pop(context);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+  _showReportDebtsOfClients() async {
+    showLoader(context);
+    try {
+      var result = await getReportDebtsOfClients(
+          startDate: dates.first!,
+          endDate: dates.last!,
+          ncfTypeId: ncfTypeId,
+          ncfsTypes: ncfsSelected,
+          estadoDgii: estadoDgii,
+          dgiiStates: dgiiStatesSelected,
+          saleStatus: saleStatus);
+
+      var bytes = result['bytes'];
+
+      String period = dates.last!.format(payload: 'YYYYMM');
+
+      String date1 = dates.first!.format(payload: 'YYYYMMDD');
+      String date2 = dates.last!.format(payload: 'YYYYMMDD');
+
+      var dir = await getUresaxInvoiceDir();
+      var file = File(path.join(dir.path, 'REPORTES', 'PDFS', period,
+          'REPORTE_DEUDAS_POR_CLIENTE_${company?.name}_$date1-$date2.PDF'));
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes);
+      Navigator.pop(context);
+      await OpenFile.open(file.path);
+    } catch (e) {
+      Navigator.pop(context);
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
+  _onSelectedOption(int? option) async {
+    switch (option) {
+      case 1:
+        _showReportByTypeNcf();
+        break;
+      case 2:
+        _showReportByTypeIncome();
+        break;
+      case 3:
+        _showReportGlobal();
+        break;
+      case 4:
+        _showExcelReport();
+        break;
+      case 5:
+        _showReportBoxes();
+        break;
+      case 6:
+        _showReportDebtsOfClients();
+      case 7:
+        _showReportByConcepts();
+        break;
+      default:
     }
   }
 
@@ -154,7 +434,7 @@ class _CotizationsPageState extends State<CotizationsPage> {
                       ? SaleMode.service
                       : SaleMode.product)));
     } else if (enabledInvoiceSimpleGenerator) {
-     res = await Navigator.push(
+      res = await Navigator.push(
           context,
           MaterialPageRoute(
               builder: (ctx) => PosScreenPage(
@@ -165,7 +445,6 @@ class _CotizationsPageState extends State<CotizationsPage> {
                   mode: sale is SaleProduct
                       ? SaleMode.product
                       : SaleMode.service)));
-  
     } else {
       res = await Navigator.push(
           context,
@@ -180,7 +459,7 @@ class _CotizationsPageState extends State<CotizationsPage> {
                       : SaleMode.product)));
     }
 
-    if (res!=null) {
+    if (res != null) {
       setState(() {
         future = _initAsync();
       });
@@ -229,91 +508,147 @@ class _CotizationsPageState extends State<CotizationsPage> {
   Widget get contentFilled {
     return ScrollMoveEventWidget(
         scrollControllerY: scrollControllerY,
-        child: ListView.separated(
-            controller: scrollControllerY,
-            separatorBuilder: (ctx, i) => const Divider(),
-            itemCount: cotizations.length,
-            itemBuilder: (ctx, index) {
-              var sale = cotizations[index];
-
-              List<Map<String, dynamic>> salesOptions = [
-                {'id': 1, 'name': 'Ver Factura'},
-              ];
-              if (eCommerceMode) {
-                salesOptions.add({'id': 6, 'name': 'Imprimir factura'});
-              }
-
-              if (currentUser!.permissions!
-                  .contains('ALLOW_CREATE_FISCAL_INVOICE')) {
-                 salesOptions.add({'id': 7, 'name': 'Generar Factura Fiscal'});
-              }
-
-              return ListTile(
-                key: ValueKey(sale.id),
-                minVerticalPadding: kDefaultPadding,
-                leading: Container(
-                  width: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(90),
-                    color: Theme.of(context).primaryColor.withOpacity(0.04),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.receipt_long_outlined,
-                      color: Theme.of(context).primaryColor,
-                      size: 24,
+        child: Column(
+          children: [
+            currentUser!.permissions!.contains('ALLOW_VIEW_SALES_TOTALS')
+                ? Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: kDefaultPadding * 1.5,
+                        vertical: kDefaultPadding * 0.6),
+                    decoration: BoxDecoration(
+                        border:
+                            Border(bottom: BorderSide(color: Colors.black12))),
+                    child: Row(
+                      children: [
+                        Text(
+                          'TOTAL A RECIBIR:',
+                          style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 17),
+                        ),
+                        SizedBox(
+                          width: kDefaultPadding * 0.6,
+                        ),
+                        Text(totalSales['total']?.toDop(),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black54,
+                                fontSize: 17)),
+                        SizedBox(
+                          width: kDefaultPadding * 0.6,
+                        ),
+                        Text(
+                          'ITBIS FACTURADO:',
+                          style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 17),
+                        ),
+                        SizedBox(
+                          width: kDefaultPadding * 0.6,
+                        ),
+                        Text(totalSales['tax']?.toDop(),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black54,
+                                fontSize: 17))
+                      ],
                     ),
-                  ),
-                ),
-                title: Text(sale.ncf ?? '',
-                    style: Theme.of(context).textTheme.bodyMedium),
-                subtitle: Text(
-                    '${sale.clientName}\n${sale.createdAt?.format(payload: 'DD/MM/YYYY')}'),
-                trailing: Wrap(
-                  runAlignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(kDefaultPadding / 2),
-                      decoration: BoxDecoration(
-                        color: sale.color.withOpacity(0.04),
-                      ),
-                      child: Text(
-                        sale.paidLabel,
-                        style: TextStyle(color: sale.color, fontSize: 18),
-                      ),
-                    ),
-                    SizedBox(width: kDefaultPadding),
-                    Text(
-                        sale.currencyId == 1
-                            ? sale.total?.toDop()
-                            : sale.total?.toUS(),
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    SizedBox(width: kDefaultPadding),
-                    PopupMenuButton<int>(
-                      onSelected: (option) =>
-                          _onSelectedSaleOption(option, sale),
-                      itemBuilder: (ctx) {
-                        return List.generate(salesOptions.length * 2 - 1,
-                            (index) {
-                          if (index.isOdd) {
-                            // cada índice impar será un divisor
-                            return const PopupMenuDivider();
-                          } else {
-                            var option = salesOptions[index ~/ 2];
-                            return PopupMenuItem<int>(
-                              value: option['id'],
-                              child: Text(option['name']),
-                            );
-                          }
-                        });
-                      },
-                    ),
-                    SizedBox(width: kDefaultPadding),
-                  ],
-                ),
-              );
-            }));
+                  )
+                : SizedBox(),
+            Expanded(
+                child: ListView.separated(
+                    controller: scrollControllerY,
+                    separatorBuilder: (ctx, i) => const Divider(),
+                    itemCount: cotizations.length,
+                    itemBuilder: (ctx, index) {
+                      var sale = cotizations[index];
+
+                      List<Map<String, dynamic>> salesOptions = [
+                        {'id': 1, 'name': 'Ver Factura'},
+                      ];
+                      if (eCommerceMode) {
+                        salesOptions.add({'id': 6, 'name': 'Imprimir factura'});
+                      }
+
+                      if (currentUser!.permissions!
+                          .contains('ALLOW_CREATE_FISCAL_INVOICE')) {
+                        salesOptions
+                            .add({'id': 7, 'name': 'Generar Factura Fiscal'});
+                      }
+
+                      return ListTile(
+                        key: ValueKey(sale.id),
+                        minVerticalPadding: kDefaultPadding,
+                        leading: Container(
+                          width: 80,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(90),
+                            color: Theme.of(context)
+                                .primaryColor
+                                .withOpacity(0.04),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              Icons.receipt_long_outlined,
+                              color: Theme.of(context).primaryColor,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                        title: Text(sale.ncf ?? '',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        subtitle: Text(
+                            '${sale.brancheName != null ? '${sale.brancheName}\n' : ''}${sale.clientName}\n${sale.createdAt?.format(payload: 'DD/MM/YYYY')}'),
+                        trailing: Wrap(
+                          runAlignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(kDefaultPadding / 2),
+                              decoration: BoxDecoration(
+                                color: sale.color.withOpacity(0.04),
+                              ),
+                              child: Text(
+                                sale.paidLabel,
+                                style:
+                                    TextStyle(color: sale.color, fontSize: 18),
+                              ),
+                            ),
+                            SizedBox(width: kDefaultPadding),
+                            Text(
+                                sale.currencyId == 1
+                                    ? sale.total?.toDop()
+                                    : sale.total?.toUS(),
+                                style: Theme.of(context).textTheme.bodyMedium),
+                            SizedBox(width: kDefaultPadding),
+                            PopupMenuButton<int>(
+                              onSelected: (option) =>
+                                  _onSelectedSaleOption(option, sale),
+                              itemBuilder: (ctx) {
+                                return List.generate(
+                                    salesOptions.length * 2 - 1, (index) {
+                                  if (index.isOdd) {
+                                    // cada índice impar será un divisor
+                                    return const PopupMenuDivider();
+                                  } else {
+                                    var option = salesOptions[index ~/ 2];
+                                    return PopupMenuItem<int>(
+                                      value: option['id'],
+                                      child: Text(option['name']),
+                                    );
+                                  }
+                                });
+                              },
+                            ),
+                            SizedBox(width: kDefaultPadding),
+                          ],
+                        ),
+                      );
+                    }))
+          ],
+        ));
   }
 
   Widget get contentLoading {
@@ -336,10 +671,30 @@ class _CotizationsPageState extends State<CotizationsPage> {
   }
 
   @override
+  void initState() {
+    if (!mounted) return;
+
+    if (enabledFilterInvoicesByDay) {
+      dates = [
+        DateTime.now().startOfDay(),
+        DateTime(startDate.year, startDate.month, startDate.day, 23, 59, 59)
+            .endOfDay()
+      ];
+    }
+
+    setState(() {
+      future = _initAsync();
+    });
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Text('TUS COTIZACIONES (${cotizations.length})'),
+          toolbarHeight: kToolbarHeight + 50,
           actions: [
             Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -378,6 +733,7 @@ class _CotizationsPageState extends State<CotizationsPage> {
                   width: 290,
                   child: DateRangeWidget(
                       dates: dates,
+                      onInitRender: false,
                       onChanged: (xdates) async {
                         dates = xdates;
                         dates = [
@@ -393,6 +749,46 @@ class _CotizationsPageState extends State<CotizationsPage> {
                           future = _initAsync();
                         });
                       }),
+                ),
+                SizedBox(
+                  width: kDefaultPadding,
+                ),
+                currentUser!.permissions!
+                        .contains('ALLOW_VIEW_MENU_SALES_REPORTS')
+                    ? Container(
+                      margin: EdgeInsets.only(
+                        right: kDefaultPadding
+                      ),
+                      child: PopupMenuButton<int>(
+                        onSelected: _onSelectedOption,
+                        itemBuilder: (ctx) {
+                          return List.generate(options.length * 2 - 1, (index) {
+                            var item = options[index ~/ 2];
+                            if (index.isOdd) {
+                              return PopupMenuDivider();
+                            } else {
+                              return PopupMenuItem(
+                                  value: item['id'],
+                                  child: Row(
+                                    children: [
+                                      SvgPicture.asset(item['icon'],
+                                          width: 30, height: 30),
+                                      SizedBox(
+                                        width: kDefaultPadding / 2,
+                                      ),
+                                      Expanded(child: Text(item['name']))
+                                    ],
+                                  ));
+                            }
+                          });
+                        }),
+                    )
+                    : SizedBox(),
+               
+                CircleAvatar(
+                  child: IconButton(onPressed: (){
+                    Navigator.pop(context);
+                  }, icon: Icon(Icons.close)),
                 ),
                 SizedBox(
                   width: kDefaultPadding,

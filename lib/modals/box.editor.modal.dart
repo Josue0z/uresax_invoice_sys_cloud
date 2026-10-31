@@ -83,6 +83,7 @@ class _BoxEditorModalState extends State<BoxEditorModal> {
               ),
               TextFormField(
                 controller: nameController,
+                autofocus: true,
                 validator: (val) => val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                 decoration: InputDecoration(
                     labelText: 'NOMBRE DE LA CAJA', hintText: 'CAJA #1'),

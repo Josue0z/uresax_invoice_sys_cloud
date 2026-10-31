@@ -12,6 +12,7 @@ import 'package:uresax_invoice_sys_cloud/models/company.dart';
 import 'package:uresax_invoice_sys_cloud/models/currency.dart';
 import 'package:uresax_invoice_sys_cloud/models/dgiiStates.dart';
 import 'package:uresax_invoice_sys_cloud/models/discount.dart';
+import 'package:uresax_invoice_sys_cloud/models/ncfList.dart';
 import 'package:uresax_invoice_sys_cloud/models/ncftype.dart';
 import 'package:uresax_invoice_sys_cloud/models/override.codes.dart';
 import 'package:uresax_invoice_sys_cloud/models/payment.method.dart';
@@ -28,6 +29,7 @@ import 'package:uresax_invoice_sys_cloud/models/taxes.dart';
 import 'package:uresax_invoice_sys_cloud/models/type.income.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/models/warehouse.dart';
+import 'package:uresax_invoice_sys_cloud/models/workday.dart';
 
 
 
@@ -69,6 +71,8 @@ List<Box> boxes = [];
 
 List<Category> categories = [];
 
+List<WorkdayModel> workdays = [];
+
 const double kDefaultPadding = 20;
 
 enum SaleMode { service, product }
@@ -109,6 +113,8 @@ List<String> printers =[];
 
 String? devicePos = localStorage.getItem('devicePos');
 String? devicePosBarcodes = localStorage.getItem('devicePosBarcodes');
+
+String? folderPathApp =  localStorage.getItem('URESAX_INVOICE_STATIC_LOCAL_SERVER_PATH');
 
 
 bool eCommerceMode = bool.tryParse(
@@ -269,3 +275,5 @@ String? currentInstanceId;
 bool enabledMultiplyBranches = false;
 
 List<BrancheModel> branches = [];
+
+List<NcfsList> ncfsLists = [];

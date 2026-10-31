@@ -107,6 +107,7 @@ class _UnitEditorModalState extends State<UnitEditorModal> {
               ),
               TextFormField(
                 controller: name,
+                autofocus: true,
                 validator: (val) => val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
                 decoration: InputDecoration(
                     labelText: 'NOMBRE DE LA UNIDAD', hintText: 'UNIDAD #1'),

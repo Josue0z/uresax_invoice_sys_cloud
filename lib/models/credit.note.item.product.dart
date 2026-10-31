@@ -211,7 +211,7 @@ class CreditNoteProduct implements SaleItem {
 
   @override
   Map<String, dynamic> toDisplayReceipt() {
-    String description = '${units?.toStringAsFixed(2)} x ${priceUnit?.toCoin()}\n$productName';
+    String description = '${units?.toStringAsFixed(2)} x ${priceUnit?.toCoin()}';
 
     if (chassis != null && chassis != '') {
       description = '$productName\nCHASIS: $chassis';
@@ -220,11 +220,12 @@ class CreditNoteProduct implements SaleItem {
     if (licensePlate != null && licensePlate != '') {
       description += '\nPLACA: $licensePlate';
     }
-    if (colorName != null && colorName != '') {
+       if (colorName != null && colorName != '') {
       description += '\nCOLOR: $colorName';
     }
     return {
       'DESCRIPCION': description,
+      'DETAILS':productName,
       'ITBIS': tax?.toCoin(),
       'TOTAL': total?.toCoin() ?? ''
     };

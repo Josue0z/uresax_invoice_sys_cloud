@@ -146,14 +146,13 @@ class _SalesPageState extends State<SalesPage> {
           'VENTAS',
           sale.createdAt?.format(payload: 'YYYYMM'),
           'PDFS',
-          '${sale.clientName}-${sale.ncf}-${company?.name}.pdf'));
+          '${sale.clientName}_${sale.ncf}_${company?.name}.pdf'));
       await file.create(recursive: true);
       await file.writeAsBytes(bytes);
 
       Navigator.pop(context);
       await OpenFile.open(file.path);
     } catch (e) {
-      print(e);
       Navigator.pop(context);
       await LogHandler.printError(e.toString());
       showTopSnackBar(context, message: e.toString(), color: Colors.red);
@@ -535,6 +534,10 @@ class _SalesPageState extends State<SalesPage> {
         case 6:
           showLoader(context);
           try {
+
+            if(devicePos == null){
+              throw 'NO ESTA CONFIGURADO EL DISPOSITIVO DE IMPRESION';
+            }
             var items = await sale.getSaleData();
             sale.items = items;
             var bytes = await createDefaultTicket(sale: sale);
@@ -838,8 +841,11 @@ class _SalesPageState extends State<SalesPage> {
             .endOfDay()
       ];
     }
+
+    if(company?.allowOnlyFiltersSales == true){
+      ncfsTypes = ncfs.where((x) => x.id != '60' && x.id != '50' && x.id != null).toList();
+    }
     setState(() {
-      
       future = _initAsync();
     });
     super.initState();
@@ -849,6 +855,7 @@ class _SalesPageState extends State<SalesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Text('TUS FACTURAS (${sales.length})'),
           toolbarHeight: kToolbarHeight + 50,
           actions: [
@@ -918,7 +925,11 @@ class _SalesPageState extends State<SalesPage> {
                 ),
                 currentUser!.permissions!
                         .contains('ALLOW_VIEW_MENU_SALES_REPORTS')
-                    ? PopupMenuButton<int>(
+                    ? Container(
+                      margin: EdgeInsets.only(
+                        right: kDefaultPadding
+                      ),
+                      child: PopupMenuButton<int>(
                         onSelected: _onSelectedOption,
                         itemBuilder: (ctx) {
                           return List.generate(options.length * 2 - 1, (index) {
@@ -940,8 +951,15 @@ class _SalesPageState extends State<SalesPage> {
                                   ));
                             }
                           });
-                        })
+                        }),
+                    )
                     : SizedBox(),
+
+                     CircleAvatar(
+                  child: IconButton(onPressed: (){
+                    Navigator.pop(context);
+                  }, icon: Icon(Icons.close)),
+                ),
                 SizedBox(
                   width: kDefaultPadding,
                 ),

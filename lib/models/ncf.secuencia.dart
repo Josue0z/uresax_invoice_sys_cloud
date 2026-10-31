@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class NcfSecuencia {
   String? id;
@@ -17,6 +18,7 @@ class NcfSecuencia {
   });
   static Future<List<NcfSecuencia>> get({String params = ''}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/ncfsecuencias/all');
 
       if (res.statusCode == 200) {
@@ -44,6 +46,7 @@ class NcfSecuencia {
 
   Future<List<Map<String, dynamic>>?> checkNcfs({int umbral = 10}) async {
     try {
+            await User.authClient();
       var res =
           await apiUresax.post('/ncfsecuencias/$id', data: {'umbral': umbral});
       List<Map<String, dynamic>> events = [];

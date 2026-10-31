@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class SymbolModel {
   int? id;
@@ -13,6 +14,7 @@ class SymbolModel {
 
   static Future<List<SymbolModel>> get() async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/symbols/all');
 
       if(res.statusCode == 200){

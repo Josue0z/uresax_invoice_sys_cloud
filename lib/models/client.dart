@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 
 class Client {
@@ -23,6 +24,7 @@ class Client {
 
   static Future<List<Client>> get({String? search}) async {
     try {
+            await User.authClient();
       String params = '?';
 
       if (search != null) {
@@ -43,7 +45,7 @@ class Client {
 
   static Future<Client?> findClientContado() async {
     try {
-
+      await User.authClient();
       if(currentClientContado != null) return currentClientContado;
       var res = await apiUresax.get('/clients/findcontado');
 
@@ -60,6 +62,7 @@ class Client {
 
   static Future<Client?> findById(String identification) async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/clients/find/$identification');
 
       if (res.statusCode == 200) {
@@ -74,6 +77,7 @@ class Client {
 
   Future<Client?> create() async {
     try {
+            await User.authClient();
            var map = toMapInsert();
       var res = await apiUresax.post('/clients/create',data: {
         ...map
@@ -91,7 +95,7 @@ class Client {
 
   Future<Client?> update() async {
     try {
-
+      await User.authClient();
       var res = await apiUresax.put('/clients/update/$id',data: {
         ...toMapInsert()
       });
@@ -109,6 +113,7 @@ class Client {
   static Future<bool> checkIfExistInvoices(
       {required String identification}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/clients/check-if-exist-invoices/$identification');
 
       if(res.statusCode == 200){

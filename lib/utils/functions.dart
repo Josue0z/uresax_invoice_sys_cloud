@@ -44,66 +44,113 @@ import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart' as pos;
 import 'package:pdf_plus/signing.dart'
     as pdfpluss; // signing and validation       // PKI helpers
 
+final List<OverlayEntry> activeSnackbars = [];
+
+final List<AnimationController> activeAnimationControllers = [];
+Future<void> closeAllSnackbars() async {
+  await Future.wait([
+    for (int i = 0; i < activeAnimationControllers.length; i++)
+      (() async {
+        final controller = activeAnimationControllers[i];
+        final entry = activeSnackbars[i];
+
+        if (controller.status == AnimationStatus.completed ||
+            controller.status == AnimationStatus.forward) {
+          await controller.reverse();
+        }
+
+        if (entry.mounted) {
+          entry.remove();
+        }
+
+        controller.dispose();
+      })()
+  ]);
+
+  activeSnackbars.clear();
+  activeAnimationControllers.clear();
+}
+
 void showTopSnackBar(BuildContext context,
     {required String message,
     Color color = Colors.black,
-    Color fontColor = Colors.white}) {
+    Color fontColor = Colors.white,
+    Alignment alignment = Alignment.bottomCenter,
+    Duration timeout = const Duration(seconds: 5),
+    List<Widget> actions = const []}) {
   final overlay = Overlay.of(context);
-  late OverlayEntry overlayEntry;
-  final animationController = AnimationController(
-    vsync: Navigator.of(context),
-    duration: Duration(milliseconds: 200),
-  );
-  final animation =
-      Tween<double>(begin: -50, end: 50).animate(animationController);
+  late OverlayEntry entry;
 
-  overlayEntry = OverlayEntry(
-    builder: (context) => AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) => Positioned(
-        top: animation.value,
-        left: 20,
-        right: 20,
+  final controller = AnimationController(
+    vsync: Navigator.of(context),
+    duration: const Duration(milliseconds: 200),
+  );
+
+  final animation = Tween<Offset>(
+    begin: alignment == Alignment.bottomCenter
+        ? const Offset(0, 1)
+        : const Offset(0, -1),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: controller, curve: Curves.easeOut));
+
+  entry = OverlayEntry(
+    builder: (ctx) => Positioned(
+      left: 20,
+      right: 20,
+      top: alignment == Alignment.topCenter
+          ? kToolbarHeight + kDefaultPadding
+          : null,
+      bottom: alignment == Alignment.bottomCenter
+          ? kToolbarHeight + kDefaultPadding
+          : null,
+      child: SlideTransition(
+        position: animation,
         child: Material(
-          elevation: 5.0,
+          elevation: 5,
           borderRadius: BorderRadius.circular(10),
           color: color,
           child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-              child: Row(
-                children: [
-                  Expanded(
-                      child: Text(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
                     message,
                     style: TextStyle(color: fontColor, fontSize: 16),
-                  )),
-                  IconButton(
-                      onPressed: () {
-                        animationController.reverse().then((_) {
-                          overlayEntry.remove();
-                          animationController.dispose();
-                        });
-                      },
-                      icon: Icon(Icons.close, color: Colors.white))
-                ],
-              )),
+                  ),
+                ),
+                ...actions,
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () {
+                    controller.reverse().then((_) {
+                      entry.remove();
+                      activeSnackbars.remove(entry);
+                      activeAnimationControllers.remove(controller);
+                      controller.dispose();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     ),
   );
 
-  overlay.insert(overlayEntry);
+  overlay.insert(entry);
+  activeAnimationControllers.add(controller);
+  activeSnackbars.add(entry);
+  controller.forward();
 
-  // Iniciar la animación
-  animationController.forward();
-
-  // Remover el SnackBar después de unos segundos
-
-  Future.delayed(Duration(seconds: 5), () {
-    if (animationController.isForwardOrCompleted) {
-      animationController.reverse().then((_) {
-        overlayEntry.remove();
-        animationController.dispose();
+  Future.delayed(timeout, () {
+    if (controller.isForwardOrCompleted) {
+      controller.reverse().then((_) {
+        entry.remove();
+        activeSnackbars.remove(entry);
+        activeAnimationControllers.remove(controller);
+        controller.dispose();
       });
     }
   });
@@ -111,17 +158,38 @@ void showTopSnackBar(BuildContext context,
 
 Future<Directory> getUresaxInvoiceDir() async {
   var dir = Directory(path.join(
-      Platform.environment['URESAX_INVOICE_STATIC_LOCAL_SERVER_PATH'] ?? 'x',
+      localStorage.getItem('URESAX_INVOICE_STATIC_LOCAL_SERVER_PATH') ??
+          Platform.environment['URESAX_INVOICE_STATIC_LOCAL_SERVER_PATH'] ??
+          'x',
       'URESAX-INVOICE',
       company?.name?.trim()));
 
   return await dir.create(recursive: true);
 }
 
+Future<Directory?> pickerFolder() async {
+  if (Platform.isWindows) {
+    final result = await Process.run(
+      'powershell',
+      [
+        '-command',
+        r'Add-Type -AssemblyName System.Windows.Forms; '
+        r'$f = New-Object System.Windows.Forms.FolderBrowserDialog; '
+        r'if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ $f.SelectedPath }'
+      ],
+      runInShell: true,
+    );
+
+    final folderPath = (result.stdout as String).trim();
+    if (folderPath.isNotEmpty) {
+      return Directory(folderPath);
+    }
+  }
+  return null;
+}
 
 Future<void> launchFile(String path) async {
   ProcessResult? result;
-
 
   if (Platform.isMacOS) {
     result = await Process.run('open', [path]);
@@ -134,7 +202,6 @@ Future<void> launchFile(String path) async {
   } else {}
 }
 
-
 Future<bool> isValidCertFilePath({Company? company}) async {
   try {
     var filePath = certFile?.path ??
@@ -142,9 +209,10 @@ Future<bool> isValidCertFilePath({Company? company}) async {
 
     certFile = File(filePath ?? '');
 
-    var password = certPassword.text.isNotEmpty ? certPassword.text : localStorage.getItem('certPassword_${company?.id}') ?? '';
+    var password = certPassword.text.isNotEmpty
+        ? certPassword.text
+        : localStorage.getItem('certPassword_${company?.id}') ?? '';
 
-  
     // var data = await extraerInfoPfx(path: filePath ?? '', password: password);
     var request = http.MultipartRequest(
         'POST', Uri.parse('https://api.uresax.com/ecf/verificarcertificado'))
@@ -593,13 +661,20 @@ Future<void> enviarDgii(
                 ? totalGravado3.toStringAsFixed(2)
                 : '',
         montoExento: montoExento > 0 ? montoExento.toStringAsFixed(2) : '',
-        totalItbis:canOverrideTaxes? '0.00': itbisGravado > 0 ? itbisGravado.toStringAsFixed(2) : '',
+        totalItbis: canOverrideTaxes
+            ? '0.00'
+            : itbisGravado > 0
+                ? itbisGravado.toStringAsFixed(2)
+                : '',
         totalItbis18:
             itbisGravado18 > 0 ? itbisGravado18.toStringAsFixed(2) : '',
         totalItbis16:
             itbisGravado16 > 0 ? itbisGravado16.toStringAsFixed(2) : '',
-        totalItbisTasa0:canOverrideTaxes ? '0.00':
-            itbisGravado0 > 0 ? itbisGravado0.toStringAsFixed(2) : '',
+        totalItbisTasa0: canOverrideTaxes
+            ? '0.00'
+            : itbisGravado0 > 0
+                ? itbisGravado0.toStringAsFixed(2)
+                : '',
         itbis1: esEcf44
             ? ''
             : getItbisCode(
@@ -700,7 +775,6 @@ Future<void> enviarDgii(
           filename: path.basename(certFile?.path ?? ''),
         ))
         ..fields['password'] = password;
-       
     } else {
       await LogHandler.printEvent(
           'SE INICIO EL PROCESO DE ENVIO A DGII DEL COMPROBANTE ${sale.ncf}');
@@ -880,7 +954,7 @@ Future<bool?> showConfirm(BuildContext context,
                           TextFormField(
                             controller: code,
                             autofocus: true,
-                            onFieldSubmitted: (_){
+                            onFieldSubmitted: (_) {
                               ok();
                             },
                             inputFormatters: [
@@ -929,6 +1003,99 @@ Future<bool?> showConfirm(BuildContext context,
   return result == true;
 }
 
+Future<bool?> showUserValidator(BuildContext context,
+    {String title = 'Introduce tus credenciales...'}) async {
+  var formKey = GlobalKey<FormState>();
+  TextEditingController password = TextEditingController();
+
+  void ok() async {
+    if (formKey.currentState!.validate()) {
+      try {
+        currentUser?.password = password.text;
+        showLoader(context);
+        var isCorrect = await currentUser?.verifyUser();
+
+        if (isCorrect == true) {
+          Navigator.pop(context);
+          Navigator.pop(context, isCorrect);
+        }
+      } catch (e) {
+        Navigator.pop(context);
+        showTopSnackBar(context, message: e.toString(), color: Colors.red);
+      }
+    }
+  }
+
+  var result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            content: SizedBox(
+                width: 400,
+                child: Form(
+                    key: formKey,
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          Row(children: [
+                            Expanded(
+                                child: Text(title.toUpperCase(),
+                                    style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w500)
+                                        .copyWith(
+                                            color: Theme.of(context)
+                                                .primaryColor))),
+                          ]),
+                          const SizedBox(height: 15),
+                          Text('Escribe las credenciales...',
+                              style: const TextStyle(fontSize: 18)),
+                          const SizedBox(height: 15),
+                          TextFormField(
+                            controller: password,
+                            autofocus: true,
+                            obscureText: true,
+                            onFieldSubmitted: (_) {
+                              ok();
+                            },
+                            validator: (val) =>
+                                val!.isEmpty ? 'CAMPO OBLIGATORIO' : null,
+                            style: const TextStyle(fontSize: 18),
+                            decoration: InputDecoration(hintText: '********'),
+                          ),
+                          const SizedBox(height: 15),
+                          Row(
+                            children: [
+                              const Spacer(),
+                              ElevatedButton(
+                                  style: ButtonStyle(
+                                      backgroundColor: WidgetStateProperty.all(
+                                          Theme.of(context).colorScheme.error)),
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Padding(
+                                      padding: EdgeInsets.all(10),
+                                      child: Text('CERRAR'))),
+                              const SizedBox(
+                                width: 10,
+                              ),
+                              ElevatedButton(
+                                  onPressed: ok,
+                                  child: const Padding(
+                                      padding: EdgeInsets.all(10),
+                                      child: Text('CONFIRMAR')))
+                            ],
+                          )
+                        ],
+                      ),
+                    ))),
+          ));
+
+  return result == true;
+}
 
 bool isRemoteVersionGreater(String local, String remote) {
   List<int> localParts =
@@ -1058,8 +1225,6 @@ Future<Uint8List> signaturePdf(File inputFile) async {
   return signedBytes;
 }
 
-
-
 Future<String?> getMotherboardUUID() async {
   try {
     // Ejecuta PowerShell para obtener el UUID
@@ -1084,8 +1249,6 @@ Future<String?> getMotherboardUUID() async {
   return null;
 }
 
-
-
 String generarCodigoIniciales(String nombre) {
   // Tomamos las iniciales de cada palabra
   List<String> partes = nombre.split(" ");
@@ -1096,6 +1259,3 @@ String generarCodigoIniciales(String nombre) {
 
   return "$iniciales-$randomNum";
 }
-
-
-

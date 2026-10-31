@@ -55,6 +55,7 @@ class _PaymentSalesPageState extends State<PaymentSalesPage> {
           itemCount: payments.length,
           itemBuilder: (ctx, index) {
             var pay = payments[index];
+            print(pay.createdAt);
             return ListTile(
               key: ValueKey(pay.id),
               minVerticalPadding: kDefaultPadding,

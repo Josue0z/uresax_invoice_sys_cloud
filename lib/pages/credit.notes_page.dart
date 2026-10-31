@@ -268,7 +268,9 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Text('TUS NOTAS DE CREDITO (${creditNotes.length})'),
+          toolbarHeight: kToolbarHeight + 50,
           actions: [
             Wrap(
               runAlignment: WrapAlignment.center,
@@ -319,6 +321,14 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
                           future = _initAsync();
                         });
                       }),
+                ),
+                 SizedBox(
+                  width: kDefaultPadding,
+                ),
+                CircleAvatar(
+                  child: IconButton(onPressed: (){
+                    Navigator.pop(context);
+                  }, icon: Icon(Icons.close)),
                 ),
                 SizedBox(
                   width: kDefaultPadding,

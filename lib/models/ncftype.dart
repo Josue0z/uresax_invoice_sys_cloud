@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/apis/sql.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
+
 
 class NcfType {
   String? id;
@@ -13,6 +15,7 @@ class NcfType {
 
   static Future<List<NcfType>> get() async {
     try {
+      await User.authClient();
       var res = await apiUresax.get('/ncfs/all');
 
       if (res.statusCode == 200) {
@@ -28,6 +31,7 @@ class NcfType {
 
   Future<String> getLastSeq() async {
     try {
+      await User.authClient();
       final conne = SqlConector.connection;
       var result =
           await conne?.execute('select last_value from public."${id}_seq"');

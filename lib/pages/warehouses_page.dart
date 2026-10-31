@@ -131,82 +131,96 @@ class _WareHousesPageState extends State<WareHousesPage> {
   Widget build(BuildContext context) {
     wareHouses.removeWhere((e) => e.id == null);
     return Scaffold(
-      appBar: AppBar(
-        title: Text('ALMACENES (${wareHouses.length})'),
-        actions: [
-          Wrap(
-            runAlignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: 200,
-                height: 50,
-                child: TextFormField(
-                  controller: _searchController,
-                  onFieldSubmitted: (words) async {
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Text('ALMACENES (${wareHouses.length})'),
+          toolbarHeight: kToolbarHeight + 50,
+          actions: [
+            Wrap(
+              runAlignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 200,
+                  height: 50,
+                  child: TextFormField(
+                    controller: _searchController,
+                    onFieldSubmitted: (words) async {
+                      setState(() {
+                        future = _initAsync(words);
+                      });
+                    },
+                    decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(style: BorderStyle.none, width: 0)),
+                        hintText: 'Nombre...',
+                        fillColor: Colors.white,
+                        filled: true,
+                        suffixIcon: Icon(Icons.search)),
+                  ),
+                ),
+                SizedBox(width: kDefaultPadding),
+                CircleAvatar(
+                  child: IconButton(
+                      onPressed: () {
+                        _showWareHousesEditorModal(context,
+                            wareHouse: WareHouses(), editing: false);
+                      },
+                      icon: Icon(Icons.add)),
+                ),
+                SizedBox(width: kDefaultPadding),
+                CircleAvatar(
+                  child: IconButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      icon: Icon(Icons.close)),
+                ),
+                SizedBox(width: kDefaultPadding),
+              ],
+            )
+          ],
+        ),
+        body: FutureBuilder(
+            future: future,
+            builder: (ctx, s) {
+              if (s.connectionState == ConnectionState.waiting) {
+                return contentLoading;
+              }
+
+              if (s.hasError) {
+                return ContentErrorWidget(
+                  error: s.error.toString(),
+                  onRetry: () {
                     setState(() {
-                      future = _initAsync(words);
+                      future = _initAsync();
                     });
                   },
-                  decoration: InputDecoration(
-                      hintText: 'Nombre...',
-                      fillColor: Colors.white,
-                      filled: true,
-                      suffixIcon: Icon(Icons.search)),
-                ),
-              ),
-              SizedBox(width: kDefaultPadding),
-              CircleAvatar(
-                child: IconButton(
-                    onPressed: () {
-                      _showWareHousesEditorModal(context,
-                          wareHouse: WareHouses(), editing: false);
-                    },
-                    icon: Icon(Icons.add)),
-              ),
-              SizedBox(width: kDefaultPadding),
-            ],
-          )
-        ],
-      ),
-      body: FutureBuilder(
-          future: future,
-          builder: (ctx, s) {
-            if (s.connectionState == ConnectionState.waiting) {
-              return contentLoading;
-            }
+                );
+              }
+              if (s.connectionState == ConnectionState.done &&
+                  wareHouses.isNotEmpty) {
+                return contentFilled;
+              }
 
-            if (s.hasError) {
-              return ContentErrorWidget(
-                error: s.error.toString(),
-                onRetry: () {
-                  setState(() {
-                    future = _initAsync();
-                  });
-                },
-              );
-            }
-            if (s.connectionState == ConnectionState.done &&
-                wareHouses.isNotEmpty) {
-              return contentFilled;
-            }
-
-            return contentEmpty;
-          }),
+              return contentEmpty;
+            }),
         floatingActionButton: Stack(
-      children: [
-        Positioned(
-          bottom: 20,
-          right: kDefaultPadding*2,
-          child: FloatingActionButton(onPressed: (){
-        setState(() {
-          _searchController.clear();
-          future = _initAsync();
-        });
-      },
-      child: Icon(Icons.restore)),)
-      ],
-    )
-    );
+          children: [
+            Positioned(
+              bottom: 20,
+              right: kDefaultPadding * 2,
+              child: FloatingActionButton(
+                  onPressed: () {
+                    setState(() {
+                      _searchController.clear();
+                      future = _initAsync();
+                    });
+                  },
+                  child: Icon(Icons.restore)),
+            )
+          ],
+        ));
   }
 }

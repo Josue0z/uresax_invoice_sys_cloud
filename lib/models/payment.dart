@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class Payment {
   String? id;
@@ -32,6 +33,7 @@ class Payment {
 
   static Future<List<Payment>> get({required String saleId}) async {
     try {
+            await User.authClient();
       var res = await apiUresax.get('/payments/all?saleId=$saleId');
 
       if (res.statusCode == 200) {
@@ -48,6 +50,7 @@ class Payment {
 
   Future<Payment?> create() async {
     try {
+            await User.authClient();
       var res = await apiUresax.post('/payments/create', data: {
         'saleId': saleId,
         'paymentMethodId': paymentMethodId,

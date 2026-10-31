@@ -40,6 +40,7 @@ class _ProductsPageState extends State<ProductsPage> {
   _showModal({bool editing = false, required Products product}) async {
     var res = await showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (ctx) => ProductEditorModal(
             editing: editing,
             isParent: widget.parentProduct != null ? true : false,
@@ -79,9 +80,15 @@ class _ProductsPageState extends State<ProductsPage> {
       var xproduct = await Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (ctx) => ProductsPage(parentProduct: product)));
-    } catch (e) {}
-    ;
+              builder: (ctx) => ProductsPage(parentProduct: product, selectedMode: widget.selectedMode)));
+      
+      if(xproduct != null){
+         Navigator.pop(context,xproduct);
+      }
+    } catch (e) {
+      print(e);
+    }
+    
   }
 
   List<int> get xcategories {
@@ -105,6 +112,7 @@ class _ProductsPageState extends State<ProductsPage> {
     return ScrollMoveEventWidget(
         scrollControllerY: scrollControllerY,
         child: ListView.separated(
+            key: PageStorageKey('products_list'),
             controller: scrollControllerY,
             separatorBuilder: (ctx, i) => const Divider(),
             itemCount: products.length,
@@ -383,6 +391,8 @@ class _ProductsPageState extends State<ProductsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        toolbarHeight: kToolbarHeight + 50,
         title: Text(title),
         actions: [
           Wrap(
@@ -403,6 +413,9 @@ class _ProductsPageState extends State<ProductsPage> {
                       hintText: 'Nombre...',
                       fillColor: Colors.white,
                       filled: true,
+                      border: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(style: BorderStyle.none, width: 0)),
                       suffixIcon: Icon(Icons.search)),
                 ),
               ),
@@ -439,6 +452,17 @@ class _ProductsPageState extends State<ProductsPage> {
                               icon: Icon(Icons.add))),
                     )
                   : SizedBox(),
+
+
+                 CircleAvatar(
+                  child: IconButton(onPressed: (){
+                    Navigator.pop(context);
+                  }, icon: Icon(Icons.close)),
+                ),
+
+                SizedBox(
+                  width: kDefaultPadding
+                )
             ],
           )
         ],

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:localstorage/localstorage.dart';
@@ -27,6 +28,7 @@ class _CompanyEditorModalState extends State<CompanyEditorModal> {
   TextEditingController address = TextEditingController();
   TextEditingController devicePosName = TextEditingController();
   TextEditingController devicePosBarCodesName = TextEditingController();
+  TextEditingController folderPathController = TextEditingController();
   TextEditingController message = TextEditingController();
   TextEditingController bankInfo = TextEditingController();
   TextEditingController maxPreSales = TextEditingController();
@@ -59,6 +61,20 @@ class _CompanyEditorModalState extends State<CompanyEditorModal> {
     }
   }
 
+  _selectFolder() async {
+    try {
+      var folder = await pickerFolder();
+      if (folder != null) {
+        folderPathController.text = folder.path;
+        folderPathApp = folder.path;
+        localStorage.setItem(
+            'URESAX_INVOICE_STATIC_LOCAL_SERVER_PATH', folder.path);
+      }
+    } catch (e) {
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
+    }
+  }
+
   @override
   void initState() {
     name.value = TextEditingValue(text: company?.name ?? '');
@@ -70,6 +86,7 @@ class _CompanyEditorModalState extends State<CompanyEditorModal> {
     address.value = TextEditingValue(text: company?.address ?? '');
     devicePosName.text = devicePos ?? '';
     devicePosBarCodesName.text = devicePosBarcodes ?? '';
+    folderPathController.text = folderPathApp ?? '';
     logo = company?.logo;
     message.text = company?.message ?? '';
     bankInfo.text = company?.bankInfo ?? '';
@@ -116,6 +133,26 @@ class _CompanyEditorModalState extends State<CompanyEditorModal> {
                       SizedBox(
                         height: kDefaultPadding,
                       ),
+                      TextFormField(
+                        controller: folderPathController,
+                        onChanged: (val) {
+                          folderPathApp = val;
+                          localStorage.setItem(
+                              'URESAX_INVOICE_STATIC_LOCAL_SERVER_PATH', val);
+                        },
+                        decoration: InputDecoration(
+                            labelText: 'CARPETA',
+                            hintText: 'Tu ruta...',
+                            suffixIcon: Wrap(
+                              children: [
+                                IconButton(
+                                  onPressed: _selectFolder,
+                                  icon: Icon(Icons.folder),
+                                )
+                              ],
+                            )),
+                      ),
+                      SizedBox(height: kDefaultPadding),
                       TextFormField(
                         controller: name,
                         readOnly: true,
@@ -198,6 +235,10 @@ class _CompanyEditorModalState extends State<CompanyEditorModal> {
                       SizedBox(height: kDefaultPadding),
                       TextFormField(
                         controller: devicePosName,
+                        onChanged: (val) {
+                          devicePos = val;
+                          localStorage.setItem('devicePos', val);
+                        },
                         decoration: InputDecoration(
                             labelText: 'IMPRESORA TERMICA DE RECIBOS',
                             hintText: 'Nombre...',
@@ -225,6 +266,10 @@ class _CompanyEditorModalState extends State<CompanyEditorModal> {
                       SizedBox(height: kDefaultPadding),
                       TextFormField(
                         controller: devicePosBarCodesName,
+                        onChanged: (val) {
+                          devicePosBarcodes = val;
+                          localStorage.setItem('devicePosBarcodes', val);
+                        },
                         decoration: InputDecoration(
                             labelText: 'IMPRESORA TERMICA DE CODIGOS DE BARRA',
                             hintText: 'Nombre...',
@@ -259,13 +304,11 @@ class _CompanyEditorModalState extends State<CompanyEditorModal> {
                             hintText: 'Escribir algo...'),
                       ),
                       SizedBox(height: kDefaultPadding),
-
-                    currentUser!.permissions!.contains('ALLOW_CHANGE_BOX_ID') ?  Container(
+                      currentUser!.permissions!.contains('ALLOW_CHANGE_BOX_ID')
+                          ? Container(
                               margin: EdgeInsets.only(bottom: kDefaultPadding),
                               child: DropdownButtonFormField(
-                                  initialValue: int.tryParse(localStorage.getItem(
-                                          'URESAX_INVOICE_CURRENT_BOX_ID_${company?.id}') ??
-                                      'x'),
+                                  initialValue: currentUser?.boxId,
                                   decoration:
                                       InputDecoration(labelText: 'CAJA'),
                                   isExpanded: true,
@@ -277,14 +320,19 @@ class _CompanyEditorModalState extends State<CompanyEditorModal> {
                                   }),
                                   onChanged: (val) {
                                     if (val != null) {
-                                     localStorage.setItem('URESAX_INVOICE_CURRENT_BOX_ID_${company?.id}', val.toString());
-                                     currentUser?.boxId = val;
+                                      localStorage.setItem(
+                                          'URESAX_INVOICE_CURRENT_BOX_ID_${company?.id}',
+                                          val.toString());
+                                      currentUser?.boxId = val;
+                                      setState(() {});
                                     }
                                   }),
-                            ):SizedBox(),
+                            )
+                          : SizedBox(),
                       enabledMultiplyBranches &&
                               currentUser!.permissions!
-                                  .contains('ALLOW_CHANGE_BRANCHE') && currentUser?.roleId == 3
+                                  .contains('ALLOW_CHANGE_BRANCHE') &&
+                              currentUser?.roleId == 3
                           ? Container(
                               margin: EdgeInsets.only(bottom: kDefaultPadding),
                               child: DropdownButtonFormField(

@@ -52,15 +52,21 @@ class _NcfListPageState extends State<NcfListPage> {
               SizedBox(
                 width: kDefaultPadding,
               ),
-              Container(
-                padding: EdgeInsets.all(kDefaultPadding / 2),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(30),
-                  color: ncfList.color.withOpacity(0.1),
-                ),
-                child:
-                    Text(ncfList.label, style: TextStyle(color: ncfList.color)),
-              )
+              IconButton(
+                  onPressed: () async {
+                    var res = await showDialog(
+                        context: context,
+                        builder: (ctx) {
+                          return NcfListEditorModal(
+                              ncfList: ncfList, editing: true);
+                        });
+                    if (res == 'UPDATE') {
+                      setState(() {
+                        future = _initAsync();
+                      });
+                    }
+                  },
+                  icon: Icon(Icons.edit))
             ],
           ),
         );
@@ -108,7 +114,19 @@ class _NcfListPageState extends State<NcfListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('LISTA DE NCFS (${ncfsList.length})'),
+        toolbarHeight: kToolbarHeight + 50,
+        actions: [
+          CircleAvatar(
+            child: IconButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                icon: Icon(Icons.close)),
+          ),
+          SizedBox(width: kDefaultPadding)
+        ],
       ),
       body: FutureBuilder(
           future: future,

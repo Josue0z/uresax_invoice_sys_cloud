@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart' show LogHandler;
-import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/pages/home_page.dart';
-import 'package:uresax_invoice_sys_cloud/pages/plans_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/pos_screen.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
@@ -29,55 +27,13 @@ class _LoginPageState extends State<LoginPage> {
     if (_formKey.currentState!.validate()) {
       try {
         showLoader(context);
+     
         currentUser = await User.login(username.text, password.text);
+        
         company = currentUser?.company;
-        eCommerceMode = company?.eCommerceMode ?? false;
-        enabledBarCodePrinter = company?.enabledBarCodePrinter ?? false;
-        enabledVerticalPosInvoice = company?.enabledVerticalPosInvoice ?? false;
-        enabledEcfProduction = company?.enabledEcfProduction ?? false;
-        allowEditInvoice = company?.allowEditInvoice ?? false;
-        automaticSendEcf = company?.automaticSendEcf ?? false;
-        enabledRetentions = company?.enabledRetentions ?? false;
-        enabledRestaurantMode = company?.enabledRestaurantMode ?? false;
-        enabledInvoiceSimpleGenerator =
-            company?.enabledInvoiceSimpleGenerator ?? false;
-        enabledImageChanges = company?.enabledImageChanges ?? false;
-        enabledProductQuantityEditor =
-            company?.enabledProductQuantityEditor ?? false;
-        enabledTextEditor = company?.enabledTextEditor ?? false;
-        enabledPosAutomaticSetup = company?.enabledPosAutomaticSetup ?? false;
-        enabledTotalsConfigSimple = company?.enabledTotalsConfigSimple ?? false;
-        enabledProformaUpdateStock =
-            company?.enabledProformaUpdateStock ?? false;
-        enabledRemoteSigned = company?.enabledRemoteSigned ?? false;
-        removeInvoiceTitle = company?.removeInvoiceTitle ?? false;
-        enabledOnlySeller = company?.enabledOnlySeller ?? false;
-        disabledTicket = company?.disabledTicket ?? false;
-        enabledEditPriceModal = company?.enabledEditPriceModal ?? false;
-        enabledQuotationsSetup = company?.enabledQuotationsSetup ?? false;
-        enabledTableInvoiceGenerator =
-            company?.enabledTableInvoiceGenerator ?? false;
-        enabledRealEstateAgency = company?.enabledRealEstateAgency ?? false;
-        enabledItemSimpleConfig = company?.enabledItemSimpleConfig ?? false;
-        enabledFullGeneratorTableInvoice =
-            company?.enabledFullGeneratorTableInvoice ??
-                true; // este por defecto true
-        enabledStepRncTableInvoice =
-            company?.enabledStepRncTableInvoice ?? false;
-        enabledInvoiceDollars = company?.enabledInvoiceDollars ?? false;
-        enabledStore = company?.enabledStore ?? false;
-        allowOnlyCashShiftElectronic = company?.allowOnlyCashShiftElectronic ?? false;
-        enabledViewCashShiftDetails = company?.enabledViewCashShiftDetails ?? false;
-        enabledFilterInvoicesByDay = company?.enabledFilterInvoicesByDay ?? false;
-        enabledFirstComercialName = company?.enabledFirstComercialName ?? false;
-        enabledMultiplyBranches = company?.enabledMultiplyBranches ?? false;
-        enabledInvoiceNotes = company?.enabledInvoiceNotes ?? false;
-        currentInvoiceIndex = company?.currentInvoiceIndex ?? 0;
 
         apiUresax.options.headers['x-max-pre-sales'] =
             company?.maxPreSales ?? 99999999;
-
-      
 
         /*await CashShiftModel.closeCashShiftTurno(
             id: localStorage.getItem('currentTurnoId') ?? 'x');
@@ -102,30 +58,79 @@ class _LoginPageState extends State<LoginPage> {
             apiUresax.options.headers['x-terminalid'] = currentTerminalId;
           }
 
+          eCommerceMode = company?.eCommerceMode ?? false;
+          enabledBarCodePrinter = company?.enabledBarCodePrinter ?? false;
+          enabledVerticalPosInvoice =
+              company?.enabledVerticalPosInvoice ?? false;
+          enabledEcfProduction = company?.enabledEcfProduction ?? false;
+          allowEditInvoice = company?.allowEditInvoice ?? false;
+          automaticSendEcf = company?.automaticSendEcf ?? false;
+          enabledRetentions = company?.enabledRetentions ?? false;
+          enabledRestaurantMode = company?.enabledRestaurantMode ?? false;
+          enabledInvoiceSimpleGenerator =
+              company?.enabledInvoiceSimpleGenerator ?? false;
+          enabledImageChanges = company?.enabledImageChanges ?? false;
+          enabledProductQuantityEditor =
+              company?.enabledProductQuantityEditor ?? false;
+          enabledTextEditor = company?.enabledTextEditor ?? false;
+          enabledPosAutomaticSetup = company?.enabledPosAutomaticSetup ?? false;
+          enabledTotalsConfigSimple =
+              company?.enabledTotalsConfigSimple ?? false;
+          enabledProformaUpdateStock =
+              company?.enabledProformaUpdateStock ?? false;
+          enabledRemoteSigned = company?.enabledRemoteSigned ?? false;
+          removeInvoiceTitle = company?.removeInvoiceTitle ?? false;
+          enabledOnlySeller = company?.enabledOnlySeller ?? false;
+
+       
+          disabledTicket = company?.disabledTicket ?? false;
+          enabledEditPriceModal = company?.enabledEditPriceModal ?? false;
+          enabledQuotationsSetup = company?.enabledQuotationsSetup ?? false;
+          enabledTableInvoiceGenerator =
+              company?.enabledTableInvoiceGenerator ?? false;
+          enabledRealEstateAgency = company?.enabledRealEstateAgency ?? false;
+          enabledItemSimpleConfig = company?.enabledItemSimpleConfig ?? false;
+          enabledFullGeneratorTableInvoice =
+              company?.enabledFullGeneratorTableInvoice ??
+                  true; // este por defecto true
+          enabledStepRncTableInvoice =
+              company?.enabledStepRncTableInvoice ?? false;
+          enabledInvoiceDollars = company?.enabledInvoiceDollars ?? false;
+          enabledStore = company?.enabledStore ?? false;
+          allowOnlyCashShiftElectronic =
+              company?.allowOnlyCashShiftElectronic ?? false;
+          enabledViewCashShiftDetails =
+              company?.enabledViewCashShiftDetails ?? false;
+          enabledFilterInvoicesByDay =
+              company?.enabledFilterInvoicesByDay ?? false;
+          enabledFirstComercialName =
+              company?.enabledFirstComercialName ?? false;
+          enabledMultiplyBranches = company?.enabledMultiplyBranches ?? false;
+          enabledInvoiceNotes = company?.enabledInvoiceNotes ?? false;
+          currentInvoiceIndex = company?.currentInvoiceIndex ?? 0;
+
+          currentUser?.boxId = int.tryParse(localStorage
+                  .getItem('URESAX_INVOICE_CURRENT_BOX_ID_${company?.id}') ??
+              'x');
+
           localStorage.setItem('currentUsername', currentUser?.username ?? '');
 
-          if (currentUser!.permissions!.contains('ALLOW_VIEW_POS_SCREEN')) {
-            if (!eCommerceMode) {
-              throw 'NO ESTA HABILITADO EL MODO COMERCIO';
-            }
+          if(currentUser?.cashShiftId != null){
+              localStorage.setItem('currentTurnoId_$currentInstanceId',currentUser!.cashShiftId!);
+          }else{
+              localStorage.removeItem('currentTurnoId_$currentInstanceId');
+          }
 
-            await Navigator.pushAndRemoveUntil(
-                context,
-                PageRouteTransitionBuilder(
-                    page: PosScreenPage(
-                      sale: SaleProduct(),
-                      items: [],
-                    ),
-                    effect: TransitionEffect.leftToRight),
-                (_) => false);
-          } else {
-            await Navigator.pushAndRemoveUntil(
+             if(currentUser!.permissions!.contains('ALLOW_ENABLED_ONLY_SELLER')){
+            enabledOnlySeller = true;
+          }
+
+           await Navigator.pushAndRemoveUntil(
                 context,
                 PageRouteTransitionBuilder(
                     page: const HomePage(),
                     effect: TransitionEffect.leftToRight),
                 (_) => false);
-          }
         }
       } catch (e) {
         Navigator.pop(context);

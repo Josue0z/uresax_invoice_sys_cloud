@@ -9,6 +9,7 @@ import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/apis/sql.dart';
 import 'package:uresax_invoice_sys_cloud/models/entry.warehouse.item.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/payment.orden.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/models/warehouse.obj.dart';
 import 'package:uuid/uuid.dart';
 
@@ -86,6 +87,7 @@ class EntryWareHouseModel implements WareHouseElement<EntryWareHouseItemModel> {
       required DateTime? endDate,
       String? search}) async {
     try {
+            await User.authClient();
         String params = '';
       List<String> query = [];
 
@@ -113,6 +115,7 @@ class EntryWareHouseModel implements WareHouseElement<EntryWareHouseItemModel> {
   @override
   Future<List<EntryWareHouseItemModel>> getItems([TxSession? tx]) async {
     try {
+            await User.authClient();
        var res = await apiUresax.get('/entrieswarehouses/get-entrieswarehouse-items/$id');
 
       if(res.statusCode==200){
@@ -150,6 +153,7 @@ class EntryWareHouseModel implements WareHouseElement<EntryWareHouseItemModel> {
   @override
   Future<EntryWareHouseModel?> create() async {
     try {
+            await User.authClient();
       var parameters = toMap();
       parameters.remove('ordenNum');
       parameters.remove('entryNum');

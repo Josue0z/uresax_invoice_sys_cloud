@@ -80,7 +80,7 @@ void main(List<String> args) async {
       } catch (_) {}
     }*/
 
-    List<String> errors = [];
+  
     // Obtener los límites de la pantalla principal
     final screenBounds = await windowManager.getBounds();
 
@@ -96,15 +96,7 @@ void main(List<String> args) async {
       title: 'URESAX INVOICE SYS',
     );
 
-    if (dirPath == null) {
-      errors.add('URESAX_INVOICE_STATIC_LOCAL_SERVER_PATH,\n');
-    }
 
-    if (errors.isNotEmpty) {
-      errors.insert(
-          0, 'Faltan las siguientes variables de entorno:\n'.toUpperCase());
-      throw errors.join();
-    }
 
     runApp(MyApp());
 
@@ -203,6 +195,7 @@ class _MyAppState extends State<MyApp> {
           supportedLocales: [
             Locale('es', 'ES'),
           ],
+          
           debugShowCheckedModeBanner: false,
           scrollBehavior: ScrollConfiguration.of(context).copyWith(
               physics: Theme.of(context).platform == TargetPlatform.iOS ||
@@ -216,6 +209,7 @@ class _MyAppState extends State<MyApp> {
                 PointerDeviceKind.unknown
               }),
           theme: ThemeData(
+             visualDensity: VisualDensity(horizontal: -2, vertical: -2),
               primaryColor: const Color(0xFF2196F3),
               primarySwatch: Colors.blue,
               useMaterial3: false,
@@ -227,8 +221,11 @@ class _MyAppState extends State<MyApp> {
                 toolbarHeight: kToolbarHeight * 2.4,
                 elevation: 0,
               ),
+            
               dropdownMenuTheme: DropdownMenuThemeData(
+                
                 menuStyle: MenuStyle(
+           
                   shape: WidgetStatePropertyAll(
                     RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(60)),
@@ -250,6 +247,7 @@ class _MyAppState extends State<MyApp> {
                   bodyMedium: TextStyle(fontSize: 18),
                   bodySmall: TextStyle(fontSize: 15)),
               inputDecorationTheme: InputDecorationTheme(
+              
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20)))),
           builder: OnscreenKeyboard.builder(
@@ -383,14 +381,12 @@ class MyWindowListener extends WindowListener {
     var isConfirm = await showConfirm(rootScaffoldStateKey.currentContext!,
         title: '¿Deseas Cerrar la Aplicación?');
     if (isConfirm == true) {
-
       windowManager.hide();
       certPassword.clear();
       certPath.clear();
       certFile = null;
 
       currentUser = null;
-      company = null;
       currentClientContado = null;
       discounts = [];
       retentionsTaxes = [];
@@ -406,10 +402,19 @@ class MyWindowListener extends WindowListener {
       boxes = [];
       wareHouses = [];
       branches = [];
-      await CashShiftModel.closeCashShiftTurno(
-          id: localStorage.getItem('currentTurnoId_$currentInstanceId') ?? 'x');
-      localStorage.removeItem('currentTurnoId_$currentInstanceId');
+      workdays = [];
+      ncfsLists = [];
+      if (company?.allowCloseCashShift == true) {
+        await CashShiftModel.closeCashShiftTurno(
+            id: localStorage.getItem('currentTurnoId_$currentInstanceId') ??
+                'x');
+        localStorage.removeItem('currentTurnoId_$currentInstanceId');
+      }
+      company = null;
       localStorage.removeItem('oldPeriodId_$currentInstanceId');
+      localStorage.removeItem('expirationCashShift_$currentInstanceId');
+      localStorage.removeItem('currentWorkdayId_$currentInstanceId');
+
       windowManager.close();
       windowManager.destroy();
     }

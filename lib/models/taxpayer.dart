@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 
 class TaxPayer {
   String? taxPayerId;
@@ -11,7 +12,7 @@ class TaxPayer {
 
   static Future<TaxPayer?> findById(String identification) async {
     try {
-
+      await User.authClient();
       var res = await apiUresax.get('/taxpayers/$identification');
 
       if(res.statusCode == 200){

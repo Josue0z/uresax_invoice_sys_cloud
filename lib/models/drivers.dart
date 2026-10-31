@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/user.dart';
 class Drivers {
   int? id;
   String? name;
@@ -18,6 +19,7 @@ class Drivers {
 
   static Future<List<Drivers>> get({String? search}) async {
     try {
+            await User.authClient();
       String params = '?';
 
       if (search != null) {
@@ -38,6 +40,7 @@ class Drivers {
 
   Future<Drivers?> create() async {
     try {
+            await User.authClient();
       var res = await apiUresax.post('/drivers/create',
           data: {'name': name, 'phone': phone, 'email': email});
 
@@ -54,6 +57,7 @@ class Drivers {
 
   Future<Drivers?> update() async {
     try {
+            await User.authClient();
       var res = await apiUresax.put('/drivers/update/$id',
           data: {'name': name, 'phone': phone, 'email': email});
 

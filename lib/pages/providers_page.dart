@@ -57,6 +57,7 @@ class _ProvidersPageState extends State<ProvidersPage> {
 
   Widget get contentFilled {
     return ScrollMoveEventWidget(scrollControllerY: scrollControllerY, child:  ListView.separated(
+      key: PageStorageKey('providers_list'),
         itemCount: providers.length,
         controller: scrollControllerY,
         separatorBuilder: (ctx, i) => const Divider(),
@@ -140,7 +141,9 @@ class _ProvidersPageState extends State<ProvidersPage> {
     }
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('TUS PROVEEDORES (${providers.length})'),
+        toolbarHeight: kToolbarHeight + 50,
         actions: [
           Wrap(
             runAlignment: WrapAlignment.center,
@@ -174,6 +177,15 @@ class _ProvidersPageState extends State<ProvidersPage> {
                 tooltip: 'AGREGAR PROVEEDOR',
               )),
               SizedBox(width: kDefaultPadding),
+                CircleAvatar(
+                  child: IconButton(onPressed: (){
+                    Navigator.pop(context);
+                  }, icon: Icon(Icons.close)),
+                ),
+
+                SizedBox(
+                  width: kDefaultPadding
+                )
             ],
           )
         ],

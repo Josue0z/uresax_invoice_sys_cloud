@@ -2,12 +2,10 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
-import 'package:localstorage/localstorage.dart';
 import 'package:moment_dart/moment_dart.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:image/image.dart' as img;
-import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.service.dart';
@@ -74,7 +72,14 @@ pw.Document createDefaultInvoice(Sale sale) {
   4: pw.FlexColumnWidth(),
 };
 
-  document.addPage(pw.MultiPage(header: (ctx) {
+  document.addPage(pw.MultiPage(
+    margin: removeInvoiceTitle ? pw.EdgeInsets.only(
+    top: kDefaultPadding * 6, // ajusta este valor
+    left: kDefaultPadding * 2,
+    right: kDefaultPadding * 2,
+    bottom: kDefaultPadding * 4,
+    ) : null,
+    header: (ctx) {
     return pw.Column(children: [
       pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
         pw.Expanded(
@@ -83,7 +88,6 @@ pw.Document createDefaultInvoice(Sale sale) {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                 removeInvoiceTitle ? pw.SizedBox(
-                  height: kDefaultPadding * 2
                 ):  pw.Container(
                   margin: pw.EdgeInsets.symmetric(
                     vertical: kDefaultPadding/3
@@ -380,8 +384,8 @@ pw.Document createDefaultInvoice(Sale sale) {
                ),
      
               pw.SizedBox(
-                  width: 80,
-                  height: 80,
+                  width: 60,
+                  height: 60,
                   child: pw.BarcodeWidget(
                       data: sale.dgiiURL != null
                           ? sale.dgiiURL ?? ''
@@ -395,10 +399,10 @@ pw.Document createDefaultInvoice(Sale sale) {
                       child: pw.Row(children: [
                         pw.Text('Codigo de seguridad:',
                             style: pw.TextStyle(
-                                fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(sale.securityCode ?? '',
-                            style: pw.TextStyle(fontSize: 8)),
+                            style: pw.TextStyle(fontSize: 7)),
                       ]))
                   : pw.SizedBox(),
               sale.signatureDate != null
@@ -408,13 +412,13 @@ pw.Document createDefaultInvoice(Sale sale) {
                       child: pw.Row(children: [
                         pw.Text('Fecha de Firma:',
                             style: pw.TextStyle(
-                                fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(
                             sale.signatureDate
                                     ?.format(payload: 'DD-MM-YYYY HH:mm:ss') ??
                                 '',
-                            style: pw.TextStyle(fontSize: 8)),
+                            style: pw.TextStyle(fontSize: 7)),
                       ]))
                   : pw.SizedBox(),
               sale.authorName != null
@@ -424,10 +428,10 @@ pw.Document createDefaultInvoice(Sale sale) {
                       child: pw.Row(children: [
                         pw.Text('Atendido por:',
                             style: pw.TextStyle(
-                                fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(sale.authorName ?? '',
-                            style: pw.TextStyle(fontSize: 8)),
+                            style: pw.TextStyle(fontSize: 7)),
                       ]))
                   : pw.SizedBox(),
               sale.rate != null && sale.rate! > 1
@@ -437,10 +441,10 @@ pw.Document createDefaultInvoice(Sale sale) {
                       child: pw.Row(children: [
                         pw.Text('Tasa Dolar:',
                             style: pw.TextStyle(
-                                fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(sale.rate?.toStringAsFixed(2) ?? '',
-                            style: pw.TextStyle(fontSize: 8)),
+                            style: pw.TextStyle(fontSize: 7)),
                       ]))
                   : pw.SizedBox(),
               sale.estadoDgiiNombre != null
@@ -450,10 +454,10 @@ pw.Document createDefaultInvoice(Sale sale) {
                       child: pw.Row(children: [
                         pw.Text('Estado DGII:',
                             style: pw.TextStyle(
-                                fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(sale.estadoDgiiNombre ?? '',
-                            style: pw.TextStyle(fontSize: 8)),
+                            style: pw.TextStyle(fontSize: 7)),
                       ]))
                   : pw.SizedBox(),
             ])),
@@ -957,7 +961,9 @@ pw.Document createVerticalInvoice(Sale sale) {
   final qr = pw.Barcode.qrCode();
 
   List<String> columns() {
-    return sale.items[0].toDisplayReceipt().keys.toList();
+    var cols = sale.items[0].toDisplayReceipt().keys.toList();
+    cols.removeAt(1);
+    return cols.toList();
   }
 
   List<pw.Widget> paymentsWidgets = [];
@@ -1193,6 +1199,10 @@ pw.Document createVerticalInvoice(Sale sale) {
     final item = sale.items[index];
     final values = item.toDisplayReceipt().values.toList();
 
+    var description = values[1];
+    var xvalues = [...values];
+    xvalues.removeAt(1);
+
     return pw.SizedBox(
       width: double.infinity,
       child: pw.CustomPaint(
@@ -1211,24 +1221,33 @@ pw.Document createVerticalInvoice(Sale sale) {
 
             canvas.strokePath();
           },
-          child: pw.Row(
+          child:pw.Container(
+            padding: pw.EdgeInsets.symmetric(
+              vertical: kDefaultPadding/6
+            ),
+            child:pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+        pw.Padding(padding: pw.EdgeInsets.symmetric(
+          vertical: kDefaultPadding/5
+        ),child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.start,
-      children: List.generate(values.length, (i) {
-              final val = values[i];
-
+      children: List.generate(3, (i) {
+              final val = xvalues[i];
         return pw.Expanded(
           flex: i == 0 ? 4: 1,
-          child:  pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(
-              vertical: kDefaultPadding / 3
-            ),
-            child: pw.Text(val, style: const pw.TextStyle(fontSize: 5)),
-          ));
+          child:  pw.Text(val, style: const pw.TextStyle(fontSize: 5)),
+          );
 
   
 
       }),
-    )
+    )),
+       pw.Text(description,style: const pw.TextStyle(fontSize: 5))
+            ]
+          )
+          )
         )
     );
 
@@ -1326,9 +1345,9 @@ pw.Document createVerticalInvoice(Sale sale) {
           pw.SizedBox(height: kDefaultPadding),
           pw.Column(children: [
             pw.Container(
-                width: 100,
-                height: 100,
-                margin: pw.EdgeInsets.symmetric(vertical: kDefaultPadding),
+                width:70,
+                height: 70,
+                margin: pw.EdgeInsets.symmetric(vertical: kDefaultPadding/2),
                 child: pw.BarcodeWidget(
                     data: sale.dgiiURL != null
                         ? sale.dgiiURL ?? ''
@@ -1337,7 +1356,7 @@ pw.Document createVerticalInvoice(Sale sale) {
             sale.securityCode != null
                 ? pw.Container(
                     margin:
-                        pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 4),
+                        pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 5),
                     child: pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.center,
                         children: [
@@ -1352,7 +1371,7 @@ pw.Document createVerticalInvoice(Sale sale) {
             sale.signatureDate != null
                 ? pw.Container(
                     margin:
-                        pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 4),
+                        pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 5),
                     child: pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.center,
                         children: [
@@ -1370,7 +1389,7 @@ pw.Document createVerticalInvoice(Sale sale) {
             sale.authorName != null
                 ? pw.Container(
                     margin:
-                        pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 4),
+                        pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 5),
                     child: pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.center,
                         children: [
@@ -1396,7 +1415,6 @@ Future<List<int>> createDefaultTicket(
 
   final generator = Generator(PaperSize.mm80, profile,spaceBetweenRows: 2,codec: CustomLatinCodec());
   List<int> bytes = [];
-  bytes.addAll([27, 97, 0]); // ESC a 0 → izquierda
 
   generator.setStyles(PosStyles(width: PosTextSize.size6));
     
@@ -1422,11 +1440,15 @@ Future<List<int>> createDefaultTicket(
   bytes+=generator.image(decoded);
   }
 
+  bytes.addAll([27, 97, 1]); 
+
   if(enabledFirstComercialName){
 
-  if(company?.comercialName != null){
+  if(company?.enabledHideComercialName == false){
+      if(company?.comercialName != null){
      bytes += generator.text(sale.brancheName ??  company?.comercialName ?? '',
       styles: PosStyles(bold: true, fontType: PosFontType.fontA, align: PosAlign.center));
+  }
   }
 
    bytes += generator.text(company?.name ?? '',
@@ -1435,11 +1457,16 @@ Future<List<int>> createDefaultTicket(
   }else{
       bytes += generator.text(company?.name ?? '',
       styles: PosStyles(bold: true, fontType: PosFontType.fontA, align: PosAlign.center));
-  
-      if(company?.comercialName != null){
+
+
+      if(company?.enabledHideComercialName == false){
+                 if(company?.comercialName != null){
      bytes += generator.text(sale.brancheName ??  company?.comercialName ?? '',
       styles: PosStyles(bold: true, fontType: PosFontType.fontA, align: PosAlign.center));
   }
+      }
+  
+
  
   }
 
@@ -1459,7 +1486,13 @@ Future<List<int>> createDefaultTicket(
         tels +='Tel: ${sale.branchePhone1 ??  company?.phone1}';
      }
   if(company?.phone2 != null || company?.phone2?.isNotEmpty == true || sale.branchePhone2 != null){
-        tels +='\nCel: ${sale.branchePhone2 ??  company?.phone2}';
+
+        var label = 'Cel:';
+
+        if(company?.enabledLabelWhatsApp == true){
+          label = 'Whatsapp:';
+        }
+        tels +='\n$label ${sale.branchePhone2 ??  company?.phone2}';
   }
      
   if(tels.isNotEmpty){
@@ -1476,7 +1509,7 @@ Future<List<int>> createDefaultTicket(
 
   bool esNotaCredito = (sale.ncfTypeId == '04' || sale.ncfTypeId == '34');
   var esCotization = sale.ncfTypeId == '60';
-
+ bytes.addAll([27, 97, 0]);
  
  bytes += generator.text('Rnc/Cedula: ${sale.clientIdentification}'.toUpperCase(),
         styles: PosStyles(align: PosAlign.left));
@@ -1507,15 +1540,16 @@ Future<List<int>> createDefaultTicket(
        }
      }
    
-
+  bytes.addAll([27, 97, 1]);
   bytes += createDivider(generator);
-
   bytes += generator.text(sale.ncfTypeName ?? '',
       styles: PosStyles(align: PosAlign.center, bold: true));
-
   bytes += createDivider(generator);
 
+  bytes.addAll([27, 97, 0]);
+
   var cols = sale.items[0].toDisplayReceipt().keys.toList();
+  cols.removeAt(1);
   bytes += generator.row(List.generate(cols.length, (i) {
     var e = cols[i];
     return PosColumn(text: e, width: i == 0 ? 6 : 3);
@@ -1525,12 +1559,24 @@ Future<List<int>> createDefaultTicket(
   for (var item in sale.items) {
     var values = item.toDisplayReceipt().values.toList();
 
-    bytes += generator.row(List.generate(values.length, (i) {
+     var xvalues = [...values];
+     xvalues.removeAt(1);
+    bytes += generator.row(List.generate(3, (i) {
       var w = i == 0 ? 6 : 3;
-      var e = values[i];
+      var e = xvalues[i];
 
       return PosColumn(text: e, width: w);
     }));
+   
+    
+    
+    bytes += generator.row([
+      PosColumn(text: values[1], width: 6),
+      PosColumn(text: '', width: 3),
+      PosColumn(text:'', width: 3)
+    ]);
+
+
 
     bytes += createDivider(generator);
   }
@@ -1541,17 +1587,25 @@ Future<List<int>> createDefaultTicket(
 
   bool isCreditNote =
       sale is CreditNoteAsProduct || sale is CreditNoteAsService;
+List<String> calcs = [];
 
-  List<String> calcs = [
-    'SUBTOTAL: ${(sale.net!).toCoin()}',
-    'DESCUENTO: ${sale.discount?.toCoin()}',
-    'SUBTOTAL: ${(sale.netFinal!).toCoin()}',
-    'TOTAL ITBIS: ${sale.tax?.toCoin()}'
-  ];
+// Siempre agregas el primer subtotal
+calcs.add('SUBTOTAL: ${(sale.net!).toCoin()}');
 
-  if (sale.law10! > 0) {
-    calcs.addAll({'LEY 10%: ${sale.law10?.toCoin()}'});
-  }
+// Solo agregas DESCUENTO si es mayor que cero
+if (sale.discount != null && sale.discount! > 0) {
+  calcs.add('DESCUENTO: ${sale.discount!.toCoin()}');
+  // Luego continúas con el resto
+ calcs.add('SUBTOTAL: ${(sale.netFinal!).toCoin()}');
+}
+
+
+calcs.add('TOTAL ITBIS: ${sale.tax?.toCoin()}');
+
+// Ley 10% solo si aplica
+if (sale.law10 != null && sale.law10! > 0) {
+  calcs.add('LEY 10%: ${sale.law10!.toCoin()}');
+}
 
   if (isCreditNote) {
     calcs.addAll(['DEVUELTO: ${sale.total!.toCoin()}']);
@@ -1637,11 +1691,17 @@ Future<List<int>> createDefaultTicket(
     bytes += generator.text(
         'Fecha de Firma: ${sale.signatureDate?.format(payload: 'DD-MM-YYYY HH:mm:ss')}',
         styles: PosStyles(align: PosAlign.center));
+  }else{
+        bytes += generator.text(
+        'Fecha de Firma: ${sale.createdAt?.format(payload: 'DD-MM-YYYY HH:mm:ss')}',
+        styles: PosStyles(align: PosAlign.center));
   }
+
+
   bytes+=generator.emptyLines(1);
 
-  if(sale.message != null){
-    bytes += generator.text(sale.message ?? '',
+  if(company?.message != null){
+    bytes += generator.text(company?.message ?? '',
         styles: PosStyles(align: PosAlign.center));
   }
 
@@ -8222,6 +8282,20 @@ final emptyRows = List.generate(emptyRowsCount, (_) {
 });
 
 
+
+var splits = company?.rncOrId?.trim().split('-') ?? []; 
+var newRnc = company?.rncOrId;
+
+if(splits.length == 3){
+ var a = splits[0];
+var b = splits[1];
+var c = splits[2];
+
+   newRnc = '$a-$b$c';
+
+}
+
+
   document.addPage(pw.MultiPage(
     margin: pw.EdgeInsets.only(
         left: kDefaultPadding * 2,
@@ -8552,15 +8626,16 @@ final emptyRows = List.generate(emptyRowsCount, (_) {
              pw.SizedBox(
               height: kDefaultPadding/2
              ),
-              pw.Text('RNC ${company?.rncOrId}:',style: pw.TextStyle(
+              pw.Text('RNC $newRnc',style: pw.TextStyle(
               fontSize: 7,
               fontWeight: pw.FontWeight.bold
              )),
 
-              pw.Text(company?.bankInfo??'',style: pw.TextStyle(
-              fontSize: 7,
+    
 
-             )),
+             buildDescription(company?.bankInfo ?? '',pw.TextStyle(
+              fontSize: 7
+             ))
 
              
           ]
@@ -8984,13 +9059,13 @@ final emptyRows = List.generate(emptyRowsCount, (_) {
         ]
       ),
 
-      pw.Spacer(),
+      pw.Spacer(flex:6),
       pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children:[
             pw.Container(
-                  width: 30,
-                  height: 30,
+                  width: 58,
+                  height: 58,
                   margin: pw.EdgeInsets.only(
                     top: kDefaultPadding/2
                   ),
@@ -9002,15 +9077,14 @@ final emptyRows = List.generate(emptyRowsCount, (_) {
             
               sale.securityCode != null
                   ? pw.Container(
-                      margin: pw.EdgeInsets.symmetric(
-                          vertical: kDefaultPadding / 7),
+                      margin: pw.EdgeInsets.only(top: kDefaultPadding/3),
                       child: pw.Row(children: [
                         pw.Text('Codigo de seguridad:',
                             style: pw.TextStyle(
-                                fontSize: 5, fontWeight: pw.FontWeight.bold)),
-                        pw.SizedBox(width: 5),
+                                fontSize: 6, fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(width: 6),
                         pw.Text(sale.securityCode ?? '',
-                            style: pw.TextStyle(fontSize: 5)),
+                            style: pw.TextStyle(fontSize: 6)),
                       ]))
                   : pw.SizedBox(),
               sale.signatureDate != null
@@ -9020,13 +9094,13 @@ final emptyRows = List.generate(emptyRowsCount, (_) {
                       child: pw.Row(children: [
                         pw.Text('Fecha de Firma:',
                             style: pw.TextStyle(
-                                fontSize: 5, fontWeight: pw.FontWeight.bold)),
-                        pw.SizedBox(width: 5),
+                                fontSize: 6, fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(width: 6),
                         pw.Text(
                             sale.signatureDate
                                     ?.format(payload: 'DD-MM-YYYY HH:mm:ss') ??
                                 '',
-                            style: pw.TextStyle(fontSize: 5)),
+                            style: pw.TextStyle(fontSize: 6)),
                       ]))
                   : pw.SizedBox(),
             
@@ -9037,10 +9111,10 @@ final emptyRows = List.generate(emptyRowsCount, (_) {
                       child: pw.Row(children: [
                         pw.Text('Tasa Dolar:',
                             style: pw.TextStyle(
-                                fontSize: 5, fontWeight: pw.FontWeight.bold)),
-                        pw.SizedBox(width: 5),
+                                fontSize: 6, fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(width: 6),
                         pw.Text(sale.rate?.toStringAsFixed(2) ?? '',
-                            style: pw.TextStyle(fontSize: 5)),
+                            style: pw.TextStyle(fontSize: 6)),
                       ]))
                   : pw.SizedBox(),
               sale.estadoDgiiNombre != null
@@ -9050,18 +9124,23 @@ final emptyRows = List.generate(emptyRowsCount, (_) {
                       child: pw.Row(children: [
                         pw.Text('Estado DGII:',
                             style: pw.TextStyle(
-                                fontSize: 5, fontWeight: pw.FontWeight.bold)),
+                                fontSize: 6, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(width: 5),
                         pw.Text(sale.estadoDgiiNombre ?? '',
-                            style: pw.TextStyle(fontSize: 5)),
+                            style: pw.TextStyle(fontSize: 6)),
                       ]))
                   : pw.SizedBox(),
-            sale.description?.isNotEmpty == true ? pw.Container(
-                margin: pw.EdgeInsets.symmetric(vertical: kDefaultPadding / 6),
-                child:  pw.Text( sale.description ?? '', style: pw.TextStyle(fontSize: 7)),
-              ):pw.SizedBox(),
+
+            pw.SizedBox(
+              height: kDefaultPadding/2
+            ),
+            sale.description?.isNotEmpty == true ? buildDescription(sale.description ?? '',pw.TextStyle(
+              fontSize: 7
+            )):pw.SizedBox(),
         ]
-      )
+      ),
+
+      pw.Spacer()
     ];
   }, footer: (ctx) {
     return pw.Column(
@@ -9309,4 +9388,39 @@ Future<List<int>> createTicketCashShift(
   bytes += generator.cut();
 
   return bytes;
+}
+
+
+pw.Widget buildDescription(String? text, pw.TextStyle style) {
+  if (text == null || text.isEmpty) return pw.SizedBox();
+
+  final regex = RegExp(r'\*\*(.*?)\*\*', dotAll: true);
+  final spans = <pw.TextSpan>[];
+  int lastEnd = 0;
+
+  for (final match in regex.allMatches(text)) {
+    // texto normal antes del match
+    if (match.start > lastEnd) {
+      spans.add(pw.TextSpan(
+        text: text.substring(lastEnd, match.start),
+        style: style,
+      ));
+    }
+    // texto en negrita
+    spans.add(pw.TextSpan(
+      text: match.group(1) ?? '',
+      style: style.copyWith(fontWeight: pw.FontWeight.bold),
+    ));
+    lastEnd = match.end;
+  }
+
+  // resto del texto
+  if (lastEnd < text.length) {
+    spans.add(pw.TextSpan(
+      text: text.substring(lastEnd),
+      style: style,
+    ));
+  }
+
+  return pw.RichText(text: pw.TextSpan(children: spans));
 }
