@@ -5,7 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const String owner = "Josue0z";
-const String repo = "uresax_invoice_sys";
+const String repo = "uresax_invoice_sys_cloud";
 
 Future<void> checkForUpdate(BuildContext context) async {
   // Obtener versión actual del package
