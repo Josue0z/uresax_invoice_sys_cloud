@@ -8,6 +8,7 @@ import 'package:uresax_invoice_sys_cloud/pages/home_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/pos_screen.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
+import 'package:uresax_invoice_sys_cloud/utils/updater.handler.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/password.editor.widget.dart';
 import 'package:page_route_transition/page_route_transition.dart';
 
@@ -139,10 +140,16 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
   }
-
+  
+  _checkUpdates()async{
+    await Future.delayed(const Duration(milliseconds: 600));
+    checkForUpdate(context);
+  }
   @override
   void initState() {
+    if(!mounted)return;
     username.text = localStorage.getItem('currentUsername') ?? '';
+   _checkUpdates();
     super.initState();
   }
 
