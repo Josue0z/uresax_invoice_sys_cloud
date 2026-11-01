@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "URESAX INVOICE SYS"
-#define MyAppVersion "2.0.6+17"
+#define MyAppVersion "2.0.10+21"
 #define MyAppPublisher "URENA LORENZO & ASOCIADOS SRL"
 #define MyAppExeName "uresax_invoice_sys_cloud.exe"
 #define MyAppAssocName MyAppName + " File"
