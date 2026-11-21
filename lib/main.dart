@@ -17,7 +17,7 @@ import 'package:uresax_invoice_sys_cloud/widgets/startup-loader.dart';
 import 'package:uuid/uuid.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:flutter_onscreen_keyboard/flutter_onscreen_keyboard.dart';
+
 
 void main(List<String> args) async {
   try {
@@ -210,8 +210,8 @@ class _MyAppState extends State<MyApp> {
               }),
           theme: ThemeData(
              visualDensity: VisualDensity(horizontal: -2, vertical: -2),
-              primaryColor: const Color(0xFF2196F3),
-              primarySwatch: Colors.blue,
+              primaryColor: currentThemeColor,
+              primarySwatch: currentThemeColor,
               useMaterial3: false,
               scrollbarTheme: ScrollbarThemeData(
                   trackVisibility: WidgetStatePropertyAll(false),
@@ -250,41 +250,12 @@ class _MyAppState extends State<MyApp> {
               
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20)))),
-          builder: OnscreenKeyboard.builder(
-              width: (context) => MediaQuery.sizeOf(context).width / 5,
-              layout: numericLayout),
-          home: content,
+          home: content
         ));
   }
 }
 
-final numericMode = KeyboardMode(
-  rows: [
-    KeyboardRow(keys: [
-      OnscreenKeyboardKey.text(primary: '1'),
-      OnscreenKeyboardKey.text(primary: '2'),
-      OnscreenKeyboardKey.text(primary: '3')
-    ]),
-    KeyboardRow(keys: [
-      OnscreenKeyboardKey.text(primary: '4'),
-      OnscreenKeyboardKey.text(primary: '5'),
-      OnscreenKeyboardKey.text(primary: '6')
-    ]),
-    KeyboardRow(keys: [
-      OnscreenKeyboardKey.text(primary: '7'),
-      OnscreenKeyboardKey.text(primary: '8'),
-      OnscreenKeyboardKey.text(primary: '9')
-    ]),
-    KeyboardRow(keys: [
-      OnscreenKeyboardKey.text(primary: '0'),
-      OnscreenKeyboardKey.action(name: 'backspace', label: '⌫')
-    ])
-  ],
-);
-final numericLayout = KeyboardLayout.custom(
-  aspectRatio: 1, // ajusta proporción de teclas
-  modes: {'numeric': numericMode},
-);
+
 
 class EsDO extends MomentLocalization {
   EsDO();
@@ -378,8 +349,8 @@ class EsDO extends MomentLocalization {
 class MyWindowListener extends WindowListener {
   @override
   void onWindowClose() async {
-    var isConfirm = await showConfirm(rootScaffoldStateKey.currentContext!,
-        title: '¿Deseas Cerrar la Aplicación?');
+    var isConfirm = await showConfirmAction(context:rootScaffoldStateKey.currentContext!,
+        body: '¿Deseas Cerrar la Aplicación?');
     if (isConfirm == true) {
       windowManager.hide();
       certPassword.clear();
@@ -404,6 +375,8 @@ class MyWindowListener extends WindowListener {
       branches = [];
       workdays = [];
       ncfsLists = [];
+      ncfs = [];
+      ncfsAll = [];
       if (company?.allowCloseCashShift == true) {
         await CashShiftModel.closeCashShiftTurno(
             id: localStorage.getItem('currentTurnoId_$currentInstanceId') ??

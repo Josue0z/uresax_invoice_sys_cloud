@@ -4,6 +4,7 @@ import 'package:uresax_invoice_sys_cloud/modals/provider.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/provider.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
 
 class ProvidersPage extends StatefulWidget {
@@ -139,7 +140,7 @@ class _ProvidersPageState extends State<ProvidersPage> {
     if (!widget.selectorMode) {
       providers.removeWhere((e) => e.id == null);
     }
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('TUS PROVEEDORES (${providers.length})'),
@@ -229,6 +230,6 @@ class _ProvidersPageState extends State<ProvidersPage> {
       child: Icon(Icons.restore)),)
       ],
     )
-    );
+    ));
   }
 }

@@ -8,10 +8,11 @@
 
 #include <desktop_webview_window/desktop_webview_window_plugin.h>
 #include <file_selector_windows/file_selector_windows.h>
+#include <flutter_libserialport/flutter_libserialport_plugin.h>
 #include <flutter_platform_alert/flutter_platform_alert_plugin.h>
 #include <printing/printing_plugin.h>
+#include <public_file_saver/public_file_saver_plugin_c_api.h>
 #include <screen_retriever_windows/screen_retriever_windows_plugin_c_api.h>
-#include <syncfusion_pdfviewer_windows/syncfusion_pdfviewer_windows_plugin.h>
 #include <url_launcher_windows/url_launcher_windows.h>
 #include <window_manager/window_manager_plugin.h>
 
@@ -20,14 +21,16 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("DesktopWebviewWindowPlugin"));
   FileSelectorWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FileSelectorWindows"));
+  FlutterLibserialportPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("FlutterLibserialportPlugin"));
   FlutterPlatformAlertPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FlutterPlatformAlertPlugin"));
   PrintingPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("PrintingPlugin"));
+  PublicFileSaverPluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("PublicFileSaverPluginCApi"));
   ScreenRetrieverWindowsPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("ScreenRetrieverWindowsPluginCApi"));
-  SyncfusionPdfviewerWindowsPluginRegisterWithRegistrar(
-      registry->GetRegistrarForPlugin("SyncfusionPdfviewerWindowsPlugin"));
   UrlLauncherWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("UrlLauncherWindows"));
   WindowManagerPluginRegisterWithRegistrar(

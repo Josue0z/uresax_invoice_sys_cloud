@@ -75,25 +75,27 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
         if (!widget.editing) {
           await service.create();
           widget.service = service;
-          await LogHandler.printEvent(
-              'SERVICIO: ${widget.service.name} CREADO');
           Navigator.pop(context);
           Navigator.pop(context, 'CREATE');
         } else {
           await service.update();
           widget.service = service;
-          await LogHandler.printEvent(
-              'SERVICIO: ${widget.service.name} ACTUALIZADO');
+   
           Navigator.pop(context);
           Navigator.pop(context, 'UPDATE');
-          showTopSnackBar(context,
+  
+        }
+
+        showTopSnackBar(context,
               message: widget.editing ? 'SERVICIO EDITADO' : 'SERVICIO CREADO',
               color: Colors.green);
-        }
+
+                 await LogHandler.printEvent(
+            widget.editing ?  'SERVICIO: ${widget.service.name} ACTUALIZADO' : 'SERVICIO: ${widget.service.name} CREADO');
       } catch (e) {
-        await LogHandler.printError(e.toString());
         Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }
@@ -176,7 +178,7 @@ class _ServiceEditorModalState extends State<ServiceEditorModal> {
                             ? Container(
                                 margin: EdgeInsets.only(
                                     top: kDefaultPadding,
-                                    bottom: kDefaultPadding),
+                                   ),
                                 child: ImageSelectorWidget(
                                     imageBase64: imageBase64,
                                     imageUrl: imageUrl,

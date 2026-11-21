@@ -11,6 +11,7 @@ import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
 
 class ProductsPage extends StatefulWidget {
@@ -389,7 +390,8 @@ class _ProductsPageState extends State<ProductsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return  EscNavigationDemo(
+      child: Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         toolbarHeight: kToolbarHeight + 50,
@@ -490,7 +492,7 @@ class _ProductsPageState extends State<ProductsPage> {
             }
 
             return contentEmpty;
-          }),
+          })),
     );
   }
 }

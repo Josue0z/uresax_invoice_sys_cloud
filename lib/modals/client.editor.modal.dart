@@ -52,6 +52,7 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
         if (!widget.editing) {
           await widget.client.create();
           await LogHandler.printEvent('CLIENTE: ${widget.client.name} CREADO');
+          Navigator.pop(context);
           Navigator.pop(context, 'CREATE');
         } else {
           var isChanged = oldIdentification != identification.text;
@@ -65,18 +66,20 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
           }
 
           await widget.client.update();
-          await LogHandler.printEvent(
-              'CLIENTE: ${widget.client.name} ACTUALIZADO');
+ 
           Navigator.pop(context);
           Navigator.pop(context, 'UPDATE');
           showTopSnackBar(context,
               message: widget.editing ? 'CLIENTE EDITADO' : 'CLIENTE CREADO',
               color: Colors.green);
+         await LogHandler.printEvent(
+              'CLIENTE: ${widget.client.name} ACTUALIZADO');
         }
       } catch (e) {
-        await LogHandler.printError(e.toString());
+  
         Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }
@@ -100,7 +103,10 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
       child: Form(
           key: _formKey,
           child: Container(
-              width: 350,
+              constraints: BoxConstraints(
+                maxWidth: 300,
+                maxHeight: 600
+              ),
               padding: EdgeInsets.all(kDefaultPadding),
               child: Column(
                 children: [
@@ -121,11 +127,10 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
                     ],
                   ),
                   Expanded(
-                      child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      child: ListView(
+                        shrinkWrap: true,
                       children: [
-                        SizedBox(
+                         SizedBox(
                           height: kDefaultPadding,
                         ),
                         TextFormField(
@@ -189,7 +194,6 @@ class _ClientEditorModalState extends State<ClientEditorModal> {
                           height: kDefaultPadding,
                         ),
                       ],
-                    ),
                   )),
                   SizedBox(
                     width: double.infinity,

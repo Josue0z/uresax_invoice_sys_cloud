@@ -170,13 +170,12 @@ class _UserEditorModalState extends State<UserEditorModal> {
           await user.create();
         
           widget.user = user;
-          await LogHandler.printEvent('USUARIO: ${user.name} CREADO');
+  
         } else {
               showLoader(context);
           await user.update();
           widget.user = user;
-          await LogHandler.printEvent(
-              'USUARIO: ${widget.user.name} ACTUALIZADO');
+
           if (currentUser?.id == user.id) {
             currentUser?.name = user.name;
             currentUser?.username = user.username;
@@ -186,16 +185,18 @@ class _UserEditorModalState extends State<UserEditorModal> {
           }
         }
 
-      Navigator.pop(context);
+        Navigator.pop(context);
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
         showTopSnackBar(context,
             message: widget.editing ? 'USUARIO EDITADO' : 'USUARIO CREADO',
             color: Colors.green);
-      } catch (e) {
 
-        await LogHandler.printError(e.toString());
+       await LogHandler.printEvent(widget.editing ? 'USUARIO: ${widget.user.name} ACTUALIZADO': 'USUARIO: ${user.name} CREADO');
+      } catch (e) {
+     
         Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }

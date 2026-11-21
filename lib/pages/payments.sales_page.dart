@@ -12,6 +12,7 @@ import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/invoices.functions.dart';
 import 'package:path/path.dart' as path;
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class PaymentSalesPage extends StatefulWidget {
   Sale sale;
@@ -123,7 +124,7 @@ class _PaymentSalesPageState extends State<PaymentSalesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('${widget.sale.ncf} - PAGOS (${payments.length})'),
       ),
@@ -151,6 +152,6 @@ class _PaymentSalesPageState extends State<PaymentSalesPage> {
 
             return contentEmpty;
           }),
-    );
+    ));
   }
 }

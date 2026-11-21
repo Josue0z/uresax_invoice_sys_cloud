@@ -9,7 +9,6 @@ import 'package:postgres/postgres.dart';
 import 'package:uresax_invoice_sys_cloud/apis/sql.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
 import 'package:uresax_invoice_sys_cloud/pages/home_page.dart';
-import 'package:uresax_invoice_sys_cloud/pages/pos_screen.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uuid/uuid.dart';
@@ -270,29 +269,12 @@ class SubscriptionModel {
               await SubscriptionModel.create();
 
               webview.close();
-
-              if (currentUser!.permissions!.contains('ALLOW_VIEW_POS_SCREEN')) {
-                if (!eCommerceMode) {
-                  throw 'NO ESTA HABILITADO EL MODO COMERCIO';
-                }
-
-                await Navigator.pushAndRemoveUntil(
-                    context,
-                    PageRouteTransitionBuilder(
-                        page: PosScreenPage(
-                          sale: SaleProduct(),
-                          items: [],
-                        ),
-                        effect: TransitionEffect.leftToRight),
-                    (_) => false);
-              } else {
-                await Navigator.pushAndRemoveUntil(
+              await Navigator.pushAndRemoveUntil(
                     context,
                     PageRouteTransitionBuilder(
                         page: const HomePage(),
                         effect: TransitionEffect.leftToRight),
                     (_) => false);
-              }
             } else {
               print(
                   'Suscripción aún no activa. Estado: ${subscriptionDetails.status}');

@@ -36,17 +36,17 @@ class _DiscountEditorModalState extends State<DiscountEditorModal> {
         widget.discount.symbolId = currentSymbolId;
         if (!widget.editing) {
           await widget.discount.create();
-          await LogHandler.printEvent(
-              'DESCUENTO: ${widget.discount.name} CREADO');
         } else {
           await widget.discount.update();
-          await LogHandler.printEvent(
-              'DESCUENTO: ${widget.discount.name} ACTUALIZADO');
+       
         }
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
+        await LogHandler.printEvent(widget.editing ?
+              'DESCUENTO: ${widget.discount.name} ACTUALIZADO' : 'DESCUENTO: ${widget.discount.name} CREADO');
       } catch (e) {
-        await LogHandler.printError(e.toString());
+     
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }

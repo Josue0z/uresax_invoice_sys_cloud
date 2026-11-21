@@ -54,6 +54,12 @@ class User {
      try{
        dynamic res;
 
+        var local =  DateTime.now().toIso8601String();
+
+        apiUresax.options.headers['localdate'] = local;
+
+  
+
        var authJson = {};
 
        var tokenStorage = localStorage.getItem('authToken');
@@ -63,14 +69,16 @@ class User {
         var tokenData = authJson['token'];
         apiUresax.options.headers['x-authtoken'] = tokenData;
 
-  
+
         var now = DateTime.now().toUtc();
 
         var expiredAt = DateTime.parse(authJson['expiredAt']);
+        var xexpiredAt =  expiredAt.subtract(const Duration(minutes:10));
 
 
         
-        if(now.isBefore(expiredAt)){
+        if(now.isBefore(xexpiredAt)){
+          print(xexpiredAt.isUtc);
           print('no ha vencido el token');
           return true;
         }
@@ -93,8 +101,8 @@ class User {
       }
       return false;
      }catch(e){
-      print(e);
-      return false;
+       print(e);
+       return false;
      }
   }
   static Future<List<User>> get() async {
@@ -114,7 +122,21 @@ class User {
 
   static Future<User?> login(String username, String password) async {
     try {
+
+     apiUresax = await createDio(
+          BaseOptions(
+            baseUrl: apiUresax.options.baseUrl,
+            contentType: 'application/json',
+            headers: {
+              'Content-Type':'application/json'
+            },
+         connectTimeout: const Duration(seconds: 20),
+         receiveTimeout: const Duration(seconds: 20)
+          )
+      );
       await authClient();
+
+    
       var res = await apiUresax.post('/users/login',
           data: {'username': username, 'password': password});
 
@@ -123,7 +145,7 @@ class User {
         var user = User.fromMap(data['user']);
 
 
-        apiUresax = Dio(
+        apiUresax = await createDio(
           BaseOptions(
             baseUrl: apiUresax.options.baseUrl,
             contentType: 'application/json',
@@ -131,7 +153,10 @@ class User {
               'x-companyid': user.company?.id,
               'x-userid': user.id,
               'Content-Type':'application/json'
-            }
+             
+            },
+            connectTimeout: const Duration(seconds: 20),
+            receiveTimeout: const Duration(seconds: 20)
           )
         );
 
@@ -163,7 +188,7 @@ class User {
       return null;
     } on DioException catch (e) {
     
-     throw e.response?.data['message'] ?? e.error.toString();
+     throw e.response?.data['message'] ?? 'NO SE PUEDE CONTACTAR CON EL SERVIDOR, VERIFIQUE SU CONEXION A INTERNET';
     }
   }
 
@@ -215,6 +240,25 @@ class User {
       throw e.response?.data['message'] ?? e.error.toString();
     }
   }
+
+    Future<User?> changePassword() async {
+    try {
+            await authClient();
+      var res = await apiUresax.put('/users/change-password/$id', data: {
+       'password': password
+      });
+
+      if (res.statusCode == 200) {
+        var user = User.fromMap(res.data);
+        return user;
+      }
+
+      return null;
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? e.error.toString();
+    }
+  }
+
 
     Future<bool?> verifyUser() async {
     try {

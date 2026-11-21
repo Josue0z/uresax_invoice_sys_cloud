@@ -7,7 +7,6 @@ import 'package:uresax_invoice_sys_cloud/models/taxpayer.dart';
 import 'package:uresax_invoice_sys_cloud/pages/clients_page.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter_onscreen_keyboard/flutter_onscreen_keyboard.dart';
 
 class RncQueryWidget extends StatefulWidget {
   TextEditingController editingController;
@@ -43,7 +42,7 @@ class _RncQueryWidgetState extends State<RncQueryWidget> {
       notFound = false;
     });
     var words = widget.editingController.text;
-    if (words.length == 9 || words.length == 11) {
+    if (words.length == 9 || words.length == 11 || words.length == 8) {
       client = await Client.findById(words);
 
       if (client == null) {
@@ -148,17 +147,16 @@ class _RncQueryWidgetState extends State<RncQueryWidget> {
 
                 return val.isEmpty == true
                     ? 'CAMPO OBLIGATORIO'
-                    : !(val.length == 9 || val.length == 11)
-                        ? 'LA CANTIDAD DE DIGITOS DEBE SER 9 O 11'
+                    : !(val.length == 9 || val.length == 11 || val.length == 8)
+                        ? 'LA CANTIDAD DE DIGITOS DEBE SER 8, 9 O 11'
                         : null;
               }, builder: (field) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    OnscreenKeyboardTextField(
+                    TextFormField(
                       controller: widget.editingController,
                       enabled: !widget.editing,
-                      enableOnscreenKeyboard: showNumericKeyboard,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (val) {
                         setState(() {

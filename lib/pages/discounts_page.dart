@@ -6,6 +6,7 @@ import 'package:uresax_invoice_sys_cloud/modals/discount.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/discount.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
 
 class DiscountsPage extends StatefulWidget {
@@ -122,7 +123,7 @@ class _DiscountsPageState extends State<DiscountsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('DESCUENTOS (${discounts.length})'),
         actions: [
@@ -168,6 +169,6 @@ class _DiscountsPageState extends State<DiscountsPage> {
 
             return contentEmpty;
           }),
-    );
+    ));
   }
 }

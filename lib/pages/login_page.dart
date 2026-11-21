@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
 import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart' show LogHandler;
-import 'package:uresax_invoice_sys_cloud/models/sale.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/pages/home_page.dart';
-import 'package:uresax_invoice_sys_cloud/pages/pos_screen.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/updater.handler.dart';
@@ -28,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
     if (_formKey.currentState!.validate()) {
       try {
         showLoader(context);
-     
+       
         currentUser = await User.login(username.text, password.text);
         
         company = currentUser?.company;
@@ -50,9 +48,6 @@ class _LoginPageState extends State<LoginPage> {
           electronicNcfEnabled = false;
           currentElectronicNcfOption = 2;
         }
-
-        await LogHandler.printEvent(
-            'EL USUARIO: ${currentUser?.name} INICIO SESION');
 
         if (currentUser != null) {
           if (isTerminal) {
@@ -114,8 +109,14 @@ class _LoginPageState extends State<LoginPage> {
                   .getItem('URESAX_INVOICE_CURRENT_BOX_ID_${company?.id}') ??
               'x');
 
-          localStorage.setItem('currentUsername', currentUser?.username ?? '');
+          if(company?.allowSaveUsername == true){
+            localStorage.setItem('currentUsername', currentUser?.username ?? '');
 
+          }else{
+            localStorage.removeItem('currentUsername');
+          }
+
+    
           if(currentUser?.cashShiftId != null){
               localStorage.setItem('currentTurnoId_$currentInstanceId',currentUser!.cashShiftId!);
           }else{
@@ -125,18 +126,23 @@ class _LoginPageState extends State<LoginPage> {
              if(currentUser!.permissions!.contains('ALLOW_ENABLED_ONLY_SELLER')){
             enabledOnlySeller = true;
           }
-
+            
+     
            await Navigator.pushAndRemoveUntil(
                 context,
                 PageRouteTransitionBuilder(
                     page: const HomePage(),
                     effect: TransitionEffect.leftToRight),
                 (_) => false);
+
+        await LogHandler.printEvent(
+            'EL USUARIO: ${currentUser?.name} INICIO SESION');
+
         }
       } catch (e) {
         Navigator.pop(context);
-        await LogHandler.printError(e.toString());
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }
@@ -149,7 +155,9 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     if(!mounted)return;
     username.text = localStorage.getItem('currentUsername') ?? '';
-   _checkUpdates();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkUpdates();
+     });
     super.initState();
   }
 
@@ -197,6 +205,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         PasswordEditorWidget(
                           controller: password,
+                          isLogin: true,
                           onFieldSubmitted: (_) {
                             _onSubmit();
                           },

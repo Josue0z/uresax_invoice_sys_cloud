@@ -123,25 +123,28 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
         if (!widget.editing) {
           await product.create();
           widget.product = product;
-          await LogHandler.printEvent(
-              'PRODUCTO: ${widget.product.name} CREADO');
           Navigator.pop(context);
           Navigator.pop(context, product);
+
         } else {
           await product.update();
           widget.product = product;
-          await LogHandler.printEvent(
-              'PRODUCTO: ${widget.product.name} ACTUALIZADO');
           Navigator.pop(context);
           Navigator.pop(context, product);
-          showTopSnackBar(context,
+        }
+
+       showTopSnackBar(context,
               message: widget.editing ? 'PRODUCTO EDITADO' : 'PRODUCTO CREADO',
               color: Colors.green);
-        }
+
+       await LogHandler.printEvent(
+           widget.editing? 'PRODUCTO: ${widget.product.name} ACTUALIZADO': 'PRODUCTO: ${widget.product.name} CREADO');
+        
       } catch (e) {
-        await LogHandler.printError(e.toString());
+     
         Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }
@@ -266,7 +269,7 @@ class _ProductEditorModalState extends State<ProductEditorModal> {
                             ? Container(
                                 margin: EdgeInsets.only(
                                     top: kDefaultPadding,
-                                    bottom: kDefaultPadding),
+                               ),
                                 child: ImageSelectorWidget(
                                     imageBase64: imageBase64,
                                     imageUrl: imageUrl,

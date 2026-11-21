@@ -138,7 +138,9 @@ class _SaleElementSelectorWidgetState extends State<SaleElementSelectorWidget> {
                           }
 
                           if (s.hasError) {
-                            return Container();
+                            return SizedBox(child: Center(
+                              child: Icon(Icons.list_alt_outlined,size: 90, color: Theme.of(context).primaryColor),
+                            ));
                           }
 
                           if(parents.isEmpty){
@@ -185,7 +187,9 @@ class _SaleElementSelectorWidgetState extends State<SaleElementSelectorWidget> {
                           }
 
                           if (s.hasError) {
-                            return Container();
+                           return SizedBox(child: Center(
+                              child: Icon(Icons.list_alt_outlined,size: 90, color: Theme.of(context).primaryColor),
+                            ));
                           }
 
                             if(children.isEmpty){

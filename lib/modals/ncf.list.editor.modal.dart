@@ -52,17 +52,19 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
           await ncfList.create();
         }
 
+        Navigator.pop(context);
+        Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
+
+        
         await LogHandler.printEvent(
             'LISTA DE NCFS: ${ncfList.ncfTypeName} CREADA');
 
         await LogHandler.printEvent(
             'SECUENCIA DE NCFS: ${ncfList.ncfTypeName} ACTUALIZADA');
-        Navigator.pop(context);
-        Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
       } catch (e) {
          Navigator.pop(context);
-        await LogHandler.printError(e.toString());
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }
@@ -135,14 +137,14 @@ class _NcfListEditorModalState extends State<NcfListEditorModal> {
                 isExpanded: true,
                 initialValue: currentNcfTypeId,
                 validator: (val) => val == null ? 'CAMPO OBLIGATORIO' : null,
-                items: List.generate(ncfs.length, (index) {
-                  var ncf = ncfs[index];
+                items: List.generate(ncfsAll.length, (index) {
+                  var ncf = ncfsAll[index];
                   return DropdownMenuItem(
                       value: ncf.id, child: Text(ncf.name ?? ''));
                 }),
                 onChanged: widget.editing ? null : (id) async {
                   currentNcfTypeId = id;
-                  currentNcfType = ncfs.firstWhere((e) => e.id == id);
+                  currentNcfType = ncfsAll.firstWhere((e) => e.id == id);
                   currentNcfTypeName = currentNcfType?.name;
                   setState(() {});
                 }),

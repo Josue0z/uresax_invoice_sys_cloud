@@ -6,6 +6,7 @@ import 'package:uresax_invoice_sys_cloud/modals/branche.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/branche.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class BranchesPage extends StatefulWidget {
   const BranchesPage({super.key});
@@ -81,7 +82,7 @@ class _BranchesPageState extends State<BranchesPage> {
   }
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('TUS SUCURSALES (${xbranches.length})'),
         toolbarHeight: kToolbarHeight + 50,
@@ -166,6 +167,6 @@ class _BranchesPageState extends State<BranchesPage> {
           separatorBuilder: (ctx, index) => Divider(),
           itemCount: xbranches.length);
       }),
-    );
+    ));
   }
 }

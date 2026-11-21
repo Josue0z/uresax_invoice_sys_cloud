@@ -24,6 +24,15 @@ class FilterSalesModal extends StatefulWidget {
 
 class _FilterSalesModalState extends State<FilterSalesModal> {
 
+  List<NcfType> get xncfs {
+    List<NcfType> list = [];
+    list =  ncfsAll.where((x) => x.id != '60' && x.id !='50').toList();
+
+    if(company?.allowOnlyFiltersSales == true)return list;
+
+    return ncfsAll;
+  }
+
   List<Map<String, dynamic>> options = [
     {'id': SaleStatus.all, 'name': 'TODAS'},
     {'id': SaleStatus.paid, 'name': 'PAGADA'},
@@ -69,7 +78,7 @@ class _FilterSalesModalState extends State<FilterSalesModal> {
               height: kDefaultPadding,
             ),
             DropDownMultiSelect(
-              options: ncfs,
+              options: xncfs,
               selectedValues: widget.ncfsTypes,
               isDense: true,
               whenEmpty: 'TIPO DE COMPROBANTE',

@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.element.abs.dart';
-import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 
 class ImageSelectorWidget extends StatefulWidget {
@@ -106,18 +105,20 @@ class _ImageSelectorWidgetState extends State<ImageSelectorWidget> {
       onTap: _onOpenPicker,
       child: Container(
         width: double.infinity,
-        height: 250,
+        height: 100,
         decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.black12)),
         child: Center(
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.image, size: 90, color: Colors.black12),
-              SizedBox(height: kDefaultPadding),
-              Text('Cargar Imagen')
+              Icon(Icons.image, size: 50, color: Colors.black12),
+              Text('Cargar Imagen',style:TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w400
+              ))
             ],
           ),
         ),

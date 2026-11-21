@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "URESAX INVOICE SYS"
-#define MyAppVersion "2.0.10+21"
+#define MyAppVersion "2.0.57+68"
 #define MyAppPublisher "URENA LORENZO & ASOCIADOS SRL"
 #define MyAppExeName "uresax_invoice_sys_cloud.exe"
 #define MyAppAssocName MyAppName + " File"
@@ -52,14 +52,16 @@ Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runn
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\flutter_platform_alert_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\pdfium.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\pdfrx.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\printing_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\screen_retriever_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\url_launcher_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\window_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\desktop_webview_window_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\Webview2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\syncfusion_pdfviewer_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\flutter_libserialport_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\serialport.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\public_file_saver_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\SumatraPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\Dell\Documents\uresax_invoice_sys_cloud\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 

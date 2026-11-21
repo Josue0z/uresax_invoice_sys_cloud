@@ -4,6 +4,7 @@ import 'package:uresax_invoice_sys_cloud/modals/warehouses.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/warehouse.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class WareHousesPage extends StatefulWidget {
   bool selectorMode;
@@ -130,7 +131,7 @@ class _WareHousesPageState extends State<WareHousesPage> {
   @override
   Widget build(BuildContext context) {
     wareHouses.removeWhere((e) => e.id == null);
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text('ALMACENES (${wareHouses.length})'),
@@ -221,6 +222,6 @@ class _WareHousesPageState extends State<WareHousesPage> {
                   child: Icon(Icons.restore)),
             )
           ],
-        ));
+        )));
   }
 }

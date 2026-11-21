@@ -3,6 +3,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:uresax_invoice_sys_cloud/models/ncf.secuencia.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class NcfsSequencesPage extends StatefulWidget {
   const NcfsSequencesPage({super.key});
@@ -133,7 +134,7 @@ class _NcfsSequencesPageState extends State<NcfsSequencesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('TUS COMPROBANTES (${ncfs.length})'),
@@ -174,6 +175,6 @@ class _NcfsSequencesPageState extends State<NcfsSequencesPage> {
 
             return contentEmpty;
           }),
-    );
+    ));
   }
 }

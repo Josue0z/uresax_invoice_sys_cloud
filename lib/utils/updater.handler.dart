@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 
 const String owner = "Josue0z";
@@ -18,10 +19,32 @@ Future<void> checkForUpdate(BuildContext context) async {
       Uri.parse("https://api.github.com/repos/$owner/$repo/releases/latest");
 
   try {
-    final response = await http.get(url);
+
+        // 1. Cargar el certificado desde assets
+    final data = await rootBundle.load('assets/certs/isrgrootx1.pem');
+
+    // 2. Guardarlo en un archivo temporal
+    final tempDir = await getTemporaryDirectory();
+    final certFile = File('${tempDir.path}/isrgrootx1.pem');
+    await certFile.writeAsBytes(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      flush: true,
+    );
+
+    // 3. Crear SecurityContext con el certificado
+    final xcontext = SecurityContext(withTrustedRoots: true);
+    xcontext.setTrustedCertificates(certFile.path);
+
+    // 4. Usar HttpClient con ese contexto
+    final client = HttpClient(context: xcontext);
+    final request = await client.getUrl(url);
+    final response = await request.close();
+    final body = await utf8.decoder
+      .bind(response)
+      .join();
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(body);
       final latestTag = data["tag_name"]; // Ejemplo: "v1.2.0"
       final assets = data["assets"] as List<dynamic>;
 
@@ -33,12 +56,16 @@ Future<void> checkForUpdate(BuildContext context) async {
 
       if (_isNewerVersion(latestTag, currentVersion) && exeAsset != null) {
         _showUpdateDialog(context, latestTag, exeAsset["browser_download_url"]);
+      }else{
+            await LogHandler.printError('No existe nueva version disponible ultima version: $latestTag, actual version: $currentVersion');
       }
     } else {
       debugPrint("Error al consultar GitHub: ${response.statusCode}");
+      await LogHandler.printError('Error al consultar GitHub: ${response.statusCode}');
     }
   } catch (e) {
     debugPrint("Error de conexión: $e");
+    await LogHandler.printError('Error de conexión: $e');
   }
 }
 
@@ -89,21 +116,39 @@ void _showUpdateDialog(
 
 Future<void> _downloadAndRunExe(String url) async {
   try {
-    final response = await http.get(Uri.parse(url));
+    // 1. Cargar el certificado desde assets
+    final data = await rootBundle.load('assets/certs/isrgrootx1.pem');
+
+    // 2. Guardarlo en un archivo temporal
+    final tempDir = await getTemporaryDirectory();
+    final certFile = File('${tempDir.path}/isrgrootx1.pem');
+    await certFile.writeAsBytes(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      flush: true,
+    );
+
+    // 3. Crear SecurityContext con el certificado
+    final context = SecurityContext(withTrustedRoots: true);
+    context.setTrustedCertificates(certFile.path);
+
+    // 4. Usar HttpClient con ese contexto
+    final client = HttpClient(context: context);
+    final request = await client.getUrl(Uri.parse(url));
+    final response = await request.close();
+
     if (response.statusCode == 200) {
-      final tempDir = await getTemporaryDirectory();
+      final bytes = await response.fold<List<int>>([], (prev, element) => prev..addAll(element));
+
       final exePath = "${tempDir.path}/update_installer.exe";
-
       final file = File(exePath);
-      await file.create(recursive: true);
-      await file.writeAsBytes(response.bodyBytes);
+      await file.writeAsBytes(bytes);
 
-      // Ejecutar el instalador
-      await Process.start(exePath, []);
+      // Ejecutar el instalador en Windows
+      await Process.start(exePath, [], runInShell: true);
     } else {
-      debugPrint("Error al descargar el instalador: ${response.statusCode}");
+      throw "Error al descargar el instalador: ${response.statusCode}";
     }
   } catch (e) {
-    debugPrint("Error al descargar/ejecutar: $e");
+    throw "Error al descargar/ejecutar: $e";
   }
 }

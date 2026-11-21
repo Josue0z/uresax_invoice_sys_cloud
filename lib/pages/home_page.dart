@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:page_route_transition/page_route_transition.dart';
@@ -29,7 +30,6 @@ import 'package:uresax_invoice_sys_cloud/pages/login_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/ncf.list_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/ncfs.sequences_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/ordens_purchases_page.dart';
-import 'package:uresax_invoice_sys_cloud/pages/pos_screen.dart';
 import 'package:uresax_invoice_sys_cloud/pages/products_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/providers_page.dart';
 import 'package:uresax_invoice_sys_cloud/pages/sales.607.form_page.dart';
@@ -43,7 +43,6 @@ import 'package:uresax_invoice_sys_cloud/pages/workdays_page.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
-import 'package:uresax_invoice_sys_cloud/widgets/updater.widget.dart';
 import 'package:uuid/uuid.dart';
 
 class HomePage extends StatefulWidget {
@@ -54,152 +53,169 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  int columnsCounts = 6;
+  int moveX = 0;
+  int moveY = 0;
+  FocusNode homeHandler = FocusNode();
+  FocusNode parentSearchFocus = FocusNode();
+  FocusNode searchFocus = FocusNode();
+
+  List<List<FocusNode>> cardsFocus = [];
+
+  List<List<GlobalKey>> itemKeys = [];
   List<Map<String, dynamic>> options = [
     {
       'id': 1,
       'title': 'GENERAR FACTURA DE SERVICIO',
-      'svg': 'assets/svgs/undraw_files-uploading_qf8u.svg'
+      'svg': 'assets/svgs/undraw_files-uploading_qf8u.svg',
     },
     {
       'id': 2,
       'title': 'GENERAR FACTURA DE PRODUCTO',
-      'svg': 'assets/svgs/undraw_product-iteration_r2wg.svg'
+      'svg': 'assets/svgs/undraw_product-iteration_r2wg.svg',
     },
     {
       'id': 8,
       'title': 'GENERAR NOTA DE CREDITO DE SERVICIO',
-      'svg': 'assets/svgs/undraw_statistic-chart_6s7z.svg'
+      'svg': 'assets/svgs/undraw_statistic-chart_6s7z.svg',
     },
     {
       'id': 9,
       'title': 'GENERAR NOTA DE CREDITO DE PRODUCTO',
-      'svg': 'assets/svgs/undraw_printing-invoices_osgs.svg'
+      'svg': 'assets/svgs/undraw_printing-invoices_osgs.svg',
     },
     {
       'id': 3,
       'title': 'MANEJAR SERVICIOS',
-      'svg': 'assets/svgs/undraw_services_dhxj.svg'
+      'svg': 'assets/svgs/undraw_services_dhxj.svg',
     },
     {
       'id': 4,
       'title': 'MANEJAR PRODUCTOS',
-      'svg': 'assets/svgs/undraw_groceries_4via.svg'
+      'svg': 'assets/svgs/undraw_groceries_4via.svg',
     },
     {
       'id': 16,
       'title': 'VER CATEGORIAS',
-      'svg': 'assets/svgs/undraw_logistics_xpdj.svg'
+      'svg': 'assets/svgs/undraw_logistics_xpdj.svg',
     },
     {
       'id': 13,
       'title': 'PROVEEDORES',
-      'svg': 'assets/svgs/undraw_order-delivered_puaw.svg'
+      'svg': 'assets/svgs/undraw_order-delivered_puaw.svg',
     },
     {
       'id': 14,
       'title': 'ALMACENES',
-      'svg': 'assets/svgs/undraw_web-shopping_xd5k.svg'
+      'svg': 'assets/svgs/undraw_web-shopping_xd5k.svg',
     },
-    {
+  /*  {
       'id': 15,
       'title': 'VER ORDENES DE COMPRAS',
-      'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg'
-    },
-    {
+      'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg',
+    },*/
+    /*{
       'id': 19,
       'title': 'VER ENTRADAS DE ALMACEN',
-      'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg'
-    },
+      'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg',
+    },*/
     {
       'id': 5,
       'title': 'TUS FACTURAS',
-      'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
+      'svg': 'assets/svgs/undraw_receipt_tzi0.svg',
     },
-     {
+    {
       'id': 20,
       'title': 'VER TUS COTIZACIONES',
-      'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
+      'svg': 'assets/svgs/undraw_receipt_tzi0.svg',
     },
     {
       'id': 10,
       'title': 'TUS NOTAS DE CREDITO',
-      'svg': 'assets/svgs/undraw_receipt_tzi0.svg'
+      'svg': 'assets/svgs/undraw_receipt_tzi0.svg',
     },
-   
+
     {
       'id': 21,
       'title': 'VER TURNOS DE CAJA',
-      'svg': 'assets/svgs/undraw_report_k55w.svg'
+      'svg': 'assets/svgs/undraw_report_k55w.svg',
     },
     {
       'id': 6,
       'title': 'TUS CLIENTES',
-      'svg': 'assets/svgs/undraw_interview_yz52.svg'
+      'svg': 'assets/svgs/undraw_interview_yz52.svg',
     },
     {
       'id': 7,
       'title': 'GENERADOR DE FORMULARIO 607',
-      'svg': 'assets/svgs/undraw_complete-form_aarh.svg'
+      'svg': 'assets/svgs/undraw_complete-form_aarh.svg',
     },
     {
       'id': 11,
       'title': 'VER TUS COMPROBANTES',
-      'svg': 'assets/svgs/undraw_key-points_mnrr.svg'
+      'svg': 'assets/svgs/undraw_key-points_mnrr.svg',
     },
     {
       'id': 12,
       'title': 'LISTA NCFS AGREGADOS',
-      'svg': 'assets/svgs/undraw_timeline_2gfy.svg'
+      'svg': 'assets/svgs/undraw_timeline_2gfy.svg',
     },
     {
       'id': 17,
       'title': 'VER CAJAS',
-      'svg': 'assets/svgs/undraw_payments_nbqu.svg'
+      'svg': 'assets/svgs/undraw_payments_nbqu.svg',
     },
     {
       'id': 18,
       'title': 'VER UNIDADES DE MEDIDA',
-      'svg': 'assets/svgs/undraw_report_k55w.svg'
+      'svg': 'assets/svgs/undraw_report_k55w.svg',
     },
     {
       'id': 22,
       'title': 'VER SUCURSALES',
-      'svg': 'assets/svgs/undraw_logistics_xpdj.svg'
+      'svg': 'assets/svgs/undraw_logistics_xpdj.svg',
     },
     {
       'id': 23,
       'title': 'ENTRADA DE INVENTARIO',
-      'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg'
+      'svg': 'assets/svgs/undraw_successful-purchase_p2fz.svg',
     },
     {
       'id': 24,
       'title': 'JORNADAS',
-      'svg': 'assets/svgs/undraw_alarm-clock_zgtg.svg'
+      'svg': 'assets/svgs/undraw_alarm-clock_zgtg.svg',
     },
   ];
   ScrollController scrollControllerY = ScrollController();
   late List<Map<String, dynamic>> defaultOptions = [];
 
   _showInvoiceGenerator(SaleMode mode, List<SaleItem> items, Sale sale) {
-    if ((enabledInvoiceSimpleGenerator &&
-        (sale is SaleProduct || sale is SaleService))) {
-      Navigator.push(context, MaterialPageRoute(builder: (ctx) {
-        return PosScreenPage(items: [], sale: sale);
-      }));
-    } else if (enabledTableInvoiceGenerator) {
-      Navigator.push(context, MaterialPageRoute(builder: (ctx) {
-        return TableInvoiceGenerator(items: items, sale: sale, mode: mode);
-      }));
+    if (enabledTableInvoiceGenerator) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (ctx) {
+            return TableInvoiceGenerator(items: items, sale: sale, mode: mode);
+          },
+        ),
+      );
     } else {
-      Navigator.push(context, MaterialPageRoute(builder: (ctx) {
-        return InvoiceGeneratorPage(mode: mode, items: items, sale: sale);
-      }));
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (ctx) {
+            return InvoiceGeneratorPage(mode: mode, items: items, sale: sale);
+          },
+        ),
+      );
     }
   }
 
   _showServicesPage() async {
     Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => ServicesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => ServicesPage()),
+    );
   }
 
   _showSales() async {
@@ -208,12 +224,16 @@ class _HomePageState extends State<HomePage> {
 
   _show607FormPage() async {
     Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => Sales607FormPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => Sales607FormPage()),
+    );
   }
 
   _showProductsPage() async {
     Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => ProductsPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => ProductsPage()),
+    );
   }
 
   _showClientsPage() async {
@@ -222,24 +242,32 @@ class _HomePageState extends State<HomePage> {
 
   _showCreditNotes() async {
     Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => CreditNotesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => CreditNotesPage()),
+    );
   }
 
   _showUsersPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => UsersPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => UsersPage()),
+    );
     setState(() {});
   }
 
   _showCotizationsPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => CotizationsPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => CotizationsPage()),
+    );
     setState(() {});
   }
 
   _showCompanyDetailsPage() async {
     var res = await showDialog(
-        context: context, builder: (ctx) => CompanyEditorModal());
+      context: context,
+      builder: (ctx) => CompanyEditorModal(),
+    );
     if (res == 'UPDATE') {
       setState(() {});
     }
@@ -247,84 +275,114 @@ class _HomePageState extends State<HomePage> {
 
   _showElectronicNcfSettingsPage() async {
     await showDialog(
-        context: context, builder: (ctx) => ElectronicNcfSettingsModal());
+      context: context,
+      builder: (ctx) => ElectronicNcfSettingsModal(),
+    );
   }
 
   _showNcfs() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => NcfsSequencesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => NcfsSequencesPage()),
+    );
   }
 
   _showNcfsList() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => NcfListPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => NcfListPage()),
+    );
   }
 
   _showProvidersPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => ProvidersPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => ProvidersPage()),
+    );
   }
 
   _showWareHousesPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => WareHousesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => WareHousesPage()),
+    );
   }
 
   _showOrdensPurchasesPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => OrdensPurchasesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => OrdensPurchasesPage()),
+    );
   }
 
   _showEntriesPurchasesPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => EntriesPurchasesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => EntriesPurchasesPage()),
+    );
   }
 
   _showCategoriesPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => CategoriesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => CategoriesPage()),
+    );
   }
 
   _showBoxesPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => BoxesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => BoxesPage()),
+    );
   }
 
   _showUnitsPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => UnitsPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => UnitsPage()),
+    );
   }
 
   _showCashShiftsPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => CashShiftsPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => CashShiftsPage()),
+    );
   }
 
   _showBranchesPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => BranchesPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => BranchesPage()),
+    );
   }
 
   _showEventStockPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => EventStockPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => EventStockPage()),
+    );
   }
 
   _showWorkDaysPage() async {
     await Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => WorkdayListPage()));
+      context,
+      MaterialPageRoute(builder: (ctx) => WorkdayListPage()),
+    );
   }
 
   _showPage(int id) {
     switch (id) {
       case 1:
-        _showInvoiceGenerator(SaleMode.service,
-            [SaleItemService(id: Uuid().v4(), quantity: 1.0)], SaleService());
+        _showInvoiceGenerator(SaleMode.service, [
+          SaleItemService(id: Uuid().v4(), quantity: 1.0),
+        ], SaleService());
         break;
 
       case 2:
-        _showInvoiceGenerator(SaleMode.product,
-            [SaleItemProduct(id: Uuid().v4(), quantity: 1.0)], SaleProduct());
+        _showInvoiceGenerator(SaleMode.product, [
+          SaleItemProduct(id: Uuid().v4(), quantity: 1.0),
+        ], SaleProduct());
         break;
       case 3:
         _showServicesPage();
@@ -342,11 +400,17 @@ class _HomePageState extends State<HomePage> {
         break;
       case 8:
         _showInvoiceGenerator(
-            SaleMode.service, List.of([]), CreditNoteAsService());
+          SaleMode.service,
+          List.of([]),
+          CreditNoteAsService(),
+        );
         break;
       case 9:
         _showInvoiceGenerator(
-            SaleMode.product, List.of([]), CreditNoteAsProduct());
+          SaleMode.product,
+          List.of([]),
+          CreditNoteAsProduct(),
+        );
         break;
       case 10:
         _showCreditNotes();
@@ -404,13 +468,25 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
+    if (!mounted) return;
     defaultOptions = [...options];
     WidgetsBinding.instance.addPostFrameCallback((d) {
-      if (isTerminal) {
-        showTopSnackBar(context,
+      options.forEach((e) {
+        cardsFocus.add(List.generate(columnsCounts, (i) => FocusNode()));
+        itemKeys.add(List.generate(columnsCounts, (_) => GlobalKey()));
+
+        cardsFocus[0][0].requestFocus();
+
+        setState(() {});
+
+        if (isTerminal) {
+          showTopSnackBar(
+            context,
             message: 'EL USUARIO: ${currentUser?.name} ENTRO EN MODO TERMINAL',
-            color: Colors.green);
-      }
+            color: Colors.green,
+          );
+        }
+      });
     });
     super.initState();
   }
@@ -423,13 +499,15 @@ class _HomePageState extends State<HomePage> {
     if (!currentUser!.permissions!.contains('ALLOW_VIEW_CREATE_SALE_PRODUCT')) {
       options.removeWhere((e) => e['id'] == 2);
     }
-    if (!currentUser!.permissions!
-        .contains('ALLOW_VIEW_CREATE_CREDIT_NOTE_SERVICE')) {
+    if (!currentUser!.permissions!.contains(
+      'ALLOW_VIEW_CREATE_CREDIT_NOTE_SERVICE',
+    )) {
       options.removeWhere((e) => e['id'] == 8);
     }
 
-    if (!currentUser!.permissions!
-        .contains('ALLOW_VIEW_CREATE_CREDIT_NOTE_PRODUCT')) {
+    if (!currentUser!.permissions!.contains(
+      'ALLOW_VIEW_CREATE_CREDIT_NOTE_PRODUCT',
+    )) {
       options.removeWhere((e) => e['id'] == 9);
     }
 
@@ -503,47 +581,47 @@ class _HomePageState extends State<HomePage> {
       options.removeWhere((e) => e['id'] == 24);
     }
 
-    return UpdaterWidget(
-        context: context,
-        child: Scaffold(
-            appBar: AppBar(
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('TABLERO -  BIENVENIDO ${company?.name}!'),
-                  SizedBox(height: kDefaultPadding / 2),
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(kDefaultPadding / 2),
-                        decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Text(currentUser?.username ?? '',
-                            textAlign: TextAlign.right,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Colors.white)),
-                      ),
-                      SizedBox(width: kDefaultPadding / 2),
-                      Text(appVersion,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500))
-                    ],
-                  )
-                ],
-              ),
-              actions: [
-                Wrap(
-                  runAlignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    /* Container(
+    return Scaffold(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('TABLERO -  BIENVENIDO ${company?.name}!'),
+            SizedBox(height: kDefaultPadding / 2),
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(kDefaultPadding / 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    currentUser?.username ?? '',
+                    textAlign: TextAlign.right,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.white),
+                  ),
+                ),
+                SizedBox(width: kDefaultPadding / 2),
+                Text(
+                  appVersion,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          Wrap(
+            runAlignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              /* Container(
                       margin: EdgeInsets.only(right: kDefaultPadding),
                       child: CircleAvatar(
                             child: IconButton(
@@ -560,203 +638,310 @@ class _HomePageState extends State<HomePage> {
                                 icon: Icon(Icons.barcode_reader)),
                           ),
                     ),*/
-                    currentUser!.permissions!
-                            .contains('ALLOW_VIEW_ELECTRONIC_SETTINGS')
-                        ? CircleAvatar(
-                            child: IconButton(
-                                onPressed: _showElectronicNcfSettingsPage,
-                                icon: Icon(Icons.receipt_long)),
-                          )
-                        : SizedBox(),
-                    SizedBox(
-                      width: kDefaultPadding,
+              currentUser!.permissions!.contains(
+                    'ALLOW_VIEW_ELECTRONIC_SETTINGS',
+                  )
+                  ? CircleAvatar(
+                      child: IconButton(
+                        onPressed: _showElectronicNcfSettingsPage,
+                        icon: Icon(Icons.receipt_long),
+                      ),
+                    )
+                  : SizedBox(),
+              SizedBox(width: kDefaultPadding),
+              currentUser!.permissions!.contains('ALLOW_EDIT_COMPANY')
+                  ? CircleAvatar(
+                      child: IconButton(
+                        onPressed: _showCompanyDetailsPage,
+                        icon: Icon(Icons.store_outlined),
+                      ),
+                    )
+                  : SizedBox(),
+              SizedBox(width: kDefaultPadding),
+              currentUser!.permissions!.contains('ALLOW_VIEW_USERS')
+                  ? CircleAvatar(
+                      child: IconButton(
+                        onPressed: _showUsersPage,
+                        icon: Icon(Icons.people),
+                      ),
+                    )
+                  : SizedBox(),
+              SizedBox(width: kDefaultPadding),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    currentUser?.name ?? '',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.displayMedium?.copyWith(color: Colors.white),
+                    textAlign: TextAlign.right,
+                  ),
+                  SizedBox(height: kDefaultPadding / 2),
+                  Container(
+                    padding: EdgeInsets.all(kDefaultPadding / 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    currentUser!.permissions!.contains('ALLOW_EDIT_COMPANY')
-                        ? CircleAvatar(
-                            child: IconButton(
-                                onPressed: _showCompanyDetailsPage,
-                                icon: Icon(Icons.store_outlined)),
-                          )
-                        : SizedBox(),
-                    SizedBox(
-                      width: kDefaultPadding,
-                    ),
-                    currentUser!.permissions!.contains('ALLOW_VIEW_USERS')
-                        ? CircleAvatar(
-                            child: IconButton(
-                                onPressed: _showUsersPage,
-                                icon: Icon(Icons.people)),
-                          )
-                        : SizedBox(),
-                    SizedBox(
-                      width: kDefaultPadding,
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(currentUser?.name ?? '',
-                            style: Theme.of(context)
-                                .textTheme
-                                .displayMedium
-                                ?.copyWith(color: Colors.white),
-                            textAlign: TextAlign.right),
-                        SizedBox(height: kDefaultPadding / 2),
-                        Container(
-                          padding: EdgeInsets.all(kDefaultPadding / 2),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10)),
-                          child: Text(currentUser?.roleName ?? '',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                      color: Theme.of(context).primaryColor)),
-                        ),
-                        SizedBox(height: kDefaultPadding / 2),
-                      ],
-                    ),
-                    SizedBox(
-                      width: kDefaultPadding,
-                    ),
-                    Container(
-                      margin: EdgeInsets.only(right: kDefaultPadding),
-                      child: CircleAvatar(
-                        child: IconButton(
-                            onPressed: () async {
-                              await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (ctx) => InvoicesModelsPage()));
-                            },
-                            icon: Icon(Icons.receipt_long_outlined)),
+                    child: Text(
+                      currentUser?.roleName ?? '',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).primaryColor,
                       ),
                     ),
-                    CircleAvatar(
-                      child: IconButton(
-                          onPressed: () async {
-                            var confirm = await showConfirm(context,
-                                title: '¿Deseas Cerrar la Sesión?');
-                            if (confirm == true) {
-                              Navigator.pushAndRemoveUntil(
-                                  context,
-                                  PageRouteTransitionBuilder(
-                                      page: LoginPage(),
-                                      effect: TransitionEffect.topToBottom),
-                                  (_) => false);
-                              await LogHandler.printEvent(
-                                  '${currentUser?.name} CERRO SESION');
-
-                              if (company?.allowCloseCashShift == true) {
-                                await CashShiftModel.closeCashShiftTurno(
-                                    id: localStorage.getItem(
-                                            'currentTurnoId_$currentInstanceId') ??
-                                        'x');
-                                localStorage.removeItem(
-                                    'currentTurnoId_$currentInstanceId');
-                              }
-
-                              localStorage
-                                  .removeItem('oldPeriodId_$currentInstanceId');
-                              localStorage.removeItem(
-                                  'expirationCashShift_$currentInstanceId');
-                              localStorage.removeItem(
-                                  'currentWorkdayId_$currentInstanceId');
-                              certPassword.clear();
-                              certPath.clear();
-                              certFile = null;
-
-                              currentUser = null;
-                              company = null;
-                              currentClientContado = null;
-                              discounts = [];
-                              retentionsTaxes = [];
-                              retentionsIsrs = [];
-                              taxes = [];
-                              typesIncomes = [];
-                              overrideCodes = [];
-                              paymentsMethods = [];
-                              paymentsTypes = [];
-                              paymentsModes = [];
-                              symbols = [];
-                              dgiiStates = [];
-                              boxes = [];
-                              wareHouses = [];
-                              branches = [];
-                              workdays = [];
-                              ncfsLists = [];
-                            }
-                          },
-                          icon: Icon(Icons.power_settings_new_outlined)),
-                    ),
-                    SizedBox(
-                      width: kDefaultPadding * 2,
-                    )
-                  ],
-                )
-              ],
-            ),
-            body: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: 50,
-                  margin: EdgeInsets.symmetric(
-                      vertical: kDefaultPadding,
-                      horizontal: kDefaultPadding / 2),
-                  child: TextFormField(
-                    onChanged: (words) {
-                      var xoptions = options
-                          .where((e) => (e['title'] as String)
-                              .toLowerCase()
-                              .contains(words.toLowerCase()))
-                          .toList();
-
-                      if (words.isNotEmpty) {
-                        options = xoptions;
-                      } else {
-                        options = defaultOptions;
-                      }
-                      setState(() {});
+                  ),
+                  SizedBox(height: kDefaultPadding / 2),
+                ],
+              ),
+              SizedBox(width: kDefaultPadding),
+              Container(
+                margin: EdgeInsets.only(right: kDefaultPadding),
+                child: CircleAvatar(
+                  child: IconButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (ctx) => InvoicesModelsPage(),
+                        ),
+                      );
                     },
-                    decoration: InputDecoration(
-                        labelText: 'BUSCAR',
-                        hintText: 'Escribir algo...',
-                        suffixIcon: Icon(Icons.search)),
+                    icon: Icon(Icons.receipt_long_outlined),
                   ),
                 ),
-                Expanded(
-                    child: ScrollMoveEventWidget(
-                  scrollControllerY: scrollControllerY,
-                  child: GridView.builder(
-                      controller: scrollControllerY,
-                      physics: Theme.of(context).platform ==
-                                  TargetPlatform.iOS ||
-                              Theme.of(context).platform == TargetPlatform.macOS
-                          ? const BouncingScrollPhysics()
-                          : const ClampingScrollPhysics(),
-                      itemCount: options.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 6),
-                      itemBuilder: (ctx, i) {
-                        var option = options[i];
-                        return _CardHover(
+              ),
+              CircleAvatar(
+                child: IconButton(
+                  onPressed: () async {
+                    var confirm = await showConfirmAction(
+                      context:context,
+                      body: '¿Deseas Cerrar la Sesión?',
+                    );
+                    if (confirm == true) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        PageRouteTransitionBuilder(
+                          page: LoginPage(),
+                          effect: TransitionEffect.topToBottom,
+                        ),
+                        (_) => false,
+                      );
+                      await LogHandler.printEvent(
+                        '${currentUser?.name} CERRO SESION',
+                      );
+
+                      if (company?.allowCloseCashShift == true) {
+                        await CashShiftModel.closeCashShiftTurno(
+                          id:
+                              localStorage.getItem(
+                                'currentTurnoId_$currentInstanceId',
+                              ) ??
+                              'x',
+                        );
+                        localStorage.removeItem(
+                          'currentTurnoId_$currentInstanceId',
+                        );
+                      }
+
+                      localStorage.removeItem('oldPeriodId_$currentInstanceId');
+                      localStorage.removeItem(
+                        'expirationCashShift_$currentInstanceId',
+                      );
+                      localStorage.removeItem(
+                        'currentWorkdayId_$currentInstanceId',
+                      );
+                      certPassword.clear();
+                      certPath.clear();
+                      certFile = null;
+
+                      currentUser = null;
+                      company = null;
+                      currentClientContado = null;
+                      discounts = [];
+                      retentionsTaxes = [];
+                      retentionsIsrs = [];
+                      taxes = [];
+                      typesIncomes = [];
+                      overrideCodes = [];
+                      paymentsMethods = [];
+                      paymentsTypes = [];
+                      paymentsModes = [];
+                      symbols = [];
+                      dgiiStates = [];
+                      boxes = [];
+                      wareHouses = [];
+                      branches = [];
+                      workdays = [];
+                      ncfsLists = [];
+                      ncfs = [];
+                      ncfsAll = [];
+                    }
+                  },
+                  icon: Icon(Icons.power_settings_new_outlined),
+                ),
+              ),
+              SizedBox(width: kDefaultPadding * 2),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            height: 50,
+            margin: EdgeInsets.symmetric(
+              vertical: kDefaultPadding,
+              horizontal: kDefaultPadding / 2,
+            ),
+            child: Focus(
+              focusNode: parentSearchFocus,
+              onKeyEvent: (node, event) {
+                if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                  cardsFocus[moveX][moveY].requestFocus();
+                  return KeyEventResult.handled;
+                }
+                return KeyEventResult.ignored;
+              },
+              child: TextFormField(
+                focusNode: searchFocus,
+                onChanged: (words) {
+                  var xoptions = options
+                      .where(
+                        (e) => (e['title'] as String).toLowerCase().contains(
+                          words.toLowerCase(),
+                        ),
+                      )
+                      .toList();
+
+                  if (words.isNotEmpty) {
+                    options = xoptions;
+                  } else {
+                    options = defaultOptions;
+                  }
+                  setState(() {});
+                },
+                decoration: InputDecoration(
+                  labelText: 'BUSCAR',
+                  hintText: 'Escribir algo...',
+                  suffixIcon: Icon(Icons.search),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: KeyboardListener(
+              focusNode: homeHandler,
+              onKeyEvent: (event) {
+                if (event is KeyDownEvent) {
+                  var maxRow = options.length / columnsCounts;
+
+                  if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                    if (moveX == 0) {
+                      searchFocus.requestFocus();
+                      return;
+                    }
+                    if (moveX > 0) {
+                      moveX -= 1;
+                    }
+                  }
+
+                  if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                    if (moveX < maxRow - 1) {
+                      moveX += 1;
+                    }
+                  }
+
+                  if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                    if (moveY > 0) {
+                      moveY -= 1;
+                    }
+                  }
+
+                  if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                    if (moveY < columnsCounts - 1) {
+                      moveY += 1;
+                    }
+                  }
+                }
+
+                cardsFocus[moveX][moveY].requestFocus();
+
+                var key = itemKeys[moveX][moveY];
+
+                if (key.currentContext != null) {
+                  Scrollable.ensureVisible(
+                    key.currentContext!,
+                    duration: const Duration(milliseconds: 150),
+                    curve: Curves.easeInOut,
+                  );
+                }
+
+                setState(() {});
+              },
+              child: ScrollMoveEventWidget(
+                scrollControllerY: scrollControllerY,
+                child: cardsFocus.isEmpty
+                    ? Container()
+                    : GridView.builder(
+                        controller: scrollControllerY,
+                        physics:
+                            Theme.of(context).platform == TargetPlatform.iOS ||
+                                Theme.of(context).platform ==
+                                    TargetPlatform.macOS
+                            ? const BouncingScrollPhysics()
+                            : const ClampingScrollPhysics(),
+                        itemCount: options.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columnsCounts,
+                        ),
+                        itemBuilder: (ctx, i) {
+                          var option = options[i];
+                          var colIndex = i % columnsCounts;
+                          var rowIndex = i ~/ columnsCounts;
+                          var focus = cardsFocus[rowIndex][colIndex];
+                          var key = itemKeys[rowIndex][colIndex];
+                          bool isSelected =
+                              rowIndex == moveX && colIndex == moveY;
+                          print('[$rowIndex,$colIndex]');
+                          return _CardHover(
+                            key: key,
                             option: option,
+                            focus: focus,
+                            selected: isSelected,
                             onTap: () {
+                              moveX = rowIndex;
+                              moveY = colIndex;
+                              cardsFocus[moveX][moveY].requestFocus();
+
                               _showPage(option['id']);
-                            });
-                      }),
-                ))
-              ],
-            )));
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
 class _CardHover extends StatefulWidget {
   final Map<String, dynamic> option;
+  bool selected;
+  FocusNode focus;
   VoidCallback onTap;
 
-  _CardHover({required this.option, required this.onTap});
+  _CardHover({
+    Key? key,
+    required this.option,
+    required this.onTap,
+    this.selected = false,
+    required this.focus,
+  }) : super(key: key);
 
   @override
   State<_CardHover> createState() => __CardHoverState();
@@ -767,44 +952,61 @@ class __CardHoverState extends State<_CardHover> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      opaque: false,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-          duration: Duration(seconds: 1),
-          child: Card(
-              clipBehavior: Clip.hardEdge,
-              shape: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(
-                      style: BorderStyle.solid,
-                      color: _isHovered
-                          ? Theme.of(context).primaryColor
-                          : Colors.transparent)),
-              child: Ink(
-                child: InkWell(
-                  onTap: widget.onTap,
-                  child: Center(
-                      child: Padding(
-                    padding: EdgeInsets.all(kDefaultPadding),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SvgPicture.asset(widget.option['svg'], width: 60),
-                        SizedBox(height: kDefaultPadding),
-                        Flexible(
-                            child: Text(widget.option['title'],
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(fontSize: 12),
-                                textAlign: TextAlign.center))
-                      ],
+      onHover: (_) {
+        setState(() {
+          _isHovered = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          _isHovered = false;
+        });
+      },
+      child: Card(
+        clipBehavior: Clip.hardEdge,
+        surfaceTintColor: Colors.transparent,
+        shape: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(
+            style: BorderStyle.solid,
+            width: 1.5,
+            color: _isHovered || widget.selected
+                ? Theme.of(context).primaryColor
+                : Colors.transparent,
+          ),
+        ),
+        child: Ink(
+          child: InkWell(
+            focusNode: widget.focus,
+            autofocus: false,
+            hoverColor: Colors.transparent,
+            focusColor: Colors.white,
+            onTap: widget.onTap,
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(kDefaultPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SvgPicture.asset(widget.option['svg'], width: 60),
+                    SizedBox(height: kDefaultPadding),
+                    Flexible(
+                      child: Text(
+                        widget.option['title'],
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  )),
+                  ],
                 ),
-              ))),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

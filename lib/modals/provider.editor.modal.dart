@@ -44,20 +44,22 @@ class _ProviderEditorModalState extends State<ProviderEditorModal> {
         provider.address = address.text.isEmpty ? null : address.text;
         if (widget.editing) {
           await provider.update();
-          await LogHandler.printEvent(
-              'PROVEEDOR: ${widget.provider.name} ACTUALIZADO');
+          widget.provider = provider;
+       
         } else {
           await provider.create();
           widget.provider = provider;
-          await LogHandler.printEvent(
-              'PROVEEDOR: ${widget.provider.name} CREADO');
+
         }
         Navigator.pop(context);
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
+
+        await LogHandler.printEvent(widget.editing ? 'PROVEEDOR: ${widget.provider.name} ACTUALIZADO':
+              'PROVEEDOR: ${widget.provider.name} CREADO');
       } catch (e) {
-        await LogHandler.printError(e.toString());
         Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }

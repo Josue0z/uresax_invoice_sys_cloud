@@ -18,7 +18,6 @@ import 'package:uresax_invoice_sys_cloud/models/credit.note.item.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.item.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.service.dart';
-import 'package:uresax_invoice_sys_cloud/models/ncf.secuencia.dart';
 import 'package:uresax_invoice_sys_cloud/models/ncfList.dart';
 import 'package:uresax_invoice_sys_cloud/models/ncftype.dart';
 import 'package:uresax_invoice_sys_cloud/models/product.dart';
@@ -34,7 +33,6 @@ import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/invoices.functions.dart';
-import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/invoice_item_generator_widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/rnc.query.widget.dart';
@@ -221,6 +219,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
       widget.sale.typeIncomeId = null;
       widget.sale.transfRef = null;
       ncfList = null;
+      formasDePagos = [];
 
       if (isSale) {
         currentTypeIncomeId = '01';
@@ -292,9 +291,11 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
       showLoader(context);
       try {
         if (eCommerceMode) {
-          if (devicePos == null) {
-            throw 'EL DISPOSITIVO DE PUNTO DE VENTA NO ESTA CONFIGURADO (CONTACTE CON EL ADMINISTRADOR DEL SISTEMA)';
-          }
+           if(enabledSerialMode == false){
+              if (devicePos == null) {
+                throw 'EL DISPOSITIVO DE PUNTO DE VENTA NO ESTA CONFIGURADO (CONTACTE CON EL ADMINISTRADOR DEL SISTEMA)';
+              }
+            }
         }
         var now = DateTime.now();
 
@@ -335,6 +336,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
         widget.sale.law10 = calcs[14];
         widget.sale.ncfListId = ncfList?.id;
         widget.sale.brancheId = brancheId;
+        widget.sale.boxId = currentUser?.boxId;
         if (ncfList == null) {
           throw 'NO TIENE SECUENCIA REGISTRADA PARA EL COMPROBANTE TIPO: $currentNcfTypeId';
         }
@@ -534,7 +536,12 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
           if (devicePos != null) {
             var bytes = await createDefaultTicket(sale: sale!);
 
-            await PrinterHandler.printBytes(devicePos ?? '', bytes);
+            if(enabledSerialMode){
+                 await PrinterHandler.printBytesFromSerialPort(bytes: bytes);
+            }else{
+                await PrinterHandler.printBytes(devicePos, bytes);
+            }
+   
 
             await LogHandler.printEvent('SE IMPRIMIO LA FACTURA ${sale.ncf}');
           }
@@ -616,7 +623,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
 
   _onSelectedNcf(String? option) async {
    
-      currentNcfTypeId = option;
+    currentNcfTypeId = option;
 
     currentPrefix = 'E';
     maxSequence = 10;
@@ -1275,7 +1282,6 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
         }
       }
 
-      setState(() {});
     } catch (_) {}
   }
 
@@ -1285,9 +1291,7 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
           await NcfsList(ncfTypeId: currentNcfTypeId).findNcfStatus();
         }
     }catch(e){
-    setState(() {
-        isValid = false;
-    });
+     isValid = false;
      showTopSnackBar(context, message: e.toString(),color: Colors.red);
     }
   }
@@ -1442,13 +1446,11 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
         }
       }
     }
-
+    _initAsync();
     _checkNcf();
-   _checkNcfStatus();
+    _checkNcfStatus();
 
-    setState(() {
-      future = _initAsync();
-    });
+    setState((){});
 
     super.initState();
   }
@@ -2484,29 +2486,6 @@ class _InvoiceGeneratorPageState extends State<InvoiceGeneratorPage> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-        future: future,
-        builder: (ctx, s) {
-          if (s.connectionState == ConnectionState.waiting) {
-            return contentLoading;
-          }
-
-          if (s.hasError) {
-            return ContentErrorWidget(
-              error: s.error.toString(),
-              onRetry: () {
-                setState(() {
-                  future = _initAsync();
-                });
-              },
-            );
-          }
-          if (taxes.isNotEmpty &&
-              retentionsTaxes.isNotEmpty &&
-              retentionsIsrs.isNotEmpty) {
-            return contentFilled;
-          }
-          return contentEmpty;
-        });
+    return contentFilled;
   }
 }

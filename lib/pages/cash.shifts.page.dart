@@ -11,6 +11,7 @@ import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/invoices.functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/date.range_widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class CashShiftsPage extends StatefulWidget {
   const CashShiftsPage({super.key});
@@ -24,21 +25,22 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
   List<CashShiftModel> cashShifts = [];
   List<DateTime?> dates = [
     DateTime.now().startOfDay(),
-    DateTime.now().endOfDay()
+    DateTime.now().endOfDay(),
   ];
 
   TextEditingController searchController = TextEditingController();
 
   Future<void> _loadCashShifts([String? search]) async {
     cashShifts = await CashShiftModel.get(
-        search: search, startDate: dates.first!, endDate: dates.last!);
+      search: search,
+      startDate: dates.first!,
+      endDate: dates.last!,
+    );
     setState(() {});
   }
 
   Widget get contentLoading {
-    return Center(
-      child: CircularProgressIndicator(),
-    );
+    return Center(child: CircularProgressIndicator());
   }
 
   _openCashShiftCloseModal(CashShiftModel cashShiftModel) async {
@@ -47,9 +49,12 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
       var denominations = await Denominations.get();
       Navigator.pop(context);
       var res = await showDialog(
-          context: context,
-          builder: (ctx) => CashShiftCloseModal(
-              cashShiftModel: cashShiftModel, denominations: denominations));
+        context: context,
+        builder: (ctx) => CashShiftCloseModal(
+          cashShiftModel: cashShiftModel,
+          denominations: denominations,
+        ),
+      );
 
       if (res != null) {
         setState(() {
@@ -67,8 +72,11 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
     try {
       var bytes = await createTicketCashShift(cashShiftModel: cashShiftModel);
       Navigator.pop(context);
-      await PrinterHandler.printBytes(
-          localStorage.getItem('devicePos') ?? '', bytes);
+      if (enabledSerialMode) {
+        await PrinterHandler.printBytesFromSerialPort(bytes: bytes);
+      } else {
+        await PrinterHandler.printBytes(devicePos, bytes);
+      }
     } catch (e) {
       Navigator.pop(context);
       showTopSnackBar(context, message: e.toString(), color: Colors.red);
@@ -96,8 +104,10 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SvgPicture.asset('assets/svgs/undraw_printing-invoices_osgs.svg',
-              width: 320)
+          SvgPicture.asset(
+            'assets/svgs/undraw_printing-invoices_osgs.svg',
+            width: 320,
+          ),
         ],
       ),
     );
@@ -120,7 +130,7 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('TURNOS (${cashShifts.length})'),
         toolbarHeight: kToolbarHeight + 30,
@@ -132,23 +142,20 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
               SizedBox(
                 width: 290,
                 child: DateRangeWidget(
-                    dates: dates,
-                    onInitRender: false,
-                    onChanged: (xdates) async {
-                      dates = xdates;
-                      dates = [
-                        xdates.first,
-                        xdates.last!.copyWith(
-                          hour: 23,
-                          minute: 59,
-                          second: 59,
-                        )
-                      ];
+                  dates: dates,
+                  onInitRender: false,
+                  onChanged: (xdates) async {
+                    dates = xdates;
+                    dates = [
+                      xdates.first,
+                      xdates.last!.copyWith(hour: 23, minute: 59, second: 59),
+                    ];
 
-                      setState(() {
-                        future = _loadCashShifts();
-                      });
-                    }),
+                    setState(() {
+                      future = _loadCashShifts();
+                    });
+                  },
+                ),
               ),
               SizedBox(width: kDefaultPadding),
               SizedBox(
@@ -157,138 +164,165 @@ class _CashShiftsPageState extends State<CashShiftsPage> {
                   controller: searchController,
                   onFieldSubmitted: _submit,
                   decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      hintText: 'Turno #000000, Periodo, Usuario, Caja...',
-                      suffixIcon: Icon(Icons.search)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Turno #000000, Periodo, Usuario, Caja...',
+                    suffixIcon: Icon(Icons.search),
+                  ),
                 ),
               ),
               SizedBox(width: kDefaultPadding),
               IconButton(
-                  onPressed: () async {
-                    showLoader(context);
-                    await _loadCashShifts();
-                    searchController.clear();
-                    Navigator.pop(context);
-                  },
-                  icon: Icon(Icons.restore)),
+                onPressed: () async {
+                  showLoader(context);
+                  await _loadCashShifts();
+                  searchController.clear();
+                  Navigator.pop(context);
+                },
+                icon: Icon(Icons.restore),
+              ),
               SizedBox(width: kDefaultPadding),
             ],
-          )
+          ),
         ],
       ),
       body: FutureBuilder(
-          future: future,
-          builder: (ctx, s) {
-            if (s.connectionState == ConnectionState.waiting) {
-              return contentLoading;
-            }
+        future: future,
+        builder: (ctx, s) {
+          if (s.connectionState == ConnectionState.waiting) {
+            return contentLoading;
+          }
 
-            if (s.hasError) {
-              return ContentErrorWidget(
-                error: s.error.toString(),
-                onRetry: () {
-                  setState(() {
-                    future = _loadCashShifts();
-                  });
-                },
-              );
-            }
+          if (s.hasError) {
+            return ContentErrorWidget(
+              error: s.error.toString(),
+              onRetry: () {
+                setState(() {
+                  future = _loadCashShifts();
+                });
+              },
+            );
+          }
 
-            if (cashShifts.isEmpty) {
-              return contentEmpty;
-            }
+          if (cashShifts.isEmpty) {
+            return contentEmpty;
+          }
 
-            return ListView.separated(
-                itemBuilder: (ctx, i) {
-                  var cash = cashShifts[i];
-                  var options = [
-                    {'id': 2, 'name': 'IMPRIMIR TURNO'}
-                  ];
+          return ListView.separated(
+            itemBuilder: (ctx, i) {
+              var cash = cashShifts[i];
+              var options = [
+                {'id': 2, 'name': 'IMPRIMIR TURNO'},
+              ];
 
-                  if (cash.status != 4) {
-                    if (cash.status != 5) {
-                      if (cash.status != 3) {
-                        options.insert(0, {'id': 1, 'name': 'APLICAR CIERRE'});
-                      }
-                    }
+              if (cash.status != 4) {
+                if (cash.status != 5) {
+                  if (cash.status != 3) {
+                    options.insert(0, {'id': 1, 'name': 'APLICAR CIERRE'});
                   }
+                }
+              }
 
-                  if (currentUser!.permissions!
-                      .contains('ALLOW_VIEW_CASH_SHIFT_DETAILS')) {
-                    options.insert(0, {'id': 3, 'name': 'VER DETALLES'});
-                  }
+              if (currentUser!.permissions!.contains(
+                'ALLOW_VIEW_CASH_SHIFT_DETAILS',
+              )) {
+                options.insert(0, {'id': 3, 'name': 'VER DETALLES'});
+              }
 
-                  return ListTile(
-                      leading: Container(
-                        width: 80,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(90),
-                          color:
-                              Theme.of(context).primaryColor.withOpacity(0.04),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.receipt_long_outlined,
-                            color: Theme.of(context).primaryColor,
-                            size: 24,
-                          ),
+              return ListTile(
+                leading: Container(
+                  width: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(90),
+                    color: Theme.of(context).primaryColor.withOpacity(0.04),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.receipt_long_outlined,
+                      color: Theme.of(context).primaryColor,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  cash.cashShiftNumber ?? '',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+                titleAlignment: ListTileTitleAlignment.center,
+                subtitle: Text(
+                  '${cash.description}\n${cash.boxName} - ${cash.periodName}${cash.workdayName != null ? '\n${cash.workdayName}' : ''}\n${cash.userName} ~ ${cash.createdAt?.format(payload: 'DD/MM/YYYY')}',
+                ),
+                trailing: Wrap(
+                  runAlignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Container(
+                      constraints: BoxConstraints(
+                        minWidth: 100,
+                        maxWidth: 130,
+                        minHeight: 50,
+                      ),
+                      alignment: Alignment.center,
+                      padding: EdgeInsets.all(kDefaultPadding * 0.6),
+                      margin: EdgeInsets.only(right: kDefaultPadding),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        color: cash.transactionsCount == 0
+                            ? Colors.red.withOpacity(0.04)
+                            : Colors.green.withOpacity(0.04),
+                      ),
+                      child: Text(
+                        cash.transactionsCount.toString(),
+                        style: TextStyle(
+                          color: cash.transactionsCount == 0
+                              ? Colors.red
+                              : Colors.green,
                         ),
                       ),
-                      title: Text(cash.cashShiftNumber ?? '',
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).primaryColor)),
-                      titleAlignment: ListTileTitleAlignment.center,
-                      subtitle: Text(
-                          '${cash.description}\n${cash.boxName} - ${cash.periodName}${cash.workdayName != null ? '\n${cash.workdayName}':''}\n${cash.userName} ~ ${cash.createdAt?.format(payload: 'DD/MM/YYYY')}'),
-                      trailing: Wrap(
-                        runAlignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Container(
-                            constraints: BoxConstraints(
-                                minWidth: 100, maxWidth: 130, minHeight: 50),
-                            alignment: Alignment.center,
-                            padding: EdgeInsets.all(kDefaultPadding * 0.6),
-                            margin: EdgeInsets.only(right: kDefaultPadding),
-                            decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                color:cash.transactionsCount == 0 ? Colors.red.withOpacity(0.04) : Colors.green.withOpacity(0.04)),
-                            child: Text(cash.transactionsCount.toString(),
-                                style: TextStyle(color:cash.transactionsCount == 0 ? Colors.red : Colors.green)),
-                          ),
-                          Container(
-                                  constraints: BoxConstraints(
-                                minWidth: 150, maxWidth: 160, minHeight: 50),
-                            padding: EdgeInsets.all(kDefaultPadding / 2),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                                color: cash.color.withOpacity(0.04),
-                                borderRadius: BorderRadius.circular(90)),
-                            child: Text(
-                              cash.statusName ?? '',
-                              style: TextStyle(fontSize: 16, color: cash.color),
-                            ),
-                          ),
-                          PopupMenuButton<int>(
-                              onSelected: (int option) => _onSelected(
-                                  option: option, cashShiftModel: cash),
-                              itemBuilder: (ctx) {
-                                return List.generate(options.length, (i) {
-                                  var op = options[i];
-                                  return PopupMenuItem(
-                                      value: op['id'] as int,
-                                      child: Text('${op['name']}'));
-                                });
-                              }),
-                        ],
-                      ));
-                },
-                separatorBuilder: (ctx, i) => const Divider(),
-                itemCount: cashShifts.length);
-          }),
-    );
+                    ),
+                    Container(
+                      constraints: BoxConstraints(
+                        minWidth: 150,
+                        maxWidth: 160,
+                        minHeight: 50,
+                      ),
+                      padding: EdgeInsets.all(kDefaultPadding / 2),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: cash.color.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(90),
+                      ),
+                      child: Text(
+                        cash.statusName ?? '',
+                        style: TextStyle(fontSize: 16, color: cash.color),
+                      ),
+                    ),
+                    PopupMenuButton<int>(
+                      onSelected: (int option) =>
+                          _onSelected(option: option, cashShiftModel: cash),
+                      itemBuilder: (ctx) {
+                        return List.generate(options.length, (i) {
+                          var op = options[i];
+                          return PopupMenuItem(
+                            value: op['id'] as int,
+                            child: Text('${op['name']}'),
+                          );
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+            separatorBuilder: (ctx, i) => const Divider(),
+            itemCount: cashShifts.length,
+          );
+        },
+      ),
+    ));
   }
 }

@@ -5,9 +5,10 @@ class PasswordEditorWidget extends StatefulWidget {
   TextEditingController controller = TextEditingController();
   String labelText;
   String hintText;
+  bool isLogin;
   void Function(String)? onFieldSubmitted;
   PasswordEditorWidget(
-      {super.key, required this.controller, this.labelText = 'CONTRASEÑA', this.hintText = 'Escribir algo...', this.onFieldSubmitted});
+      {super.key, required this.controller, this.isLogin = false, this.labelText = 'CONTRASEÑA', this.hintText = 'Escribir algo...', this.onFieldSubmitted});
 
   @override
   State<PasswordEditorWidget> createState() => _PasswordEditorWidgetState();
@@ -32,7 +33,7 @@ class _PasswordEditorWidgetState extends State<PasswordEditorWidget> {
           suffixIcon: Wrap(
             children: [
               IconButton(
-                  onPressed:currentUser?.roleId == 1 ? null : () {
+                  onPressed:currentUser?.roleId == 1  && widget.isLogin == false? null : () {
                     setState(() {
                       visibility = !visibility;
                     });

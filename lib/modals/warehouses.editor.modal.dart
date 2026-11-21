@@ -39,20 +39,21 @@ class _WareHousesEditorModalState extends State<WareHousesEditorModal> {
         if (widget.editing) {
           await wareHouse.update();
           widget.wareHouse = wareHouse;
-          await LogHandler.printEvent(
-              'ALMACEN: ${widget.wareHouse.name} ACTUALIZADO');
         } else {
           await wareHouse.create();
           widget.wareHouse = wareHouse;
-          await LogHandler.printEvent(
-              'ALMACEN: ${widget.wareHouse.name} CREADO');
+
         }
         Navigator.pop(context);
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
+
+        await LogHandler.printEvent(widget.editing ?  'ALMACEN: ${widget.wareHouse.name} ACTUALIZADO':
+              'ALMACEN: ${widget.wareHouse.name} CREADO');
       } catch (e) {
-        await LogHandler.printError(e.toString());
+   
         Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }

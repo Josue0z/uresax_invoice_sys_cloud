@@ -16,6 +16,7 @@ import 'package:path/path.dart' as path;
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/date.range_widget.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
 
 class CreditNotesPage extends StatefulWidget {
@@ -266,7 +267,7 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text('TUS NOTAS DE CREDITO (${creditNotes.length})'),
@@ -377,6 +378,6 @@ class _CreditNotesPageState extends State<CreditNotesPage> {
                   child: Icon(Icons.restore)),
             )
           ],
-        ));
+        )));
   }
 }

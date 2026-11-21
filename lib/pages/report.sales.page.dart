@@ -10,6 +10,7 @@ import 'package:uresax_invoice_sys_cloud/apis/log.handler.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:path/path.dart' as path;
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class ReportSalesPage extends StatefulWidget {
   String title;
@@ -123,7 +124,7 @@ class _ReportSalesPageState extends State<ReportSalesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
         appBar: AppBar(
           title: Text('${company?.name} - ${widget.title}'),
           actions: [
@@ -161,6 +162,6 @@ class _ReportSalesPageState extends State<ReportSalesPage> {
             focusNode: FocusNode(),
             selectionControls: DesktopTextSelectionControls(),
             child: Padding(
-                padding: EdgeInsets.all(kDefaultPadding), child: content)));
+                padding: EdgeInsets.all(kDefaultPadding), child: content))));
   }
 }

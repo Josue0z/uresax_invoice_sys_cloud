@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uresax_invoice_sys_cloud/modals/product.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/product.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class ProductsChildrenPage extends StatefulWidget {
   Products product;
@@ -33,7 +34,7 @@ class _ProductsChildrenPageState extends State<ProductsChildrenPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('${widget.product.name}'),
         actions: [
@@ -109,6 +110,6 @@ class _ProductsChildrenPageState extends State<ProductsChildrenPage> {
         },
         separatorBuilder: (ctx, index) => Divider(),
       ),
-    );
+    ));
   }
 }

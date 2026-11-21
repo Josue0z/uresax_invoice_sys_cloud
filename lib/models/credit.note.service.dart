@@ -7,7 +7,6 @@ import 'package:uresax_invoice_sys_cloud/models/credit.note.item.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
-import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 
 class CreditNoteAsService implements Sale {
@@ -178,7 +177,9 @@ class CreditNoteAsService implements Sale {
       this.branchePhone1,
       this.branchePhone2,
       this.brancheAddress,
-      this.brancheEmail});
+      this.brancheEmail,
+      this.boxId,
+      this.originCashShiftId});
 
   @override
   Future<CreditNoteAsService?> create() async {
@@ -189,7 +190,6 @@ class CreditNoteAsService implements Sale {
         ...map,
         'ncfListId':ncfListId,
         'paymentMethodId':paymentMethodId,
-        'boxId': currentUser?.boxId,
         'ncfAffected': ncf ?? '',
         'ncfAffectedCreatedAt': ncfAffectedCreatedAt!.toIso8601String(),
         'items': items.map((e)=> e.toMap()).toList()
@@ -265,6 +265,7 @@ class CreditNoteAsService implements Sale {
       'rate': rate,
       'maxSequence': maxSequence,
       'cashShiftId':cashShiftId,
+      'originCashShiftId':originCashShiftId,
       'creditCardDescription':creditCardDescription,
       'brancheId': brancheId
     };
@@ -312,8 +313,10 @@ class CreditNoteAsService implements Sale {
       'retentionDate': retentionDate?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
       'cashShiftId':cashShiftId,
+      'originCashShiftId':originCashShiftId,
       'creditCardDescription':creditCardDescription,
-      'brancheId': brancheId
+      'brancheId': brancheId,
+      'boxId': boxId
     };
   }
 
@@ -489,7 +492,10 @@ class CreditNoteAsService implements Sale {
       branchePhone1: map['branchePhone1'],
       branchePhone2: map['branchePhone2'],
       brancheAddress: map['brancheAddress'],
-      brancheEmail: map['brancheEmail']
+      brancheEmail: map['brancheEmail'],
+      boxId: map['boxId'],
+      cashShiftId: map['cashShiftId'],
+      originCashShiftId: map['originCashShiftId']
         );
   }
 
@@ -974,4 +980,10 @@ class CreditNoteAsService implements Sale {
 
   @override
   String? branchePhone2;
+
+  @override
+  int? boxId;
+
+  @override
+  String? originCashShiftId;
 }

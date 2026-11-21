@@ -4,6 +4,7 @@ import 'package:uresax_invoice_sys_cloud/apis/printers.handler.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class PrintersPage extends StatefulWidget {
   const PrintersPage({super.key});
@@ -50,7 +51,7 @@ class _PrintersPageState extends State<PrintersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('DISPOSITIVOS (${printers.length})'),
       ),
@@ -96,6 +97,6 @@ class _PrintersPageState extends State<PrintersPage> {
         }
         return Container();
       })
-    );
+    ));
   }
 }

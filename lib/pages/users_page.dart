@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:uresax_invoice_sys_cloud/modals/change.password.modal.dart';
 import 'package:uresax_invoice_sys_cloud/modals/user.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/box.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class UsersPage extends StatefulWidget {
   const UsersPage({super.key});
@@ -57,12 +59,28 @@ class _UsersPageState extends State<UsersPage> {
   _initAsync() async {
     try {
       users = await User.get();
+
+      if(currentUser!.permissions!.contains('URESAX_INVOICE_ALLOW_VIEW_ONLY_ONE_ADMIN')){
+           
+       if(currentUser?.roleId == 2){
+          users.removeWhere((x) => x.roleId == 2 && x.id != currentUser?.id);
+          users.removeWhere((x) => x.roleId == 3);
+         }
+      }
       setState(() {});
     } catch (e) {
       print(e);
     }
   }
+_showModalchangePassword(User user)async{
+  var res = await showDialog(context: context, builder: (ctx) => ChangePasswordModal(user: user));
 
+  if(res == true){
+      setState(() {
+      future = _initAsync();
+    });
+  }
+}
   @override
   void initState() {
     if (!mounted) return;
@@ -81,7 +99,7 @@ class _UsersPageState extends State<UsersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
         appBar: AppBar(
             automaticallyImplyLeading: false,
             title: Text('TUS USUARIOS (${users.length})'),
@@ -173,7 +191,9 @@ class _UsersPageState extends State<UsersPage> {
                     ),
                     trailing: Wrap(
                       children: [
-                        user.roleId == 3 && (currentUser?.id != user.id)
+
+                        currentUser!.permissions!.contains('ALLOW_CHANGE_PASSWORD') ? user.roleId == 3 && currentUser?.roleId != 3 || (user.roleId != 3 && currentUser?.roleId == 1) ? SizedBox(): IconButton(onPressed:() => _showModalchangePassword(user), icon: Icon(Icons.lock_outline)): SizedBox(),
+                       user.roleId == 3 && currentUser?.roleId != 3 || (user.roleId != 3 && currentUser?.roleId == 1)
                             ? SizedBox()
                             : IconButton(
                                 onPressed: () {
@@ -188,6 +208,6 @@ class _UsersPageState extends State<UsersPage> {
                   );
                 },
               );
-            }));
+            })));
   }
 }

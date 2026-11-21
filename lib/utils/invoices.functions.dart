@@ -6,6 +6,9 @@ import 'package:moment_dart/moment_dart.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:image/image.dart' as img;
+import 'dart:ui' as ui;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:uresax_invoice_sys_cloud/apis/star.printer.api.dart';
 import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.service.dart';
@@ -22,10 +25,13 @@ import 'package:uresax_invoice_sys_cloud/widgets/dashborder.pdf.widget.dart';
 
 List<int> createDivider(Generator generator) {
   List<int> bytes = [];
-  final divider = '-' * 48; // Para mm80
-  bytes += generator.text(divider, styles: PosStyles(align: PosAlign.center));
+  var paperWidth = currentPaperSize == 'mm80' ? 48 : 42;
+  final divider = '-' * paperWidth;
+  bytes += generator.text(divider, styles: PosStyles(align: PosAlign.center,fontType: PosFontType.fontA));
   return bytes;
 }
+
+
 
 Future<pw.Font> loadMaterialIconsFont() async {
   final fontData =
@@ -1413,12 +1419,18 @@ Future<List<int>> createDefaultTicket(
   // Using default profile
   final profile =  await CapabilityProfile.load(name: name);
 
-  final generator = Generator(PaperSize.mm80, profile,spaceBetweenRows: 2,codec: CustomLatinCodec());
+  final generator = Generator(currentPaperSize == 'mm80'  ? PaperSize.mm80: PaperSize.mm72, profile,spaceBetweenRows: 2,codec: CustomLatinCodec());
   List<int> bytes = [];
-
   generator.setStyles(PosStyles(width: PosTextSize.size6));
-    
-    var base64String = company?.logo;
+
+  
+   bool esConsumo =
+      (sale.ncfTypeId == '02' || sale.ncfTypeId == '32') && eCommerceMode;
+
+  bool esNotaCredito = (sale.ncfTypeId == '04' || sale.ncfTypeId == '34');
+  var esCotization = sale.ncfTypeId == '60' || sale.ncfTypeId == '50';
+
+  var base64String = company?.logo;
 
     if(base64String != null){
        final data = base64String.contains('base64,')
@@ -1442,7 +1454,10 @@ Future<List<int>> createDefaultTicket(
 
   bytes.addAll([27, 97, 1]); 
 
-  if(enabledFirstComercialName){
+  if(company?.removePreSalesHeader == true && esCotization){
+  }
+else{
+     if(enabledFirstComercialName){
 
   if(company?.enabledHideComercialName == false){
       if(company?.comercialName != null){
@@ -1469,13 +1484,12 @@ Future<List<int>> createDefaultTicket(
 
  
   }
-
  
     bytes += generator.text(company?.rncOrId ?? '',
       styles: PosStyles(align: PosAlign.center));
 
 
-  if(company?.address != null || company?.address?.isNotEmpty == true || sale.brancheAddress != null){
+    if(company?.address != null || company?.address?.isNotEmpty == true || sale.brancheAddress != null){
      bytes += generator.text(sale.brancheAddress ??  company?.address ?? '',
       styles: PosStyles(align: PosAlign.center));
   }
@@ -1499,35 +1513,33 @@ Future<List<int>> createDefaultTicket(
       bytes += generator.text(tels,
       styles: PosStyles(align: PosAlign.center));
   }
-
-
-
   bytes += generator.emptyLines(1);
 
-  bool esConsumo =
-      (sale.ncfTypeId == '02' || sale.ncfTypeId == '32') && eCommerceMode;
+}
 
-  bool esNotaCredito = (sale.ncfTypeId == '04' || sale.ncfTypeId == '34');
-  var esCotization = sale.ncfTypeId == '60';
+
  bytes.addAll([27, 97, 0]);
  
  bytes += generator.text('Rnc/Cedula: ${sale.clientIdentification}'.toUpperCase(),
-        styles: PosStyles(align: PosAlign.left));
+        styles: PosStyles(align: PosAlign.left, fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
   
   bytes += generator.text('Cliente: ${sale.clientName}'.toUpperCase(),
-      styles: PosStyles(align: PosAlign.left));
+      styles: PosStyles(align: PosAlign.left, fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
   bytes +=
-      generator.text(sale.ncf ?? '', styles: PosStyles(align: PosAlign.left));
+      generator.text(sale.ncf ?? '', styles: PosStyles(align: PosAlign.left, fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
 
   if (sale.ncfAffected != null) {
     bytes += generator.text(sale.ncfAffected ?? '',
-        styles: PosStyles(align: PosAlign.left));
+        styles: PosStyles(align: PosAlign.left, fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
   }
   bytes += generator.text(
       'Fecha de Emision: ${sale.issueDate?.format(payload: 'DD/MM/YYYY')}'.toUpperCase(),
-
-  
-  styles: PosStyles(align: PosAlign.left));
+  styles: PosStyles(align: PosAlign.left, fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
    
      if(!esConsumo){
        if(!esNotaCredito){
@@ -1535,7 +1547,8 @@ Future<List<int>> createDefaultTicket(
       
            bytes += generator.text(
       'Fecha de Vencimiento: ${sale.expirationDate?.format(payload: 'DD/MM/YYYY')}'.toUpperCase(),
-      styles: PosStyles(align: PosAlign.left));
+      styles: PosStyles(align: PosAlign.left, fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
          }
        }
      }
@@ -1543,7 +1556,8 @@ Future<List<int>> createDefaultTicket(
   bytes.addAll([27, 97, 1]);
   bytes += createDivider(generator);
   bytes += generator.text(sale.ncfTypeName ?? '',
-      styles: PosStyles(align: PosAlign.center, bold: true));
+      styles: PosStyles(align: PosAlign.center, bold: true, fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
   bytes += createDivider(generator);
 
   bytes.addAll([27, 97, 0]);
@@ -1552,7 +1566,9 @@ Future<List<int>> createDefaultTicket(
   cols.removeAt(1);
   bytes += generator.row(List.generate(cols.length, (i) {
     var e = cols[i];
-    return PosColumn(text: e, width: i == 0 ? 6 : 3);
+    return PosColumn(text: e, width: i == 0 ? 6 : 3,      styles: PosStyles(
+      fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
   }));
   bytes += createDivider(generator);
 
@@ -1565,13 +1581,17 @@ Future<List<int>> createDefaultTicket(
       var w = i == 0 ? 6 : 3;
       var e = xvalues[i];
 
-      return PosColumn(text: e, width: w);
+      return PosColumn(text: e, width: w,styles: PosStyles(
+      fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB));
     }));
    
     
     
     bytes += generator.row([
-      PosColumn(text: values[1], width: 6),
+      PosColumn(text: values[1], width: 6,styles: PosStyles(
+      fontType:currentPaperSize == 'mm80' ? null :
+      PosFontType.fontB)),
       PosColumn(text: '', width: 3),
       PosColumn(text:'', width: 3)
     ]);
@@ -1661,27 +1681,48 @@ if (sale.law10 != null && sale.law10! > 0) {
       PosColumn(
         text: leftText,
         width: 5,
-        styles: PosStyles(align: PosAlign.left),
+        styles: PosStyles(align: PosAlign.left,fontType:currentPaperSize == 'mm80' ? null : PosFontType.fontB),
       ),
       PosColumn(
         text: label ?? '',
         width: 4,
-        styles: PosStyles(align: PosAlign.left,bold: i == 6 ? true: false),
+        styles: PosStyles(align: PosAlign.left,bold: i == 6 ? true: false,fontType:currentPaperSize == 'mm80' ? null :
+         PosFontType.fontB
+        ),
       ),
       PosColumn(
         text: value ?? '',
         width: 3,
-        styles: PosStyles(align: PosAlign.right),
+        styles: PosStyles(align: PosAlign.right,fontType:currentPaperSize == 'mm80' ? null : PosFontType.fontB
+        ),
       ),
     ]);
 
 
   }
 
-  bytes += generator.emptyLines(5);
+  if(company?.removePreSalesHeader == true && esCotization){
 
-  bytes += generator.qrcode(sale.dgiiURL ?? company?.instagramLink ?? sale.ncf ?? '',
-      align: PosAlign.center, size: QRSize.size7);
+  }else{
+  bytes += generator.emptyLines(5);
+  var data = sale.dgiiURL ?? company?.instagramLink ?? sale.ncf ?? '';
+
+  final qrBytes = await generateQrImage(data);
+
+  final decoded = img.decodeImage(qrBytes)!;
+
+  final resized = img.copyResize(
+  decoded,
+  width: 260,
+  interpolation: img.Interpolation.average
+);
+
+bytes += generator.image(resized);
+
+
+
+  /*bytes += generator.qrcode(,
+      align: PosAlign.center, size: QRSize.size7);*/
   bytes += generator.emptyLines(1);
 
   if (sale.signatureDate != null) {
@@ -1689,21 +1730,29 @@ if (sale.law10 != null && sale.law10! > 0) {
         styles: PosStyles(align: PosAlign.center));
 
     bytes += generator.text(
-        'Fecha de Firma: ${sale.signatureDate?.format(payload: 'DD-MM-YYYY HH:mm:ss')}',
+        'Fecha de Firma: ${sale.signatureDate?.format(payload: 'DD-MM-YYYY hh:mm:ss A')}',
         styles: PosStyles(align: PosAlign.center));
   }else{
         bytes += generator.text(
-        'Fecha de Firma: ${sale.createdAt?.format(payload: 'DD-MM-YYYY HH:mm:ss')}',
+        'Fecha de Firma: ${sale.createdAt?.format(payload: 'DD-MM-YYYY hh:mm:ss A')}',
         styles: PosStyles(align: PosAlign.center));
   }
 
 
-  bytes+=generator.emptyLines(1);
+  }
 
-  if(company?.message != null){
+    bytes+=generator.emptyLines(1);
+
+  if(company?.removePreSalesHeader == true && esCotization){
+
+  }else{
+      if(company?.message != null){
     bytes += generator.text(company?.message ?? '',
         styles: PosStyles(align: PosAlign.center));
   }
+  }
+
+
 
   bytes += generator.feed(2);
   bytes += generator.cut();
@@ -9301,7 +9350,7 @@ Future<List<int>> createTicketCashShift(
     required CashShiftModel cashShiftModel,PrintCashShiftMode mode = PrintCashShiftMode.all}) async {
   
   final profile = await CapabilityProfile.load(name: name);
-  final generator = Generator(PaperSize.mm80, profile,
+  final generator = Generator(currentPaperSize == 'mm80'  ? PaperSize.mm80: PaperSize.mm72, profile,
       spaceBetweenRows: 2, codec: CustomLatinCodec());
   DateTime now = DateTime.now();
   List<int> bytes = [];
@@ -9366,7 +9415,10 @@ Future<List<int>> createTicketCashShift(
       var map = cashShiftModel.denominations![key];
       var total = map['total'];
       var counts = map['counts'];
-       bytes += generator.text('TIPO:$key\nCANTIDAD:$counts TOTAL: $total',
+      var n = int.parse(key);
+      const monedas = [1, 5, 10, 25];
+      var type = monedas.contains(n) ? 'MONEDA' : 'BILLETE';
+      bytes += generator.text('$type:$key\nCANTIDAD:$counts TOTAL: $total',
         styles: PosStyles(align: PosAlign.left));
       bytes += generator.emptyLines(1);
     }
@@ -9423,4 +9475,81 @@ pw.Widget buildDescription(String? text, pw.TextStyle style) {
   }
 
   return pw.RichText(text: pw.TextSpan(children: spans));
+}
+
+
+Future<List<int>> createTicketStar()async{
+final p = StarLineBuilder(
+  paperSize: currentPaperSize == 'mm80'  ? xPaperSize.mm80: xPaperSize.mm72
+);
+
+p.init();
+p.boldOn();
+p.fontSize(xFontSize.doubleWidth);
+p.centered('SUPERMERCADO JUAN');
+p.fontSize(xFontSize.normal);
+p.boldOff();
+p.println('RNC: 123456789');
+
+p.divider();
+
+p.boldOn();
+p.row3(
+  'DESCRIPCION',
+  'CANT',
+  'TOTAL',
+);
+
+p.boldOff();
+
+p.divider();
+
+p.item(
+  description: 'COCA COLA 500ML',
+  qty: 2,
+  total: 100,
+);
+
+p.item(
+  description: 'PAN',
+  qty: 1,
+  total: 25,
+);
+
+p.divider('=');
+
+p.boldOn();
+p.fontSize(xFontSize.doubleHeight);
+p.total(
+  'TOTAL',
+  125,
+);
+p.boldOff();
+p.fontSize(xFontSize.normal);
+
+p.feed(4);
+
+final bytes = p.build();
+
+return bytes;
+}
+
+Future<Uint8List> generateQrImage(
+  String data, {
+  double size = 300,
+}) async {
+  final painter = QrPainter(
+    data: data,
+    version: QrVersions.auto,
+    gapless: true,
+    color: const Color(0xFF000000),
+    emptyColor: const Color(0xFFFFFFFF),
+  );
+
+  final image = await painter.toImage(size);
+
+  final byteData =
+      await image.toByteData(format: ui.ImageByteFormat.png);
+
+  return byteData!.buffer.asUint8List();
 }

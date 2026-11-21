@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import 'dart:math' as math;
 import 'dart:ui';
-
 import 'package:amount_input_formatter/amount_input_formatter.dart';
 import 'package:ecf_dgii/ecf_dgii.dart';
 import 'package:flutter/material.dart';
@@ -18,16 +16,18 @@ import 'package:uresax_invoice_sys_cloud/modals/ncfs.selector.modal.dart';
 import 'package:uresax_invoice_sys_cloud/modals/open.shift.modal.dart';
 import 'package:uresax_invoice_sys_cloud/modals/payment.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/modals/pre.confirm.invoice.modal.dart';
+import 'package:uresax_invoice_sys_cloud/modals/retention.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/cash.shift.model.dart';
 import 'package:uresax_invoice_sys_cloud/models/client.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.item.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.item.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/credit.note.service.dart';
-import 'package:uresax_invoice_sys_cloud/models/ncf.secuencia.dart';
 import 'package:uresax_invoice_sys_cloud/models/ncfList.dart';
 import 'package:uresax_invoice_sys_cloud/models/ncftype.dart';
 import 'package:uresax_invoice_sys_cloud/models/product.dart';
+import 'package:uresax_invoice_sys_cloud/models/retention.isr.dart';
+import 'package:uresax_invoice_sys_cloud/models/retention.tax.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.element.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
@@ -43,6 +43,7 @@ import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/invoices.functions.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/rnc.query.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/toolbutton.widget.dart';
 import 'package:uuid/uuid.dart';
@@ -54,13 +55,14 @@ class TableInvoiceGenerator extends StatefulWidget {
   bool editing;
   bool generateNcfFromProforma;
   SaleMode mode;
-  TableInvoiceGenerator(
-      {super.key,
-      required this.items,
-      required this.sale,
-      this.mode = SaleMode.product,
-      this.editing = false,
-      this.generateNcfFromProforma = false});
+  TableInvoiceGenerator({
+    super.key,
+    required this.items,
+    required this.sale,
+    this.mode = SaleMode.product,
+    this.editing = false,
+    this.generateNcfFromProforma = false,
+  });
 
   @override
   State<TableInvoiceGenerator> createState() => _TableInvoiceGeneratorState();
@@ -69,6 +71,9 @@ class TableInvoiceGenerator extends StatefulWidget {
 class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     with TickerProviderStateMixin {
   List<List<TextEditingController>> controllers = [];
+  List<bool> loadingItemDataList = [false];
+  List<RetentionTax> retentionsTaxesList = [];
+  List<RetentionIsr> retentionsIsrList = [];
   List<Timer?> rowDebounces = [];
   List<List<FocusNode>> focusNodes = [];
   final ScrollController _verticalScrollController = ScrollController();
@@ -83,7 +88,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     'PRECIO',
     'DESCUENTO',
     'ITBIS',
-    'TOTAL'
+    'TOTAL',
   ];
 
   TextEditingController clientName = TextEditingController();
@@ -126,8 +131,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
   DateTime? paymentDate = DateTime.now();
   DateTime fechaVencimiento = DateTime.now().endOfYear();
 
-  AmountInputFormatter amountInputFormatter =
-      AmountInputFormatter(fractionalDigits: 2);
+  AmountInputFormatter amountInputFormatter = AmountInputFormatter(
+    fractionalDigits: 2,
+  );
   TextEditingController amount = TextEditingController();
 
   FocusNode amountFocus = FocusNode(skipTraversal: false);
@@ -147,13 +153,13 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
   int? get brancheId {
     return int.tryParse(
-        localStorage.getItem('URESAX_INVOICE_BRANCHE_ID_${company?.id}') ??
-            'x');
+      localStorage.getItem('URESAX_INVOICE_BRANCHE_ID_${company?.id}') ?? 'x',
+    );
   }
 
   List<Map<String, dynamic>> law10Modes = [
     {'id': 1, 'value': null, 'name': 'MONTO PROPINA LEGAL'},
-    {'id': 2, 'value': 10, 'name': 'APLICAR PROPINA LEGAL'}
+    {'id': 2, 'value': 10, 'name': 'APLICAR PROPINA LEGAL'},
   ];
 
   List<int> offsets = [0, 0];
@@ -242,10 +248,11 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
   _showDatePickerPayment() async {
     var result = await showDatePicker(
-        context: context,
-        initialDate: paymentDate ?? DateTime.now(),
-        firstDate: DateTime.now().subtract(const Duration(days: 365 * 25)),
-        lastDate: DateTime.now());
+      context: context,
+      initialDate: paymentDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365 * 25)),
+      lastDate: DateTime.now(),
+    );
 
     if (result == null) {
       // Usuario canceló → limpiar fecha y rebuild
@@ -269,32 +276,33 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
   Future<void> enviarEcf(Sale xsale) async {
     await enviarDgii(
-        sale: xsale,
-        instanceSale: widget.sale,
-        currentSale: _currentSale,
-        currentNcfTypeId: currentNcfTypeId,
-        clientName: clientName,
-        rncOrId: rncOrId,
-        xrate: xrate,
-        formasDePagos: formasDePagos,
-        totalGravado: totalGravado,
-        totalGravado18: totalGravado18,
-        totalGravado16: totalGravado16,
-        totalGravado3: totalGravado3,
-        montoExento: montoExento,
-        itbisGravado: itbisGravado,
-        itbisGravado18: itbisGravado18,
-        itbisGravado16: itbisGravado16,
-        itbisGravado0: itbisGravado3,
-        totalRetencionItbis: totalRetencionItbis,
-        totalRetencionIsr: totalRetencionIsr,
-        totalFacturado: totalFacturado,
-        fechaVencimiento: fechaVencimiento,
-        currentPaymentMethodId: currentPaymentMethodId,
-        currentPaymentType: currentPaymentType,
-        currentTypeIncomeId: currentTypeIncomeId,
-        currentOverrideCode: currentOverrideCode,
-        canOverrideTaxes: canOverrideTaxes);
+      sale: xsale,
+      instanceSale: widget.sale,
+      currentSale: _currentSale,
+      currentNcfTypeId: currentNcfTypeId,
+      clientName: clientName,
+      rncOrId: rncOrId,
+      xrate: xrate,
+      formasDePagos: formasDePagos,
+      totalGravado: totalGravado,
+      totalGravado18: totalGravado18,
+      totalGravado16: totalGravado16,
+      totalGravado3: totalGravado3,
+      montoExento: montoExento,
+      itbisGravado: itbisGravado,
+      itbisGravado18: itbisGravado18,
+      itbisGravado16: itbisGravado16,
+      itbisGravado0: itbisGravado3,
+      totalRetencionItbis: totalRetencionItbis,
+      totalRetencionIsr: totalRetencionIsr,
+      totalFacturado: totalFacturado,
+      fechaVencimiento: fechaVencimiento,
+      currentPaymentMethodId: currentPaymentMethodId,
+      currentPaymentType: currentPaymentType,
+      currentTypeIncomeId: currentTypeIncomeId,
+      currentOverrideCode: currentOverrideCode,
+      canOverrideTaxes: canOverrideTaxes,
+    );
   }
 
   _reset() async {
@@ -348,57 +356,45 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       widget.sale.typeIncomeId = null;
       widget.sale.transfRef = null;
       ncfList = null;
+      formasDePagos = [];
+      currentTypeIncomeId = '01';
+      currentNcfTypeId = null;
+      currentCurrencyId = 1;
+      currentOverrideCode = 1;
+      currentPaymentMethodId = null;
+      currentPaymentType = null;
+      currentPaymentModeId = null;
 
       if (isSale) {
         currentTypeIncomeId = '01';
+
         if (enabledPosAutomaticSetup) {
           client = await Client.findClientContado();
           clientName.value = TextEditingValue(text: client?.name ?? '');
           rncOrId.value = TextEditingValue(text: client?.identification ?? '');
           isValid = true;
-
-          if (enabledOnlySeller == false) {
-            currentNcfTypeId = '32';
-            currentCurrencyId = 1;
-            currentPaymentMethodId = 1;
-            currentPaymentModeId = 3;
-            currentPaymentType = 1;
-          }
-        } else if (enabledOnlySeller) {
+          currentNcfTypeId = '32';
+          currentPrefix = 'E';
+          currentCurrencyId = 1;
+          currentPaymentMethodId = 1;
+          currentPaymentModeId = 3;
+          currentPaymentType = 1;
+        }
+        if (enabledOnlySeller ||
+            currentUser!.permissions!.contains('ENABLED_ONLY_SELLER')) {
           currentNcfTypeId = '60';
           currentPrefix = 'C';
-     
-        if(currentUser!.permissions!.contains('ALLOW_SETUP_ONLY_SELLER')){
-             currentPaymentMethodId = 4;
-             currentPaymentType = 2;
-             currentPaymentModeId = 2;
-         
-          }
-        } else {
-          clientName.text = '';
-          rncOrId.text = '';
-          currentTypeIncomeId = '01';
-          currentNcfTypeId = null;
-          currentCurrencyId = 1;
-          currentOverrideCode = 1;
-          currentPaymentMethodId = null;
-          currentPaymentType = null;
-          currentPaymentModeId = null;
-        }
-      } else {
-        clientName.text = '';
-        rncOrId.text = '';
-        currentTypeIncomeId = '01';
-        currentNcfTypeId = null;
-        currentCurrencyId = 1;
-        currentOverrideCode = 1;
-        currentPaymentMethodId = null;
-        currentPaymentType = null;
-        currentPaymentModeId = null;
-      }
 
+          if (currentUser!.permissions!.contains('ALLOW_SETUP_ONLY_SELLER')) {
+            currentPaymentMethodId = 4;
+            currentPaymentType = 2;
+            currentPaymentModeId = 2;
+          }
+        }
+      }
       if (!isSale) {
         currentNcfTypeId = '34';
+        currentPrefix = 'E';
         currentOverrideCode = 1;
         currentPaymentMethodId = 1;
         currentPaymentType = 1;
@@ -406,6 +402,14 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       }
 
       _onCheckNcf();
+
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+        _scrollController2.jumpTo(0);
+      }
+      if (_verticalScrollController.hasClients) {
+        _verticalScrollController.jumpTo(0);
+      }
 
       setState(() {
         if (isSale) {
@@ -418,12 +422,16 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           }
 
           controllers = [
-            List.generate(columns.length, (_) => TextEditingController())
+            List.generate(columns.length, (_) => TextEditingController()),
           ];
 
           focusNodes = [List.generate(columns.length, (_) => FocusNode())];
 
           rowDebounces = List.generate(widget.items.length, (_) => null);
+          loadingItemDataList = List.generate(
+            widget.items.length,
+            (_) => false,
+          );
 
           // mover foco a la nueva fila, primera columna
           x = widget.items.length - 1;
@@ -437,69 +445,48 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           controllers = [];
           focusNodes = [];
           rowDebounces = [];
+          loadingItemDataList = [false];
         }
       });
-
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(0);
-        _scrollController2.jumpTo(0);
-      }
-      if (_verticalScrollController.hasClients) {
-        _verticalScrollController.jumpTo(0);
-      }
 
       setState(() {});
     } catch (e) {
       showTopSnackBar(context, message: e.toString(), color: Colors.red);
     }
   }
-  _checkNcfStatus()async{
-    try{
-       if(currentNcfTypeId != null){
-          await NcfsList(ncfTypeId: currentNcfTypeId).findNcfStatus();
-        }
-    }catch(e){
-    setState(() {
-        isValid = false;
-    });
-     showTopSnackBar(context, message: e.toString(),color: Colors.red);
+
+  _checkNcfStatus() async {
+    try {
+      if (currentNcfTypeId != null) {
+        await NcfsList(ncfTypeId: currentNcfTypeId).findNcfStatus();
+      }
+    } catch (e) {
+      isValid = false;
+      showTopSnackBar(context, message: e.toString(), color: Colors.red);
     }
   }
-  _onCheckNcf() async {
-      if (currentNcfTypeId != null) {
-        ncfList = ncfsLists.firstWhere((x) => x.ncfTypeId == currentNcfTypeId);
 
-        if (ncfList != null) {
-          fechaVencimiento = ncfList!.expirationDate!;
-          fechaVencimientoController.value = TextEditingValue(
-              text: fechaVencimiento.format(payload: 'DD/MM/YYYY'));
-        }
+  _onCheckNcf() async {
+    if (currentNcfTypeId != null) {
+      ncfList = ncfsLists.firstWhere((x) => x.ncfTypeId == currentNcfTypeId);
+
+      if (ncfList != null) {
+        fechaVencimiento = ncfList!.expirationDate!;
+        fechaVencimientoController.value = TextEditingValue(
+          text: fechaVencimiento.format(payload: 'DD/MM/YYYY'),
+        );
       }
-  
+    }
   }
 
   _onSelectedNcf(String? option) async {
-   
-      ncfList = null;
+    ncfList = null;
     currentNcfTypeId = option;
     currentPrefix = 'E';
     maxSequence = 10;
     currentPaymentMethodId = 1;
     currentPaymentModeId = 3;
     currentPaymentType = 1;
-    /* if (option == '60') {
-      currentPrefix = 'C';
-      currentPaymentMethodId = 4;
-      currentPaymentModeId = 2;
-      currentPaymentType = 2;
-    }
-
-    if (enabledQuotationsSetup && currentNcfTypeId == '60') {
-      currentPrefix = 'C';
-      currentPaymentMethodId = 4;
-      currentPaymentType = 2;
-      currentPaymentModeId = 2;
-    }*/
 
     if (option == '50') {
       currentPrefix = 'P';
@@ -519,60 +506,64 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
         if (esGubernamental) {
           newItem = item.copyWith(
-              serviceId: item.serviceId,
-              productId: item.productId,
-              tax: item.tax,
-              tax16: item.tax16,
-              tax18: item.tax18,
-              tax3: item.tax3,
-              net16: item.net16,
-              net18: item.net18,
-              net3: item.net3,
-              taxId: item.taxId,
-              law10: item.law10,
-              price: item.price,
-              priceItem: item.priceItem,
-              discountId: item.discountId,
-              discount: item.discount,
-              discountRate: item.discountRate,
-              discountSymbol: item.discountSymbol,
-              retentionIsrId: null,
-              retentionIsr: 0,
-              retentionTaxId: null,
-              retentionTax: 0,
-              indicadorFacturacion: item.indicadorFacturacion,
-              exemptAmount: item.netFinal,
-              total: item.total);
+            serviceId: item.serviceId,
+            productId: item.productId,
+            tax: item.tax,
+            tax16: item.tax16,
+            tax18: item.tax18,
+            tax3: item.tax3,
+            net16: item.net16,
+            net18: item.net18,
+            net3: item.net3,
+            taxId: item.taxId,
+            law10: item.law10,
+            price: item.price,
+            priceItem: item.priceItem,
+            discountId: item.discountId,
+            discount: item.discount,
+            discountRate: item.discountRate,
+            discountSymbol: item.discountSymbol,
+            retentionIsrId: item.retentionIsrId,
+            retentionIsr: item.retentionIsr,
+            retentionTaxId: item.retentionTaxId,
+            retentionTax: item.retentionTax,
+            indicadorFacturacion: item.indicadorFacturacion,
+            indicadorAgentePercepcion: item.indicadorAgentePercepcion,
+            exemptAmount: item.netFinal,
+            total: item.total,
+          );
           widget.items[i] = newItem;
         }
 
         if (esEspecial || esMenor) {
           newItem = item.copyWith(
-              serviceId: item.serviceId,
-              productId: item.productId,
-              tax: 0,
-              tax16: 0,
-              tax18: 0,
-              tax3: 0,
-              net: item.net,
-              netFinal: item.netFinal,
-              net16: 0,
-              net18: 0,
-              net3: 0,
-              law10: item.law10,
-              taxId: item.taxId,
-              price: item.price,
-              priceItem: item.priceItem,
-              discount: item.discount,
-              discountRate: item.discountRate,
-              discountSymbol: item.discountSymbol,
-              retentionIsrId: item.retentionIsrId,
-              retentionIsr: item.retentionIsr,
-              retentionTaxId: item.retentionTaxId,
-              retentionTax: item.retentionTax,
-              indicadorFacturacion: 4,
-              exemptAmount: item.netFinal,
-              total: item.total! - (item.tax ?? 0));
+            serviceId: item.serviceId,
+            productId: item.productId,
+            tax: 0,
+            tax16: 0,
+            tax18: 0,
+            tax3: 0,
+            net: item.net,
+            netFinal: item.netFinal,
+            net16: 0,
+            net18: 0,
+            net3: 0,
+            law10: item.law10,
+            taxId: item.taxId,
+            price: item.price,
+            priceItem: item.priceItem,
+            discount: item.discount,
+            discountRate: item.discountRate,
+            discountSymbol: item.discountSymbol,
+            retentionIsrId: item.retentionIsrId,
+            retentionIsr: item.retentionIsr,
+            retentionTaxId: item.retentionTaxId,
+            retentionTax: item.retentionTax,
+            indicadorFacturacion: 4,
+            indicadorAgentePercepcion: item.indicadorAgentePercepcion,
+            exemptAmount: item.netFinal,
+            total: item.total! - (item.tax ?? 0),
+          );
           widget.items[i] = newItem;
         } else {
           var type = item.taxId;
@@ -636,29 +627,31 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           total = netFinal + tax + law10;
 
           newItem = item.copyWith(
-              serviceId: item.serviceId,
-              productId: item.productId,
-              tax: tax,
-              tax16: tax16,
-              tax18: tax18,
-              net: net,
-              net16: net16,
-              net18: net18,
-              netFinal: netFinal,
-              law10: law10,
-              taxId: type,
-              discount: item.discount,
-              discountRate: item.discountRate,
-              discountSymbol: item.discountSymbol,
-              retentionTaxId: item.retentionTaxId,
-              retentionTax: item.retentionTax,
-              retentionIsrId: item.retentionIsrId,
-              retentionIsr: item.retentionIsr,
-              price: item.price,
-              priceItem: item.priceItem,
-              indicadorFacturacion: indicadorFacturacion,
-              exemptAmount: exemptAmount,
-              total: total);
+            serviceId: item.serviceId,
+            productId: item.productId,
+            tax: tax,
+            tax16: tax16,
+            tax18: tax18,
+            net: net,
+            net16: net16,
+            net18: net18,
+            netFinal: netFinal,
+            law10: law10,
+            taxId: type,
+            discount: item.discount,
+            discountRate: item.discountRate,
+            discountSymbol: item.discountSymbol,
+            retentionTaxId: item.retentionTaxId,
+            retentionTax: item.retentionTax,
+            retentionIsrId: item.retentionIsrId,
+            retentionIsr: item.retentionIsr,
+            price: item.price,
+            priceItem: item.priceItem,
+            indicadorFacturacion: indicadorFacturacion,
+            indicadorAgentePercepcion: item.indicadorAgentePercepcion,
+            exemptAmount: exemptAmount,
+            total: total,
+          );
 
           widget.items[i] = newItem;
         }
@@ -670,7 +663,6 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         widget.items = List.from(widget.items);
       });
     }
-
   }
 
   void addRow() {
@@ -682,12 +674,17 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         widget.items.add(SaleItemService(id: Uuid().v4(), quantity: 1.0));
       }
 
-      controllers
-          .add(List.generate(columns.length, (_) => TextEditingController()));
+      controllers.add(
+        List.generate(columns.length, (_) => TextEditingController()),
+      );
       focusNodes.add(
-          List.generate(columns.length, (_) => FocusNode(skipTraversal: true)));
+        List.generate(columns.length, (_) => FocusNode(skipTraversal: true)),
+      );
 
       rowDebounces = List.generate(widget.items.length, (_) => null);
+      loadingItemDataList = List.generate(widget.items.length, (_) => false);
+      retentionsTaxesList = List.generate(widget.items.length, (_) => RetentionTax());
+      retentionsIsrList = List.generate(widget.items.length, (_) => RetentionIsr());
 
       // mover foco a la nueva fila, primera columna
       x = widget.items.length - 1;
@@ -769,18 +766,68 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
   Future<SaleElement?> _showElementSelector({required int rowIndex}) async {
     return await showDialog<SaleElement?>(
-        context: context,
-        builder: (ctx) => SaleElementSelectorWidget(mode: widget.mode));
+      context: context,
+      builder: (ctx) => SaleElementSelectorWidget(mode: widget.mode),
+    );
   }
 
   Future<void> _onHandlerKeyboard(KeyEvent event) async {
     if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.f7 || event.logicalKey == LogicalKeyboardKey.escape) {
-        if (sale != null && loading == false) {
-          closeAllSnackbars();
-          printPos();
+      if (currentUser!.permissions!.contains('ALLOW_HIDE_PRINT_BUTTON') ==
+          false) {
+        if (event.logicalKey == LogicalKeyboardKey.f7) {
+          if (sale != null && loading == false) {
+            printPos();
+          }
         }
       }
+
+            if (HardwareKeyboard.instance.isControlPressed) {
+        if (event.logicalKey == LogicalKeyboardKey.keyR) {
+          var res = await showRetentionEditorModal(
+            context: context,
+            initialRetentionTax: retentionsTaxesList[x],
+            initialRetentionIsr: retentionsIsrList[x],
+            onChanged: (v1, v2) {},
+          );
+          if (res != null) {
+            var retentionTax = res['currentRetentionTax'] as RetentionTax;
+            var retentionIsr = res['currentRetentionIsr'] as RetentionIsr;
+
+            retentionsTaxesList[x] = retentionTax;
+            retentionsIsrList[x] = retentionIsr;
+
+            var item = widget.items[x];
+            var el = item.serviceId != null
+                ? Services(
+                    id: item.serviceId,
+                    name: item.serviceName,
+                    taxId: item.taxId,
+                    price: item.priceItem,
+                    code: item.serviceCode,
+                    editable: item.editable
+                  )
+                : Products(
+                    id: item.productId,
+                    name: item.productName,
+                    taxId: item.taxId,
+                    price: item.priceItem,
+                    code: item.productCode,
+                    editable: item.editable
+                  );
+
+            _calcRows(
+              rowIndex: x,
+              element: el,
+              retentionTax: retentionTax,
+              retentionIsr: retentionIsr
+            );
+            print(res);
+          }
+        }
+      }
+
+
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         x = offsets[0];
         y = offsets[1];
@@ -848,8 +895,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
       if (event.logicalKey == LogicalKeyboardKey.f3 ||
           event.logicalKey == LogicalKeyboardKey.numpadAdd ||
-          (HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.controlLeft) &&
+          (HardwareKeyboard.instance.logicalKeysPressed.contains(
+                LogicalKeyboardKey.controlLeft,
+              ) &&
               event.logicalKey == LogicalKeyboardKey.equal)) {
         x = offsets[0];
         y = offsets[1];
@@ -868,17 +916,23 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
       if (event.logicalKey == LogicalKeyboardKey.f8) {
         await Navigator.push(
-            context, MaterialPageRoute(builder: (ctx) => CotizationsPage()));
+          context,
+          MaterialPageRoute(
+            builder: (ctx) => CotizationsPage(isSelector: true),
+          ),
+        );
       }
 
-       if (event.logicalKey == LogicalKeyboardKey.f5) {
+      if (event.logicalKey == LogicalKeyboardKey.f5) {
         await Navigator.push(
-            context, MaterialPageRoute(builder: (ctx) => SalesPage()));
+          context,
+          MaterialPageRoute(builder: (ctx) => SalesPage()),
+        );
       }
 
       if (event.logicalKey == LogicalKeyboardKey.f11) {
-        if(enabledOnlySeller == false){
-           currentNcfTypeId = '32';
+        if (enabledOnlySeller == false) {
+          currentNcfTypeId = '32';
           _onSelectedNcf(currentNcfTypeId);
         }
       }
@@ -891,45 +945,20 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
   }
 
   Future<void> _initAsync() async {
-
-  
     if (widget.editing == false) {
       if (widget.generateNcfFromProforma == false) {
         if (isSale) {
           if (enabledPosAutomaticSetup || enabledOnlySeller) {
             client = await Client.findClientContado();
             clientName.value = TextEditingValue(text: client?.name ?? '');
-            rncOrId.value =
-                TextEditingValue(text: client?.identification ?? '');
+            rncOrId.value = TextEditingValue(
+              text: client?.identification ?? '',
+            );
             isValid = true;
           }
         }
       }
     }
-    if (currentNcfTypeId != null) {
-      int umbral = 1;
-      var checkObj =
-          await NcfSecuencia(id: currentNcfTypeId).checkNcfs(umbral: umbral);
-
-      if (checkObj != null) {
-        for (var item in checkObj) {
-          int dif = item['dif'];
-          String name = item['name'];
-          showTopSnackBar(context,
-              message: 'QUEDAN $dif $name', color: Colors.red);
-        }
-      }
-
-      ncfList = await NcfsList(ncfTypeId: currentNcfTypeId).findNcf();
-
-      if (ncfList != null) {
-        fechaVencimiento = ncfList!.expirationDate!;
-        fechaVencimientoController.text =
-            fechaVencimiento.format(payload: 'DD/MM/YYYY');
-      }
-    }
-
-   
   }
 
   bool isDialogOpen = false;
@@ -943,14 +972,14 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
   int? get currentWorkdayId {
     var store = int.tryParse(
-        localStorage.getItem('currentWorkdayId_$currentInstanceId') ?? 'x');
+      localStorage.getItem('currentWorkdayId_$currentInstanceId') ?? 'x',
+    );
     if (store != null) return store;
 
     return company?.currentWorkdayId;
   }
 
   int getPeriodIdByHour(DateTime now) {
- 
     if (now.hour >= 6 && now.hour < 12) {
       return 1; // Mañana
     } else if (now.hour >= 12 && now.hour < 19) {
@@ -961,24 +990,24 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
   }
 
   Future<void> validatePeriod() async {
-    var cashshift =
-        CashShiftModel(createdBy: currentUser?.id, boxId: currentUser?.boxId);
+    var cashshift = CashShiftModel(
+      createdBy: currentUser?.id,
+      boxId: currentUser?.boxId,
+    );
     var now = DateTime.now();
     int currentPeriodId = getPeriodIdByHour(now);
 
-
-
     var expired = DateTime.tryParse(
-        localStorage.getItem('expirationCashShift_$currentInstanceId') ?? 'x');
+      localStorage.getItem('expirationCashShift_$currentInstanceId') ?? 'x',
+    );
 
     // Validación
     bool shouldOpenModal = false;
 
     // Jornada diaria: abrir solo si expiró
-   // shouldOpenModal = expired == null || now.isAfter(expired);
-   shouldOpenModal = currentTurnoId == null;
+    // shouldOpenModal = expired == null || now.isAfter(expired);
+    shouldOpenModal = currentTurnoId == null;
 
- 
     if (shouldOpenModal) {
       // Evitar conflicto si ya hay otro modal abierto (ej. loader)
       if (!isDialogOpen) {
@@ -990,8 +1019,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           builder: (_) => OpenShiftModal(
             periodId: currentPeriodId,
             workdayId: currentWorkdayId,
-            onConfirm: (openingAmount, description, period, workdayId,
-                xworkday) async {
+            onConfirm: (openingAmount, description, period, workdayId, xworkday) async {
               try {
                 // Cerrar turno anterior y abrir nuevo
                 showLoader(context);
@@ -1004,12 +1032,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                 cashshift.workdayId = currentWorkdayId;
                 cashshift.createdAt = DateTime.now();
 
-
                 if (xworkday != null) {
-
-             
                   var now = cashshift.createdAt;
-           
 
                   // Construir la fecha/hora de inicio de la jornada
                   var startNow = DateTime(
@@ -1020,8 +1044,6 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                     xworkday.startHour!.minute,
                   );
 
-                     
-                 
                   // Construir la fecha/hora de fin de la jornada
                   var endNow = DateTime(
                     now.year,
@@ -1036,47 +1058,48 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                     endNow = endNow.add(const Duration(days: 1));
                   }
 
-            
                   expiredCashShift = endNow;
-
-               
-           
-
-            
                 } else {
                   throw 'NO EXISTE UNA JORNADA SELECCIONADA (DEBES IR AL MODULO DE JORNADAS PARA AGREGAR UNA)';
                 }
 
-
-                
                 var newCashShift = await cashshift.openCashShift();
-                       // Guardar el ID de la jornada actual
+                // Guardar el ID de la jornada actual
                 localStorage.setItem(
-                    'currentWorkdayId_$currentInstanceId',
-                    xworkday.id.toString(),
-                  );
+                  'currentWorkdayId_$currentInstanceId',
+                  xworkday.id.toString(),
+                );
 
-                localStorage.setItem('currentTurnoId_$currentInstanceId',
-                    newCashShift?.id ?? '');
-                localStorage.setItem('oldPeriodId_$currentInstanceId',
-                    currentPeriodId.toString());
+                localStorage.setItem(
+                  'currentTurnoId_$currentInstanceId',
+                  newCashShift?.id ?? '',
+                );
+                localStorage.setItem(
+                  'oldPeriodId_$currentInstanceId',
+                  currentPeriodId.toString(),
+                );
 
                 // Guardar la fecha de expiración en formato ISO
-                 localStorage.setItem(
-                    'expirationCashShift_$currentInstanceId',
-                    expiredCashShift!.toIso8601String(),
-                  );
+                localStorage.setItem(
+                  'expirationCashShift_$currentInstanceId',
+                  expiredCashShift!.toIso8601String(),
+                );
 
                 Navigator.pop(context);
                 Navigator.pop(context);
-                showTopSnackBar(context,
-                    message: 'TURNO ${newCashShift?.cashShiftNumber} CREADO!',
-                    color: Colors.green);
+                showTopSnackBar(
+                  context,
+                  message: 'TURNO ${newCashShift?.cashShiftNumber} CREADO!',
+                  color: Colors.green,
+                );
                 isDialogOpen = false;
               } catch (e) {
                 Navigator.pop(context);
-                showTopSnackBar(context,
-                    message: e.toString(), color: Colors.red);
+                showTopSnackBar(
+                  context,
+                  message: e.toString(),
+                  color: Colors.red,
+                );
               }
             },
           ),
@@ -1103,18 +1126,20 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     if (isSale) {
       _ncfs.removeWhere((e) => e.id == '34' || e.id == '04');
     } else {
-      _ncfs.removeWhere((e) =>
-          e.id == '01' ||
-          e.id == '02' ||
-          e.id == '15' ||
-          e.id == '31' ||
-          e.id == '32' ||
-          e.id == '45' ||
-          e.id == '44' ||
-          e.id == '50' ||
-          e.id == '43' ||
-          e.id == '41' ||
-          e.id == '60');
+      _ncfs.removeWhere(
+        (e) =>
+            e.id == '01' ||
+            e.id == '02' ||
+            e.id == '15' ||
+            e.id == '31' ||
+            e.id == '32' ||
+            e.id == '45' ||
+            e.id == '44' ||
+            e.id == '50' ||
+            e.id == '43' ||
+            e.id == '41' ||
+            e.id == '60',
+      );
       currentNcfTypeId = '34';
       currentPrefix = 'E';
       maxSequence = 10;
@@ -1123,12 +1148,16 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     if (esNotaCredito == false &&
         widget.editing == false &&
         widget.generateNcfFromProforma == false) {
-      controllers
-          .add(List.generate(columns.length, (_) => TextEditingController()));
+      controllers.add(
+        List.generate(columns.length, (_) => TextEditingController()),
+      );
       focusNodes.add(
-          List.generate(columns.length, (_) => FocusNode(skipTraversal: true)));
+        List.generate(columns.length, (_) => FocusNode(skipTraversal: true)),
+      );
       rowDebounces = List.generate(widget.items.length, (_) => null);
-
+      loadingItemDataList = List.generate(widget.items.length, (_) => false);
+      retentionsTaxesList = List.generate(widget.items.length, (_) => RetentionTax());
+      retentionsIsrList = List.generate(widget.items.length, (_) => RetentionIsr());
       // mover foco a la nueva fila, primera columna
       x = widget.items.length - 1;
       y = 0;
@@ -1145,22 +1174,32 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       currentCurrencyId = widget.sale.currencyId;
       rate.text = widget.sale.rate?.toStringAsFixed(2) ?? '';
       client = Client(
-          id: widget.sale.clientId,
-          identification: widget.sale.clientIdentification,
-          name: widget.sale.clientName);
+        id: widget.sale.clientId,
+        identification: widget.sale.clientIdentification,
+        name: widget.sale.clientName,
+      );
 
       rncOrId.text = widget.sale.clientIdentification ?? '';
       clientName.text = widget.sale.clientName ?? '';
       currentNcfTypeId = widget.sale.ncfTypeId;
       controllers = [];
       focusNodes = [];
+      loadingItemDataList = List.generate(widget.items.length, (_) => false);
+      retentionsTaxesList = List.generate(widget.items.length, (x) => RetentionTax(
+        id: widget.items[x].retentionTaxId
+      ));
+      retentionsIsrList = List.generate(widget.items.length, (x) => RetentionIsr(
+        id: widget.items[x].retentionIsrId
+      ));
       List.generate(widget.items.length, (index) {
         var e = widget.items[index];
 
-        controllers
-            .add(List.generate(columns.length, (i) => TextEditingController()));
-        focusNodes.add(List.generate(
-            columns.length, (i) => FocusNode(skipTraversal: true)));
+        controllers.add(
+          List.generate(columns.length, (i) => TextEditingController()),
+        );
+        focusNodes.add(
+          List.generate(columns.length, (i) => FocusNode(skipTraversal: true)),
+        );
         var c0 = controllers[index][0];
         var c1 = controllers[index][1];
         var c2 = controllers[index][2];
@@ -1177,6 +1216,17 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         c5.text = e.tax?.toStringAsFixed(2) ?? '';
         c6.text = e.total?.toStringAsFixed(2) ?? '';
       });
+    }
+
+    if (widget.generateNcfFromProforma || widget.editing) {
+      amountFocus.requestFocus();
+
+      if (widget.sale.paid != null && (widget.sale.paid ?? 0) > 0) {
+        amount.value = amountInputFormatter.formatEditUpdate(
+          TextEditingValue.empty,
+          TextEditingValue(text: widget.sale.paid?.toStringAsFixed(2) ?? ''),
+        );
+      }
     }
 
     if (!widget.generateNcfFromProforma) {
@@ -1198,11 +1248,13 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
     issueDate = widget.sale.createdAt ?? createdAt;
 
-    issueDateController.value =
-        TextEditingValue(text: issueDate.format(payload: 'DD/MM/YYYY'));
+    issueDateController.value = TextEditingValue(
+      text: issueDate.format(payload: 'DD/MM/YYYY'),
+    );
 
-    fechaVencimientoController.value =
-        TextEditingValue(text: fechaVencimiento.format(payload: 'DD/MM/YYYY'));
+    fechaVencimientoController.value = TextEditingValue(
+      text: fechaVencimiento.format(payload: 'DD/MM/YYYY'),
+    );
 
     currentTypeIncomeId = '01';
     if (enabledPosAutomaticSetup) {
@@ -1219,39 +1271,45 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
     if (widget.editing == false && isSale) {
       if (widget.generateNcfFromProforma == false) {
-        if (enabledOnlySeller) {
-          _ncfs.removeWhere((e) =>
-              e.id == '01' ||
-              e.id == '02' ||
-              e.id == '04' ||
-              e.id == '15' ||
-              e.id == '31' ||
-              e.id == '32' ||
-              e.id == '34' ||
-              e.id == '45' ||
-              e.id == '44' ||
-              e.id == '50' ||
-              e.id == '43' ||
-              e.id == '41');
+        if (enabledOnlySeller ||
+            currentUser!.permissions!.contains('ENABLED_ONLY_SELLER')) {
+          if (currentUser!.permissions!.contains('NOT_REMOVE_OTHERS_NCFS')) {
+          } else {
+            _ncfs.removeWhere(
+              (e) =>
+                  e.id == '01' ||
+                  e.id == '02' ||
+                  e.id == '04' ||
+                  e.id == '15' ||
+                  e.id == '31' ||
+                  e.id == '32' ||
+                  e.id == '34' ||
+                  e.id == '45' ||
+                  e.id == '44' ||
+                  e.id == '50' ||
+                  e.id == '43' ||
+                  e.id == '41',
+            );
+          }
 
           currentNcfTypeId = '60';
           currentPrefix = 'C';
-          
-          if(currentUser!.permissions!.contains('ALLOW_SETUP_ONLY_SELLER')){
-             currentPaymentMethodId = 4;
-             currentPaymentType = 2;
-             currentPaymentModeId = 2;
-         
+
+          if (currentUser!.permissions!.contains('ALLOW_SETUP_ONLY_SELLER')) {
+            currentPaymentMethodId = 4;
+            currentPaymentType = 2;
+            currentPaymentModeId = 2;
           }
         }
       }
     }
 
-    _onCheckNcf();
+    _initAsync();
 
-    setState(() {
-      _initAsync();
-    });
+    _onCheckNcf();
+    _checkNcfStatus();
+
+    setState(() {});
 
     if (widget.editing == false) {
       Future.delayed(const Duration(milliseconds: 660), () {
@@ -1338,6 +1396,14 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       }
     }
 
+    if (widget.generateNcfFromProforma) {
+      if (widget.sale.ncf != null) {
+        return '${widget.sale.ncf} - FACTURANDO';
+      } else {
+        return 'FACTURANDO';
+      }
+    }
+
     return 'FACTURANDO';
   }
 
@@ -1360,22 +1426,25 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
   _handlerCommands(KeyEvent event) async {
     if (event is KeyDownEvent) {
-     
-
       if (event.logicalKey == LogicalKeyboardKey.f1) {
         _reset();
       }
 
       if (event.logicalKey == LogicalKeyboardKey.f8) {
         await Navigator.push(
-            context, MaterialPageRoute(builder: (ctx) => CotizationsPage()));
+          context,
+          MaterialPageRoute(
+            builder: (ctx) => CotizationsPage(isSelector: true),
+          ),
+        );
       }
 
+
       if (event.logicalKey == LogicalKeyboardKey.f11) {
-         if(enabledOnlySeller == false){
+        if (enabledOnlySeller == false) {
           currentNcfTypeId = '32';
-         _onSelectedNcf(currentNcfTypeId);
-         }
+          _onSelectedNcf(currentNcfTypeId);
+        }
       }
 
       if (event.logicalKey == LogicalKeyboardKey.f12) {
@@ -1396,20 +1465,22 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     if (_formKey.currentState!.validate()) {
       var completed = amountInputFormatter.doubleValue == 0;
 
-      if(currentUser!.permissions!.contains('ALLOW_SETUP_ONLY_SELLER') == false){
+      if (currentUser!.permissions!.contains('ALLOW_APPLY_AMOUNTPAID')) {
         if (completed) {
-        amount.value = amountInputFormatter.formatEditUpdate(
+          amount.value = amountInputFormatter.formatEditUpdate(
             TextEditingValue.empty,
-            TextEditingValue(text: montoAPagarReferencia.toStringAsFixed(2)));
-      }
+            TextEditingValue(text: montoAPagarReferencia.toStringAsFixed(2)),
+          );
+        }
       }
       var res = await showPreConfirmInvoice(
-          context: context,
-          sale: widget.sale,
-          amountPaid: totalString,
-          paid: amountString,
-          debt: debt,
-          debtString: debtString);
+        context: context,
+        sale: widget.sale,
+        amountPaid: totalString,
+        paid: amountString,
+        debt: debt,
+        debtString: debtString,
+      );
 
       if (res == true) {
         _onSubmit(completed: completed);
@@ -1421,7 +1492,11 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     if (sale != null) {
       var bytes = await createDefaultTicket(sale: sale!);
 
-      await PrinterHandler.printBytes(devicePos ?? '', bytes);
+      if (enabledSerialMode) {
+        await PrinterHandler.printBytesFromSerialPort(bytes: bytes);
+      } else {
+        await PrinterHandler.printBytes(devicePos!, bytes);
+      }
 
       await LogHandler.printEvent('SE IMPRIMIO LA FACTURA ${sale?.ncf}');
 
@@ -1432,12 +1507,15 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
   _onSubmit({bool completed = false}) async {
     if (_formKey.currentState!.validate()) {
       loading = true;
+      Sale? detailsSale;
       showLoader(context);
       try {
         if (eCommerceMode) {
           if (disabledTicket == false) {
-            if (devicePos == null) {
-              throw 'EL DISPOSITIVO DE PUNTO DE VENTA NO ESTA CONFIGURADO (CONTACTE CON EL ADMINISTRADOR DEL SISTEMA)';
+            if (enabledSerialMode == false) {
+              if (devicePos == null) {
+                throw 'EL DISPOSITIVO DE PUNTO DE VENTA NO ESTA CONFIGURADO (CONTACTE CON EL ADMINISTRADOR DEL SISTEMA)';
+              }
             }
           }
         }
@@ -1460,8 +1538,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         widget.sale.clientId = client?.id ?? taxPayer?.taxPayerId;
         widget.sale.clientIdentification = rncOrId.text.replaceAll('-', '');
         widget.sale.typeIncomeId = currentTypeIncomeId;
-        widget.sale.description =
-            description.text.isEmpty ? null : description.text;
+        widget.sale.description = description.text.isEmpty
+            ? null
+            : description.text;
         widget.sale.clientName = clientName.text;
         widget.sale.retentionDate = retentionDate;
         widget.sale.currencyId = currentCurrencyId;
@@ -1482,6 +1561,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         widget.sale.coinBack = 0;
         widget.sale.paymentDate = paymentDate;
         widget.sale.ncfListId = ncfList?.id;
+        widget.sale.boxId = currentUser?.boxId;
         widget.sale.creditCardDescription = creditCardDescription.text.isEmpty
             ? null
             : creditCardDescription.text;
@@ -1505,7 +1585,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           }
         }
 
-        if (currentPaymentModeId == 1 || completed) {
+        if (currentPaymentModeId == 1) {
           amountx = montoAPagarReferencia;
           amount = montoAPagarReferencia;
         }
@@ -1515,11 +1595,6 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           amount = 0;
         }
 
-        /*if (currentNcfTypeId == '60' || currentNcfTypeId == '50') {
-          amountx = 0;
-          amount = 0;
-        }*/
-
         if (rate.text.isNotEmpty) {
           widget.sale.rate = double.tryParse(rate.text);
         }
@@ -1527,8 +1602,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         widget.sale.clientType = rncOrId.text.length == 9
             ? 1
             : rncOrId.text.length == 11
-                ? 2
-                : null;
+            ? 2
+            : null;
 
         if (widget.sale is SaleService) {
           widget.sale.invoiceTypeId = 1;
@@ -1569,6 +1644,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           widget.sale.prefix = 'B';
           widget.sale.maxSequence = 8;
         }
+
+        widget.sale.originCashShiftId = currentTurnoId;
 
         if (allowOnlyCashShiftElectronic == true) {
           if (widget.sale.prefix == 'E') {
@@ -1643,11 +1720,13 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           sale = await widget.sale.create();
 
           await LogHandler.printEvent(
-              '${sale?.ncfTypeName} ${sale?.ncf} FUE CREADA, RNC/CEDULA: ${sale?.clientId}, EL CLIENTE: ${sale?.clientName}');
+            '${sale?.ncfTypeName} ${sale?.ncf} FUE CREADA, RNC/CEDULA: ${sale?.clientId}, EL CLIENTE: ${sale?.clientName}',
+          );
         } else {
           sale = await widget.sale.update();
           await LogHandler.printEvent(
-              '${sale?.ncfTypeName} ${sale?.ncf} FUE ACTUALIZADA, RNC/CEDULA: ${sale?.clientId}, EL CLIENTE: ${sale?.clientName}');
+            '${sale?.ncfTypeName} ${sale?.ncf} FUE ACTUALIZADA, RNC/CEDULA: ${sale?.clientId}, EL CLIENTE: ${sale?.clientName}',
+          );
         }
 
         if (widget.sale.prefix == 'E' &&
@@ -1664,19 +1743,23 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           }
 
           await LogHandler.printEvent(
-              '${sale?.ncfTypeName} ${sale?.ncf} FUE ENVIADA A DGII, RNC/CEDULA: ${sale?.clientId}, EL CLIENTE: ${sale?.clientName}');
+            '${sale?.ncfTypeName} ${sale?.ncf} FUE ENVIADA A DGII, RNC/CEDULA: ${sale?.clientId}, EL CLIENTE: ${sale?.clientName}',
+          );
         }
 
         late File file;
+
+        detailsSale = sale;
 
         if (eCommerceMode) {
           if (currentNcfTypeId != '60' && currentNcfTypeId != '50') {
             if (sale!.debt! > 0) {
               Navigator.pop(context);
               var xsale = await showDialog<Sale?>(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (ctx) => PaymentEditorModal(sale: sale!));
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => PaymentEditorModal(sale: sale!),
+              );
 
               if (widget.sale.prefix == 'E') {
                 if (xsale != null) {
@@ -1713,11 +1796,12 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
           var dir = await getUresaxInvoiceDir();
           var filePath = path.join(
-              dir.path,
-              esNotaCredito ? 'NOTAS DE CREDITO' : 'VENTAS',
-              sale!.createdAt!.format(payload: 'YYYYMM'),
-              'PDFS',
-              fileName);
+            dir.path,
+            esNotaCredito ? 'NOTAS DE CREDITO' : 'VENTAS',
+            sale!.createdAt!.format(payload: 'YYYYMM'),
+            'PDFS',
+            fileName,
+          );
           file = File(filePath);
           await file.create(recursive: true);
           await LogHandler.printEvent('SE CREO EL ARCHIVO: ${file.path}');
@@ -1732,16 +1816,22 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           if (widget.generateNcfFromProforma == false) {
             if (widget.sale is SaleProduct) {
               await Products.updateMinusStock(
-                  items: sale!.items, ncfTypeId: sale!.ncfTypeId!);
+                items: sale!.items,
+                ncfTypeId: sale?.ncfTypeId ?? '',
+              );
               await LogHandler.printEvent(
-                  'EL STOCK FUE ACTUALIZADO - ${sale!.ncf}');
+                'EL STOCK FUE ACTUALIZADO - ${sale?.ncf}',
+              );
             }
 
             if (widget.sale is CreditNoteAsProduct) {
               await Products.updateAddStock(
-                  items: sale!.items, ncfTypeId: sale!.ncfTypeId!);
+                items: sale!.items,
+                ncfTypeId: sale?.ncfTypeId ?? '',
+              );
               await LogHandler.printEvent(
-                  'EL STOCK FUE ACTUALIZADO - ${sale!.ncf}');
+                'EL STOCK FUE ACTUALIZADO - ${sale?.ncf}',
+              );
             }
           }
         }
@@ -1758,35 +1848,41 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
           await OpenFile.open(file.path);
         }
 
-        showTopSnackBar(context,
-            message: widget.editing ? 'FACTURA EDITADA' : 'FACTURA CREADA',
-            alignment: Alignment.topCenter,
-            color: Colors.green);
         loading = false;
 
-        if(eCommerceMode || enabledStore){
-          showTopSnackBar(context,
+        if (eCommerceMode || enabledStore) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return DialogCoinBack(
+                sale: detailsSale,
+                onPressed: () {
+                  printPos();
+                },
+              );
+            },
+          );
+
+          showLeftAlert(
+            context,
             message:
-                'FACTURADO: ${sale?.total?.toCoin()} DEVUELTA: ${sale?.coinBack?.abs().toCoin()}',
-            alignment: Alignment.bottomCenter,
-            color: Colors.black,
-            timeout: Duration(hours: 2),
-            actions: [
-              IconButton(
-                  focusNode: _printerPosFocus,
-                  onPressed: () async {
-                    printPos();
-                  },
-                  icon: Icon(Icons.print, color: Colors.white))
-            ]);
+                '${detailsSale?.createdAt?.format(payload: 'hh:mm:ss A')}: FACTURADO: ${detailsSale?.total?.toCoin()} - DEVUELTA: ${detailsSale?.coinBack?.abs().toCoin()} - ${detailsSale?.ncf}',
+            color: Colors.white,
+            timeout: const Duration(seconds: 30),
+          );
         }
       } catch (e) {
         loading = false;
         sale = null;
-        _reset();
-        await LogHandler.printEvent(e.toString());
+        detailsSale = null;
+
+        if (widget.generateNcfFromProforma == false ||
+            widget.editing == false) {
+          _reset();
+        }
         Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }
@@ -1851,7 +1947,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       'retentionTax': retentionTax,
       'paidAmount': totalPaid,
       'totalGravado': totalGravado,
-      'itbisGravado': itbisGravado
+      'itbisGravado': itbisGravado,
     };
   }
 
@@ -1890,6 +1986,20 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     return _calc['subtotal']?.toUS();
   }
 
+  String get retentionTaxString {
+    if (currentCurrencyId == 1) {
+      return _calc['retentionTax']?.toDop();
+    }
+    return _calc['retentionTax']?.toUS();
+  }
+
+  String get retentionIsrString {
+    if (currentCurrencyId == 1) {
+      return _calc['retentionIsr']?.toDop();
+    }
+    return _calc['retentionIsr']?.toUS();
+  }
+
   String get discountString {
     if (currentCurrencyId == 1) {
       return _calc['discount']?.toDop();
@@ -1926,11 +2036,14 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     return double.parse(_calc['paidAmount']?.toStringAsFixed(2) ?? '0.00');
   }
 
-  _calcRows(
-      {int rowIndex = 0,
-      SaleElement? element,
-      double quantity = 1.0,
-      bool enabledRender = true}) {
+  _calcRows({
+    int rowIndex = 0,
+    SaleElement? element,
+    double quantity = 1.0,
+    bool enabledRender = true,
+    RetentionTax? retentionTax,
+    RetentionIsr? retentionIsr,
+  }) {
     var code = controllers[rowIndex][0];
     var description = controllers[rowIndex][1];
     var count = controllers[rowIndex][2];
@@ -1953,12 +2066,18 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       if (element == null) {
         if (widget.mode == SaleMode.service) {
           xelement = Services(
-              id: item.serviceId, price: item.price, taxId: item.taxId);
+            id: item.serviceId,
+            price: item.price,
+            taxId: item.taxId,
+          );
         }
 
         if (widget.mode == SaleMode.product) {
           xelement = Products(
-              id: item.productId, price: item.price, taxId: item.taxId);
+            id: item.productId,
+            price: item.price,
+            taxId: item.taxId,
+          );
         }
       }
     }
@@ -1980,10 +2099,13 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     double tax3 = 0;
     double total = 0;
     double exemptAmount = 0;
+    double retentionTaxValue = 0;
+    double retentionIsrValue = 0;
 
     double discount = double.tryParse(discountController.text) ?? 0;
     double law10 = 0;
     int indicadorFacturacion = 1;
+    int? indicadorAgente;
     double? rate;
     String? discountSymbol;
     String? discountName;
@@ -2110,14 +2232,28 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       exemptAmount = 0;
     }
 
+    var percentRetentionTax = (retentionTax?.rate ?? 0) / 100;
+    var percentRetentionIsr = (retentionIsr?.rate ?? 0) / 100;
+
+    if (retentionTax != null) {
+      indicadorAgente = 1;
+      retentionTaxValue = percentRetentionTax * tax;
+    }
+
+    if (retentionIsr != null) {
+      indicadorAgente = 1;
+      retentionIsrValue = percentRetentionIsr * netFinal;
+    }
+
     if (currentLawMode == 2) {
       law10 = netFinal * 0.10;
     }
 
-    total = netFinal + tax + law10;
+    total = (netFinal + tax) + law10;
 
     if (enabledRender) {
-      description.text = element?.name ??
+      description.text =
+          element?.name ??
           item.productName ??
           item.serviceName ??
           description.text;
@@ -2131,40 +2267,46 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     }
 
     var newItem = item.copyWith(
-        quantity: xquantity,
-        indicadorFacturacion: indicadorFacturacion,
-        productId: xelement?.id,
-        serviceId: xelement?.id,
-        productName: description.text,
-        serviceName: description.text,
-        price: price,
-        priceItem: price,
-        net: net,
-        net16: net16,
-        net18: net18,
-        net3: net3,
-        discountId: discountId,
-        discount: discount,
-        discountRate: rate,
-        discountName: discountName,
-        discountSymbol: discountSymbol,
-        netFinal: netFinal,
-        tax: tax,
-        tax16: tax16,
-        tax18: tax18,
-        tax3: tax3,
-        taxId: xelement?.taxId,
-        exemptAmount: exemptAmount,
-        law10: law10,
-        unitCode: xelement?.unitCode,
-        unitName: xelement?.unitName,
-        unitSymbol: xelement?.unitSymbol,
-        conversionFactor: xelement?.conversionFactor,
-        chassis: xelement?.chassis,
-        licensePlate: xelement?.licensePlate,
-        colorName: xelement?.colorName,
-        editable: xelement?.editable,
-        total: total);
+      quantity: xquantity,
+      indicadorFacturacion: indicadorFacturacion,
+      indicadorAgentePercepcion: indicadorAgente,
+      productId: xelement?.id,
+      serviceId: xelement?.id,
+      productName: description.text,
+      serviceName: description.text,
+      price: price,
+      priceItem: price,
+      net: net,
+      net16: net16,
+      net18: net18,
+      net3: net3,
+      discountId: discountId,
+      discount: discount,
+      discountRate: rate,
+      discountName: discountName,
+      discountSymbol: discountSymbol,
+      netFinal: netFinal,
+      tax: tax,
+      tax16: tax16,
+      tax18: tax18,
+      tax3: tax3,
+      taxId: xelement?.taxId,
+      exemptAmount: exemptAmount,
+      law10: law10,
+      retentionTaxId: retentionTax?.id,
+      retentionTax: retentionTaxValue,
+      retentionIsrId: retentionIsr?.id,
+      retentionIsr: retentionIsrValue,
+      unitCode: xelement?.unitCode,
+      unitName: xelement?.unitName,
+      unitSymbol: xelement?.unitSymbol,
+      conversionFactor: xelement?.conversionFactor,
+      chassis: xelement?.chassis,
+      licensePlate: xelement?.licensePlate,
+      colorName: xelement?.colorName,
+      editable: xelement?.editable,
+      total: total,
+    );
 
     widget.items[rowIndex] = newItem;
 
@@ -2192,21 +2334,26 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       count.text = '1.00';
 
       if (code.length >= 3) {
+        setState(() {
+          loadingItemDataList[rowIndex] = true;
+        });
         if (widget.mode == SaleMode.product) {
           element = await Products.findByCode(
-              code: code
-                  .trim()
-                  .replaceAll('/', '%2F')
-                  .replaceAll('?', '%3F')
-                  .replaceAll(':', '%3A'));
+            code: code
+                .trim()
+                .replaceAll('/', '%2F')
+                .replaceAll('?', '%3F')
+                .replaceAll(':', '%3A'),
+          );
         }
         if (widget.mode == SaleMode.service) {
           element = await Services.findByCode(
-              code: code
-                  .trim()
-                  .replaceAll('/', '%2F')
-                  .replaceAll('?', '%3F')
-                  .replaceAll(':', '%3A'));
+            code: code
+                .trim()
+                .replaceAll('/', '%2F')
+                .replaceAll('?', '%3F')
+                .replaceAll(':', '%3A'),
+          );
         }
       } else {
         element = null;
@@ -2216,6 +2363,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       element = null;
       price.text = '';
     } finally {
+      setState(() {
+        loadingItemDataList[rowIndex] = false;
+      });
       _calcRows(rowIndex: rowIndex, element: element);
     }
   }
@@ -2226,8 +2376,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       widget.items = [];
     });
     var res = await showDialog(
-        context: context,
-        builder: (ctx) => NcfsSelectorModal(saleMode: widget.mode));
+      context: context,
+      builder: (ctx) => NcfsSelectorModal(saleMode: widget.mode),
+    );
 
     if (res is Sale) {
       _currentSale = res;
@@ -2239,9 +2390,10 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
       );
 
       creditNoteTotal = await getCreditNoteAmountByNcf(
-          saleId: _currentSale!.id!,
-          ncfAffected: _currentSale?.ncf ?? '',
-          ncfAffectedCreatedAt: _currentSale!.createdAt!);
+        saleId: _currentSale!.id!,
+        ncfAffected: _currentSale?.ncf ?? '',
+        ncfAffectedCreatedAt: _currentSale!.createdAt!,
+      );
 
       widget.sale.saleId = res.id;
       widget.sale.typeIncomeId = res.typeIncomeId;
@@ -2268,21 +2420,26 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
       if (_currentSale?.rate != null) {
         rate.value = TextEditingValue(
-            text: _currentSale?.rate?.toStringAsFixed(2) ?? '');
+          text: _currentSale?.rate?.toStringAsFixed(2) ?? '',
+        );
       }
 
       rncOrId.value = TextEditingValue(
-          text: res.clientIdentification?.replaceAll('-', '') ?? '');
+        text: res.clientIdentification?.replaceAll('-', '') ?? '',
+      );
 
       var items = await res.getSaleData();
+      loadingItemDataList = List.generate(items.length, (_) => false);
       items = List.generate(items.length, (index) {
         var e = items[index];
         e.enabled = true;
 
-        controllers
-            .add(List.generate(columns.length, (i) => TextEditingController()));
-        focusNodes.add(List.generate(
-            columns.length, (i) => FocusNode(skipTraversal: true)));
+        controllers.add(
+          List.generate(columns.length, (i) => TextEditingController()),
+        );
+        focusNodes.add(
+          List.generate(columns.length, (i) => FocusNode(skipTraversal: true)),
+        );
         var c0 = controllers[index][0];
         var c1 = controllers[index][1];
         var c2 = controllers[index][2];
@@ -2336,15 +2493,17 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                 net3: canOverrideTaxes ? e.netFinal : e.net3,
                 netFinal: e.netFinal,
                 exemptAmount: canOverrideTaxes ? 0 : e.exemptAmount,
-                indicadorFacturacion:
-                    canOverrideTaxes ? 3 : e.indicadorFacturacion,
+                indicadorFacturacion: canOverrideTaxes
+                    ? 3
+                    : e.indicadorFacturacion,
                 indicadorAgentePercepcion: e.indicadorAgentePercepcion,
                 law10: e.law10,
                 priceItem: e.priceItem,
                 unitSuite: e.unitSuite,
                 clientSuite: e.clientSuite,
                 priceSuite: e.priceSuite,
-                maxDiscount: e.maxDiscount)
+                maxDiscount: e.maxDiscount,
+              )
             : CreditNoteProduct(
                 id: e.id,
                 productCode: e.productCode,
@@ -2381,8 +2540,9 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                 net3: canOverrideTaxes ? e.netFinal : e.net3,
                 netFinal: e.netFinal,
                 exemptAmount: canOverrideTaxes ? 0 : e.exemptAmount,
-                indicadorFacturacion:
-                    canOverrideTaxes ? 3 : e.indicadorFacturacion,
+                indicadorFacturacion: canOverrideTaxes
+                    ? 3
+                    : e.indicadorFacturacion,
                 indicadorAgentePercepcion: e.indicadorAgentePercepcion,
                 conversionFactor: e.conversionFactor,
                 unitCode: e.unitCode,
@@ -2391,7 +2551,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                 units: e.units,
                 law10: e.law10,
                 priceItem: e.priceItem,
-                maxDiscount: e.maxDiscount);
+                maxDiscount: e.maxDiscount,
+              );
       });
 
       widget.items = items;
@@ -2406,1485 +2567,1818 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     var w = size.width;
     var h = size.height;
 
-
-  final scaleX = size.width / 1024;   // ancho base
-  final scaleY = size.height / 768;   // alto base
-  final scale = math.min(scaleX, scaleY);
-    return Scaffold(
+    return EscNavigationDemo(
+      child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text(title),
           toolbarHeight: kToolbarHeight + kDefaultPadding,
           actions: [
             Container(
-                alignment: Alignment.centerRight,
-                margin: EdgeInsets.only(right: kDefaultPadding),
-                child: Text(
-                  currentUser?.name ?? '',
-                  style: TextStyle(color: Colors.white),
-                )),
+              alignment: Alignment.centerRight,
+              margin: EdgeInsets.only(right: kDefaultPadding),
+              child: Text(
+                currentUser?.name ?? '',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
             esNotaCredito
                 ? ToolButtonWidget(
-                    icon: Icons.document_scanner_outlined, onTap: _scanInvoice)
+                    icon: Icons.document_scanner_outlined,
+                    onTap: _scanInvoice,
+                  )
                 : SizedBox(),
             ToolButtonWidget(icon: Icons.restore, onTap: _reset),
             ToolButtonWidget(
-                icon: Icons.close,
-                onTap: () {
-                  Navigator.pop(context);
-                }),
+              icon: Icons.close,
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
           ],
         ),
         body: SizedBox(
-            width: w,
-            height: h,
-            child: Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.disabled,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Expanded(
-                        flex: 2,
-                        child: KeyboardListener(
-                            focusNode: _focusKeyboard,
-                            onKeyEvent:
-                                widget.editing || widget.generateNcfFromProforma
-                                    ? null
-                                    : _onHandlerKeyboard,
-                            child: Container(
-                              width: double.infinity,
-                              height: MediaQuery.of(context).size.height,
-                              alignment: Alignment.topCenter,
-                              color: const Color.fromARGB(255, 243, 241, 241),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: double.infinity,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                        border: Border(
-                                            bottom: BorderSide(
-                                                color: Colors.black38))),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        ...List.generate(columns.length,
-                                            (index) {
-                                          var col = columns[index];
-                                          return Expanded(
-                                              flex: index == 1 ? 2 : 1,
-                                              child: Container(
-                                                alignment: Alignment.center,
-                                                padding: EdgeInsets.all(
-                                                    kDefaultPadding / 2),
-                                                decoration: BoxDecoration(
-                                                    color:
-                                                        const Color(0xFFF6F5F5),
-                                                    border: Border(
-                                                        right: BorderSide(
-                                                            color: Colors
-                                                                .black38))),
-                                                child: Text(
-                                                  col,
-                                                  style: TextStyle(
-                                                      color: Theme.of(context)
-                                                          .primaryColor),
-                                                ),
-                                              ));
-                                        }),
-                                      ],
-                                    ),
-                                  ),
-                                  Expanded(
-                                      child: SingleChildScrollView(
-                                    clipBehavior: Clip.hardEdge,
-                                    child: Column(
-                                      children: [
-                                        ...List.generate(widget.items.length,
-                                            (index) {
-                                          var row = widget.items[index];
-                                          var c1 = controllers[index][0];
-                                          var c2 = controllers[index][1];
-                                          var c3 = controllers[index][2];
-                                          var c4 = controllers[index][3];
-                                          var c5 = controllers[index][4];
-                                          var c6 = controllers[index][5];
-                                          var c7 = controllers[index][6];
-                                          var f1 = focusNodes[index][0];
-                                          var f2 = focusNodes[index][1];
-                                          var f3 = focusNodes[index][2];
-                                          var f4 = focusNodes[index][3];
-                                          var f5 = focusNodes[index][4];
-                                          var f6 = focusNodes[index][5];
-                                          var f7 = focusNodes[index][6];
-
-                                          return Container(
-                                            key: ValueKey(row.id),
-                                            width: double.infinity,
-                                            height: 50,
-                                            decoration: BoxDecoration(
-                                                border: Border(
-                                                    bottom: BorderSide(
-                                                        color:
-                                                            Colors.black38))),
-                                            child: Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                Expanded(
-                                                    child: TextFormField(
-                                                  controller: c1,
-                                                  focusNode: f1,
-                                                  readOnly: esNotaCredito ||
-                                                      widget
-                                                          .generateNcfFromProforma ||
-                                                      widget.editing,
-                                                  onTap: () {
-                                                    x = index;
-                                                    y = 0;
-                                                    offsets[0] = x;
-                                                    offsets[1] = y;
-                                                  },
-                                                  onChanged: (code) {
-                                                    rowDebounces[index]
-                                                        ?.cancel();
-                                                    rowDebounces[index] = Timer(
-                                                        const Duration(
-                                                            milliseconds: 100),
-                                                        () {
-                                                      _onHandlerCode(
-                                                          code, index);
-                                                    });
-                                                  },
-                                                  textInputAction:
-                                                      TextInputAction.none,
-                                                  keyboardType:
-                                                      TextInputType.text,
-                                                  decoration: InputDecoration(
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      hintText: '0000000000',
-                                                      error: row.serviceId ==
-                                                                  null &&
-                                                              row.productId ==
-                                                                  null
-                                                          ? SizedBox()
-                                                          : null,
-                                                      enabledBorder:
-                                                          OutlineInputBorder(
-                                                        borderSide: BorderSide(
-                                                            color: const Color
-                                                                .fromARGB(255,
-                                                                219, 217, 217),
-                                                            width: 0.5),
-                                                      ),
-                                                      border: OutlineInputBorder(
-                                                          borderSide: BorderSide(
-                                                              color: const Color
-                                                                  .fromARGB(
-                                                                  255,
-                                                                  219,
-                                                                  217,
-                                                                  217),
-                                                              width: 0.5),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .zero)),
-                                                )),
-                                                Expanded(
-                                                    flex: 2,
-                                                    child: TextFormField(
-                                                      controller: c2,
-                                                      focusNode: f2,
-                                                      onChanged: (val) {
-                                                        row.serviceName =
-                                                            val.isEmpty
-                                                                ? null
-                                                                : val;
-                                                        row.productName =
-                                                            val.isEmpty
-                                                                ? null
-                                                                : val;
-                                                      },
-                                                      readOnly: esNotaCredito ||
-                                                          widget
-                                                              .generateNcfFromProforma ||
-                                                          widget.editing ||
-                                                          row.editable == false,
-                                                      onTap: () {
-                                                        x = index;
-                                                        y = 1;
-                                                        offsets[0] = x;
-                                                        offsets[1] = y;
-                                                      },
-                                                      textInputAction:
-                                                          TextInputAction.none,
-                                                      keyboardType:
-                                                          TextInputType.text,
-                                                      decoration:
-                                                          InputDecoration(
-                                                              filled: true,
-                                                              fillColor:
-                                                                  Colors.white,
-                                                              hintText:
-                                                                  'Escribir algo...',
-                                                              enabledBorder:
-                                                                  OutlineInputBorder(
-                                                                borderSide: BorderSide(
-                                                                    color: const Color
-                                                                        .fromARGB(
-                                                                        255,
-                                                                        219,
-                                                                        217,
-                                                                        217),
-                                                                    width: 0.5),
-                                                              ),
-                                                              border: OutlineInputBorder(
-                                                                  borderSide:
-                                                                      BorderSide(
-                                                                          width:
-                                                                              0.5),
-                                                                  borderRadius:
-                                                                      BorderRadius
-                                                                          .zero)),
-                                                    )),
-                                                Expanded(
-                                                    child: TextFormField(
-                                                  controller: c3,
-                                                  focusNode: f3,
-                                                  inputFormatters: [
-                                                    FilteringTextInputFormatter
-                                                        .allow(RegExp(
-                                                            r'^\d*\.?\d{0,2}$'))
-                                                  ],
-                                                  readOnly: (esNotaCredito &&
-                                                          currentOverrideCode ==
-                                                              1) ||
-                                                      widget
-                                                          .generateNcfFromProforma ||
-                                                      widget.editing,
-                                                  onTap: () {
-                                                    x = index;
-                                                    y = 2;
-                                                    offsets[0] = x;
-                                                    offsets[1] = y;
-                                                  },
-                                                  onChanged: (count) {
-                                                    var price =
-                                                        double.parse(c4.text);
-                                                    double quantity =
-                                                        double.parse(
-                                                            count.isEmpty
-                                                                ? '0.00'
-                                                                : count);
-
-                                                    SaleElement? element;
-                                                    if (widget.mode ==
-                                                        SaleMode.product) {
-                                                      element = Products(
-                                                          id: row.productId,
-                                                          price: price,
-                                                          taxId: row.taxId,
-                                                          name: row.productName,
-                                                          editable:
-                                                              row.editable);
-                                                    }
-                                                    if (widget.mode ==
-                                                        SaleMode.service) {
-                                                      element = Services(
-                                                          id: row.serviceId,
-                                                          price: price,
-                                                          taxId: row.taxId,
-                                                          name: row.serviceName,
-                                                          editable:
-                                                              row.editable);
-                                                    }
-
-                                                    _calcRows(
-                                                      rowIndex: index,
-                                                      element: element,
-                                                      quantity: quantity,
-                                                      enabledRender: false,
-                                                    );
-                                                  },
-                                                  textInputAction:
-                                                      TextInputAction.none,
-                                                  decoration: InputDecoration(
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      hintText: '0.00',
-                                                      enabledBorder:
-                                                          OutlineInputBorder(
-                                                        borderSide: BorderSide(
-                                                            color: const Color
-                                                                .fromARGB(255,
-                                                                219, 217, 217),
-                                                            width: 0.5),
-                                                      ),
-                                                      border:
-                                                          OutlineInputBorder(
-                                                              borderSide:
-                                                                  BorderSide(
-                                                                      width:
-                                                                          0.5),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .zero)),
-                                                )),
-                                                Expanded(
-                                                    child: TextFormField(
-                                                  controller: c4,
-                                                  focusNode: f4,
-                                                  inputFormatters: [
-                                                    FilteringTextInputFormatter
-                                                        .allow(RegExp(
-                                                            r'^\d*\.?\d{0,2}$'))
-                                                  ],
-                                                  readOnly: esNotaCredito ||
-                                                      widget
-                                                          .generateNcfFromProforma ||
-                                                      widget.editing ||
-                                                      row.editable == false,
-                                                  onTap: () {
-                                                    x = index;
-                                                    y = 3;
-                                                    offsets[0] = x;
-                                                    offsets[1] = y;
-                                                  },
-                                                  onChanged: (val) {
-                                                    var price = double.parse(
-                                                        val.isEmpty
-                                                            ? '0.00'
-                                                            : val);
-
-                                                    double quantity =
-                                                        row.quantity ?? 0;
-
-                                                    SaleElement? element;
-                                                    if (widget.mode ==
-                                                        SaleMode.product) {
-                                                      element = Products(
-                                                          id: row.productId,
-                                                          price: price,
-                                                          taxId: row.taxId,
-                                                          name: row.productName,
-                                                          editable:
-                                                              row.editable);
-                                                    }
-                                                    if (widget.mode ==
-                                                        SaleMode.service) {
-                                                      element = Services(
-                                                          id: row.serviceId,
-                                                          price: price,
-                                                          taxId: row.taxId,
-                                                          name: row.serviceName,
-                                                          editable:
-                                                              row.editable);
-                                                    }
-
-                                                    _calcRows(
-                                                      rowIndex: index,
-                                                      element: element,
-                                                      quantity: quantity,
-                                                      enabledRender: false,
-                                                    );
-                                                  },
-                                                  textInputAction:
-                                                      TextInputAction.none,
-                                                  keyboardType:
-                                                      TextInputType.text,
-                                                  decoration: InputDecoration(
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      hintText: '0.00',
-                                                      enabledBorder:
-                                                          OutlineInputBorder(
-                                                        borderSide: BorderSide(
-                                                            color: const Color
-                                                                .fromARGB(255,
-                                                                219, 217, 217),
-                                                            width: 0.5),
-                                                      ),
-                                                      border:
-                                                          OutlineInputBorder(
-                                                              borderSide:
-                                                                  BorderSide(
-                                                                      width:
-                                                                          0.5),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .zero)),
-                                                )),
-                                                Expanded(
-                                                    child: TextFormField(
-                                                  controller: c5,
-                                                  focusNode: f5,
-                                                  inputFormatters: [
-                                                    FilteringTextInputFormatter
-                                                        .allow(RegExp(
-                                                            r'^\d*\.?\d{0,2}$'))
-                                                  ],
-                                                  readOnly: esNotaCredito ||
-                                                      widget
-                                                          .generateNcfFromProforma ||
-                                                      widget.editing,
-                                                  onTap: () {
-                                                    x = index;
-                                                    y = 4;
-                                                    offsets[0] = x;
-                                                    offsets[1] = y;
-                                                  },
-                                                  onChanged: (val) {
-                                                    double quantity =
-                                                        row.quantity ?? 0;
-
-                                                    SaleElement? element;
-                                                    if (widget.mode ==
-                                                        SaleMode.product) {
-                                                      element = Products(
-                                                          id: row.productId,
-                                                          price: row.price,
-                                                          taxId: row.taxId,
-                                                          name: row.productName,
-                                                          editable:
-                                                              row.editable);
-                                                    }
-                                                    if (widget.mode ==
-                                                        SaleMode.service) {
-                                                      element = Services(
-                                                          id: row.serviceId,
-                                                          price: row.price,
-                                                          taxId: row.taxId,
-                                                          name: row.serviceName,
-                                                          editable:
-                                                              row.editable);
-                                                    }
-
-                                                    _calcRows(
-                                                      rowIndex: index,
-                                                      element: element,
-                                                      quantity: quantity,
-                                                      enabledRender: false,
-                                                    );
-                                                  },
-                                                  textInputAction:
-                                                      TextInputAction.none,
-                                                  keyboardType:
-                                                      TextInputType.text,
-                                                  decoration: InputDecoration(
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      hintText: '0.00',
-                                                      error: (row.discount ??
-                                                                  0) >
-                                                              (row.net ?? 0) *
-                                                                  ((row.maxDiscount ??
-                                                                          0) /
-                                                                      100)
-                                                          ? SizedBox()
-                                                          : null,
-                                                      enabledBorder:
-                                                          OutlineInputBorder(
-                                                        borderSide: BorderSide(
-                                                            color: const Color
-                                                                .fromARGB(255,
-                                                                219, 217, 217),
-                                                            width: 0.5),
-                                                      ),
-                                                      border:
-                                                          OutlineInputBorder(
-                                                              borderSide:
-                                                                  BorderSide(
-                                                                      width:
-                                                                          0.5),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .zero)),
-                                                )),
-                                                Expanded(
-                                                    child: TextFormField(
-                                                  controller: c6,
-                                                  focusNode: f6,
-                                                  readOnly: true,
-                                                  inputFormatters: [
-                                                    FilteringTextInputFormatter
-                                                        .allow(RegExp(
-                                                            r'^\d*\.?\d{0,2}$'))
-                                                  ],
-                                                  onTap: () {
-                                                    x = index;
-                                                    y = 5;
-                                                    offsets[0] = x;
-                                                    offsets[1] = y;
-                                                  },
-                                                  textInputAction:
-                                                      TextInputAction.none,
-                                                  keyboardType:
-                                                      TextInputType.number,
-                                                  decoration: InputDecoration(
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      hintText: '0.00',
-                                                      enabledBorder:
-                                                          OutlineInputBorder(
-                                                        borderSide: BorderSide(
-                                                            color: const Color
-                                                                .fromARGB(255,
-                                                                219, 217, 217),
-                                                            width: 0.5),
-                                                      ),
-                                                      border:
-                                                          OutlineInputBorder(
-                                                              borderSide:
-                                                                  BorderSide(
-                                                                      width:
-                                                                          0.5),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .zero)),
-                                                )),
-                                                Expanded(
-                                                    child: TextFormField(
-                                                  controller: c7,
-                                                  focusNode: f7,
-                                                  readOnly: true,
-                                                  inputFormatters: [
-                                                    FilteringTextInputFormatter
-                                                        .allow(RegExp(
-                                                            r'^\d*\.?\d{0,2}$'))
-                                                  ],
-                                                  onTap: () {
-                                                    x = index;
-                                                    y = 6;
-                                                    offsets[0] = x;
-                                                    offsets[1] = y;
-                                                  },
-                                                  textInputAction:
-                                                      TextInputAction.none,
-                                                  keyboardType:
-                                                      TextInputType.number,
-                                                  decoration: InputDecoration(
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      hintText: '0.00',
-                                                      enabledBorder:
-                                                          OutlineInputBorder(
-                                                        borderSide: BorderSide(
-                                                            color: const Color
-                                                                .fromARGB(255,
-                                                                219, 217, 217),
-                                                            width: 0.5),
-                                                      ),
-                                                      border:
-                                                          OutlineInputBorder(
-                                                              borderSide:
-                                                                  BorderSide(
-                                                                      width:
-                                                                          0.5),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .zero)),
-                                                ))
-                                              ],
-                                            ),
-                                          );
-                                        })
-                                      ],
-                                    ),
-                                  ))
-                                ],
-                              ),
-                            ))),
-                    Expanded(
-                        child:  GestureDetector(
-                      onTap: () => _focusCommands.requestFocus(),
-                      child: KeyboardListener(
-                          focusNode: _focusCommands,
-                          onKeyEvent:
-                              widget.editing || widget.generateNcfFromProforma
-                                  ? null
-                                  : _handlerCommands,
-                          child:
+          width: w,
+          height: h,
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.disabled,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: KeyboardListener(
+                    focusNode: _focusKeyboard,
+                    onKeyEvent: widget.editing || widget.generateNcfFromProforma
+                        ? null
+                        : _onHandlerKeyboard,
+                    child: Container(
+                      width: double.infinity,
+                      height: MediaQuery.of(context).size.height,
+                      alignment: Alignment.topCenter,
+                      color: const Color.fromARGB(255, 243, 241, 241),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
                           Container(
-                        
+                            width: double.infinity,
+                            height: 50,
                             decoration: BoxDecoration(
-                                border: Border(
-                                    left: BorderSide(
-                                        width: 0.8,
-                                        color: const Color.fromRGBO(
-                                            220, 219, 219, 1)))),
+                              border: Border(
+                                bottom: BorderSide(color: Colors.black38),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                ...List.generate(columns.length, (index) {
+                                  var col = columns[index];
+                                  return Expanded(
+                                    flex: index == 1 ? 2 : 1,
+                                    child: Container(
+                                      alignment: Alignment.center,
+                                      padding: EdgeInsets.all(
+                                        kDefaultPadding / 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF6F5F5),
+                                        border: Border(
+                                          right: BorderSide(
+                                            color: Colors.black38,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        col,
+                                        style: TextStyle(
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                          Expanded(
                             child: SingleChildScrollView(
-                              controller: _verticalScrollController,
-                              padding: EdgeInsets.all(kDefaultPadding),
+                              clipBehavior: Clip.hardEdge,
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  !isSale
-                                      ? Container(
-                                          margin: EdgeInsets.only(
-                                              bottom: kDefaultPadding),
-                                          child: DropdownButtonFormField<int?>(
-                                              initialValue: currentOverrideCode,
-                                              isExpanded: true,
-                                              validator: (val) => val == null
-                                                  ? 'CAMPO OBLIGATORIO'
-                                                  : null,
-                                              decoration: InputDecoration(
-                                                  labelText:
-                                                      'CODIGO MODIFICACION'),
-                                              items: overrideCodes
-                                                  .map((e) => DropdownMenuItem(
-                                                      value: e.id,
-                                                      child:
-                                                          Text(e.name ?? '')))
-                                                  .toList(),
-                                              onChanged: (option) {
-                                                setState(() {
-                                                  currentOverrideCode = option;
-                                                });
-                                              }),
-                                        )
-                                      : SizedBox(),
-                                  Container(
-                                      margin: EdgeInsets.symmetric(
-                                          vertical: kDefaultPadding),
-                                      child: Focus(
-                                          focusNode: _ncfSelectorFocus,
-                                          onKeyEvent: (focusNode, event) {
-                                            if (event is KeyDownEvent) {
-                                              if (event.logicalKey ==
-                                                  LogicalKeyboardKey.enter) {
-                                                amountFocus.requestFocus();
+                                  ...List.generate(widget.items.length, (
+                                    index,
+                                  ) {
+                                    var row = widget.items[index];
+                                    var c1 = controllers[index][0];
+                                    var c2 = controllers[index][1];
+                                    var c3 = controllers[index][2];
+                                    var c4 = controllers[index][3];
+                                    var c5 = controllers[index][4];
+                                    var c6 = controllers[index][5];
+                                    var c7 = controllers[index][6];
+                                    var f1 = focusNodes[index][0];
+                                    var f2 = focusNodes[index][1];
+                                    var f3 = focusNodes[index][2];
+                                    var f4 = focusNodes[index][3];
+                                    var f5 = focusNodes[index][4];
+                                    var f6 = focusNodes[index][5];
+                                    var f7 = focusNodes[index][6];
 
-                                                return KeyEventResult.handled;
-                                              }
-                                            }
-
-                                            return KeyEventResult.ignored;
-                                          },
-                                          child: DropdownButtonFormField(
-                                              initialValue: currentNcfTypeId,
-                                              isExpanded: true,
-                                              isDense: true,
-                                              validator: (val) => val == null
-                                                  ? 'CAMPO OBLIGATORIO'
-                                                  : null,
-                                              decoration: InputDecoration(
-                                                  isDense: true,
-                                                  hintText:
-                                                      'SELECCIONA UN TIPO DE COMPROBANTE',
-                                                  labelText:
-                                                      'TIPO DE COMPROBANTE'),
-                                              items: _ncfs
-                                                  .map((e) => DropdownMenuItem(
-                                                      value: e.id,
-                                                      child:
-                                                          Text(e.name ?? '')))
-                                                  .toList(),
-                                              onChanged: widget.editing
-                                                  ? null
-                                                  : _onSelectedNcf))),
-                                  RncQueryWidget(
-                                    clientName: clientName,
-                                    editingController: rncOrId,
-                                    isDense: true,
-                                    rncEditorFocus: _rncEditorFocus,
-                                    editing: widget.editing,
-                                    onChanged: (xtaxPayer, xclient, xisValid) {
-                                      taxPayer = xtaxPayer;
-                                      client = xclient;
-                                      isValid = xisValid;
-                                    },
-                                    onEnter: () {
-                                      amountFocus.requestFocus();
-                                    },
-                                  ),
-                                  SizedBox(height: kDefaultPadding),
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                      vertical: kDefaultPadding / 2,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              'TOTAL NETO',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: Theme.of(context)
-                                                      .primaryColor),
-                                            )),
-                                        Expanded(
-                                            child: Text(netString,
-                                                style: TextStyle(fontSize: 15),
-                                                textAlign: TextAlign.right))
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                      vertical: kDefaultPadding / 2,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              'DECUENTO',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: Theme.of(context)
-                                                      .primaryColor),
-                                            )),
-                                        Expanded(
-                                            child: Text(discountString,
-                                                style: TextStyle(fontSize: 15),
-                                                textAlign: TextAlign.right))
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                      vertical: kDefaultPadding / 2,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              'SUBTOTAL',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: Theme.of(context)
-                                                      .primaryColor),
-                                            )),
-                                        Expanded(
-                                            child: Text(subtotalString,
-                                                style: TextStyle(fontSize: 15),
-                                                textAlign: TextAlign.right))
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                      vertical: kDefaultPadding / 2,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              'TOTAL ITBIS',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: Theme.of(context)
-                                                      .primaryColor),
-                                            )),
-                                        Expanded(
-                                            child: Text(taxString,
-                                                style: TextStyle(fontSize: 15),
-                                                textAlign: TextAlign.right))
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                      vertical: kDefaultPadding / 2,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              'PROPINA LEGAL',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: Theme.of(context)
-                                                      .primaryColor),
-                                            )),
-                                        Expanded(
-                                            child: Text(law10String,
-                                                style: TextStyle(fontSize: 15),
-                                                textAlign: TextAlign.right))
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                      vertical: kDefaultPadding / 2,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              'TOTAL FACTURADO',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: Theme.of(context)
-                                                      .primaryColor),
-                                            )),
-                                        Expanded(
-                                            child: Text(totalString,
-                                                style: TextStyle(fontSize: 15),
-                                                textAlign: TextAlign.right))
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                      vertical: kDefaultPadding / 3,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              'TOTAL PAGADO',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: Theme.of(context)
-                                                      .primaryColor),
-                                            )),
-                                        Expanded(
-                                            child: Text(
-                                          totalPaidString,
-                                          style: TextStyle(fontSize: 15),
-                                          textAlign: TextAlign.right,
-                                        ))
-                                      ],
-                                    ),
-                                  ),
-                                  const Divider(),
-                                  enabledFullGeneratorTableInvoice == false
-                                      ? SizedBox()
-                                      : Row(children: [
+                                    return Container(
+                                      key: ValueKey(row.id),
+                                      width: double.infinity,
+                                      height: 50,
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: Colors.black38,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
                                           Expanded(
-                                              child: Container(
-                                                  margin: EdgeInsets.symmetric(
-                                                      vertical: kDefaultPadding /
-                                                          3),
-                                                  child: DropdownButtonFormField<
-                                                          int?>(
-                                                      focusNode: FocusNode(
-                                                          skipTraversal: true),
-                                                      initialValue:
-                                                          currentCurrencyId,
-                                                      validator: (val) => val ==
-                                                              null
-                                                          ? 'CAMPO OBLIGATORIO'
-                                                          : null,
-                                                      isExpanded: true,
-                                                      decoration:
-                                                          InputDecoration(
-                                                              isDense: true,
-                                                              labelText:
-                                                                  'MONEDA'),
-                                                      items: List.generate(
-                                                          currencies.length,
-                                                          (index) {
-                                                        var currency =
-                                                            currencies[index];
-                                                        return DropdownMenuItem(
-                                                            value: currency.id,
-                                                            child: Text(
-                                                                currency.name ??
-                                                                    ' '));
-                                                      }),
-                                                      onChanged: widget
-                                                                  .editing ||
-                                                              esNotaCredito
-                                                          ? null
-                                                          : (option) {
-                                                              rate.clear();
-                                                              currentCurrencyId =
-                                                                  option;
-                                                              setState(() {});
-                                                            }))),
-                                          currentCurrencyId == 2 &&
-                                                  currentNcfTypeId != '50'
-                                              ? Expanded(
-                                                  child: Container(
-                                                      margin: EdgeInsets.only(
-                                                          left:
-                                                              kDefaultPadding /
-                                                                  2),
-                                                      child: TextFormField(
-                                                        focusNode: FocusNode(
-                                                            skipTraversal:
-                                                                true),
-                                                        key: ValueKey(
-                                                            'editortext_rate'),
-                                                        controller: rate,
-                                                        readOnly:
-                                                            widget.editing ||
-                                                                esNotaCredito,
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .bodyMedium,
-                                                        keyboardType: TextInputType
-                                                            .numberWithOptions(
-                                                                decimal: true),
-                                                        inputFormatters: [
-                                                          FilteringTextInputFormatter
-                                                              .allow(
-                                                            RegExp(
-                                                                r'^\d*\.?\d{0,2}$'),
+                                            child: TextFormField(
+                                              controller: c1,
+                                              focusNode: f1,
+                                              readOnly:
+                                                  esNotaCredito ||
+                                                  widget
+                                                      .generateNcfFromProforma ||
+                                                  widget.editing,
+                                              onTap: () {
+                                                x = index;
+                                                y = 0;
+                                                offsets[0] = x;
+                                                offsets[1] = y;
+                                              },
+                                              onChanged: (code) {
+                                                rowDebounces[index]?.cancel();
+                                                rowDebounces[index] = Timer(
+                                                  const Duration(
+                                                    milliseconds: 100,
+                                                  ),
+                                                  () {
+                                                    _onHandlerCode(code, index);
+                                                  },
+                                                );
+                                              },
+                                              textInputAction:
+                                                  TextInputAction.none,
+                                              keyboardType: TextInputType.text,
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                hintText: '0000000000',
+                                                suffixIcon:
+                                                    loadingItemDataList[index]
+                                                    ? Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .end,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          SizedBox(
+                                                            width: 20,
+                                                            height: 20,
+                                                            child: Center(
+                                                              child:
+                                                                  CircularProgressIndicator(),
+                                                            ),
+                                                          ),
+                                                          SizedBox(
+                                                            width:
+                                                                kDefaultPadding /
+                                                                3,
                                                           ),
                                                         ],
-                                                        validator: (val) => val!
-                                                                .isEmpty
-                                                            ? 'CAMPO OBLIGATORIO'
-                                                            : null,
-                                                        decoration: InputDecoration(
-                                                            isDense: true,
-                                                            labelText:
-                                                                'TASA DE CAMBIO',
-                                                            hintText: '0.00'),
-                                                      )))
-                                              : SizedBox(),
-                                        ]),
-                                  Row(
-                                    children: [
-                                      Expanded(
+                                                      )
+                                                    : null,
+                                                error:
+                                                    row.serviceId == null &&
+                                                        row.productId == null
+                                                    ? SizedBox()
+                                                    : null,
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderSide: BorderSide(
+                                                        color:
+                                                            const Color.fromARGB(
+                                                              255,
+                                                              219,
+                                                              217,
+                                                              217,
+                                                            ),
+                                                        width: 0.5,
+                                                      ),
+                                                    ),
+                                                border: OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                    color: const Color.fromARGB(
+                                                      255,
+                                                      219,
+                                                      217,
+                                                      217,
+                                                    ),
+                                                    width: 0.5,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.zero,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 2,
+                                            child: TextFormField(
+                                              controller: c2,
+                                              focusNode: f2,
+                                              onChanged: (val) {
+                                                row.serviceName = val.isEmpty
+                                                    ? null
+                                                    : val;
+                                                row.productName = val.isEmpty
+                                                    ? null
+                                                    : val;
+                                              },
+                                              readOnly:
+                                                  esNotaCredito ||
+                                                  widget
+                                                      .generateNcfFromProforma ||
+                                                  widget.editing ||
+                                                  row.editable == false,
+                                              onTap: () {
+                                                x = index;
+                                                y = 1;
+                                                offsets[0] = x;
+                                                offsets[1] = y;
+                                              },
+                                              textInputAction:
+                                                  TextInputAction.none,
+                                              keyboardType: TextInputType.text,
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                hintText:
+                                                    loadingItemDataList[index]
+                                                    ? 'Esperando Articulo...'
+                                                    : 'Escribir algo...',
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderSide: BorderSide(
+                                                        color:
+                                                            const Color.fromARGB(
+                                                              255,
+                                                              219,
+                                                              217,
+                                                              217,
+                                                            ),
+                                                        width: 0.5,
+                                                      ),
+                                                    ),
+                                                border: OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                    width: 0.5,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.zero,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: TextFormField(
+                                              controller: c3,
+                                              focusNode: f3,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r'^\d*\.?\d{0,2}$'),
+                                                ),
+                                              ],
+                                              readOnly:
+                                                  (esNotaCredito &&
+                                                      currentOverrideCode ==
+                                                          1) ||
+                                                  widget
+                                                      .generateNcfFromProforma ||
+                                                  widget.editing,
+                                              onTap: () {
+                                                x = index;
+                                                y = 2;
+                                                offsets[0] = x;
+                                                offsets[1] = y;
+                                              },
+                                              onChanged: (count) {
+                                                var price = double.parse(
+                                                  c4.text,
+                                                );
+                                                double quantity = double.parse(
+                                                  count.isEmpty
+                                                      ? '0.00'
+                                                      : count,
+                                                );
+
+                                                SaleElement? element;
+                                                if (widget.mode ==
+                                                    SaleMode.product) {
+                                                  element = Products(
+                                                    id: row.productId,
+                                                    price: price,
+                                                    taxId: row.taxId,
+                                                    name: row.productName,
+                                                    editable: row.editable,
+                                                  );
+                                                }
+                                                if (widget.mode ==
+                                                    SaleMode.service) {
+                                                  element = Services(
+                                                    id: row.serviceId,
+                                                    price: price,
+                                                    taxId: row.taxId,
+                                                    name: row.serviceName,
+                                                    editable: row.editable,
+                                                  );
+                                                }
+
+                                                _calcRows(
+                                                  rowIndex: index,
+                                                  element: element,
+                                                  quantity: quantity,
+                                                  enabledRender: false,
+                                                  retentionTax: retentionsTaxesList[index],
+                                                  retentionIsr: retentionsIsrList[index]
+                                                );
+                                              },
+                                              textInputAction:
+                                                  TextInputAction.none,
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                hintText: '0.00',
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderSide: BorderSide(
+                                                        color:
+                                                            const Color.fromARGB(
+                                                              255,
+                                                              219,
+                                                              217,
+                                                              217,
+                                                            ),
+                                                        width: 0.5,
+                                                      ),
+                                                    ),
+                                                border: OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                    width: 0.5,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.zero,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: TextFormField(
+                                              controller: c4,
+                                              focusNode: f4,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r'^\d*\.?\d{0,2}$'),
+                                                ),
+                                              ],
+                                              readOnly:
+                                                  esNotaCredito ||
+                                                  widget
+                                                      .generateNcfFromProforma ||
+                                                  widget.editing ||
+                                                  row.editable == false,
+                                              onTap: () {
+                                                x = index;
+                                                y = 3;
+                                                offsets[0] = x;
+                                                offsets[1] = y;
+                                              },
+                                              onChanged: (val) {
+                                                var price = double.parse(
+                                                  val.isEmpty ? '0.00' : val,
+                                                );
+
+                                                double quantity =
+                                                    row.quantity ?? 0;
+
+                                                SaleElement? element;
+                                                if (widget.mode ==
+                                                    SaleMode.product) {
+                                                  element = Products(
+                                                    id: row.productId,
+                                                    price: price,
+                                                    taxId: row.taxId,
+                                                    name: row.productName,
+                                                    editable: row.editable,
+                                                  );
+                                                }
+                                                if (widget.mode ==
+                                                    SaleMode.service) {
+                                                  element = Services(
+                                                    id: row.serviceId,
+                                                    price: price,
+                                                    taxId: row.taxId,
+                                                    name: row.serviceName,
+                                                    editable: row.editable,
+                                                  );
+                                                }
+
+                                                _calcRows(
+                                                  rowIndex: index,
+                                                  element: element,
+                                                  quantity: quantity,
+                                                  enabledRender: false,
+                                                  retentionTax: retentionsTaxesList[index],
+                                                  retentionIsr: retentionsIsrList[index]
+                                                );
+                                              },
+                                              textInputAction:
+                                                  TextInputAction.none,
+                                              keyboardType: TextInputType.text,
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                hintText: '0.00',
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderSide: BorderSide(
+                                                        color:
+                                                            const Color.fromARGB(
+                                                              255,
+                                                              219,
+                                                              217,
+                                                              217,
+                                                            ),
+                                                        width: 0.5,
+                                                      ),
+                                                    ),
+                                                border: OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                    width: 0.5,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.zero,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: TextFormField(
+                                              controller: c5,
+                                              focusNode: f5,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r'^\d*\.?\d{0,2}$'),
+                                                ),
+                                              ],
+                                              readOnly:
+                                                  esNotaCredito ||
+                                                  widget
+                                                      .generateNcfFromProforma ||
+                                                  widget.editing,
+                                              onTap: () {
+                                                x = index;
+                                                y = 4;
+                                                offsets[0] = x;
+                                                offsets[1] = y;
+                                              },
+                                              onChanged: (val) {
+                                                double quantity =
+                                                    row.quantity ?? 0;
+
+                                                SaleElement? element;
+                                                if (widget.mode ==
+                                                    SaleMode.product) {
+                                                  element = Products(
+                                                    id: row.productId,
+                                                    price: row.price,
+                                                    taxId: row.taxId,
+                                                    name: row.productName,
+                                                    editable: row.editable,
+                                                  );
+                                                }
+                                                if (widget.mode ==
+                                                    SaleMode.service) {
+                                                  element = Services(
+                                                    id: row.serviceId,
+                                                    price: row.price,
+                                                    taxId: row.taxId,
+                                                    name: row.serviceName,
+                                                    editable: row.editable,
+                                                  );
+                                                }
+
+                                                _calcRows(
+                                                  rowIndex: index,
+                                                  element: element,
+                                                  quantity: quantity,
+                                                  enabledRender: false,
+                                                  retentionTax: retentionsTaxesList[index],
+                                                  retentionIsr: retentionsIsrList[index]
+                                                );
+                                              },
+                                              textInputAction:
+                                                  TextInputAction.none,
+                                              keyboardType: TextInputType.text,
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                hintText: '0.00',
+                                                error:
+                                                    (row.discount ?? 0) >
+                                                        (row.net ?? 0) *
+                                                            ((row.maxDiscount ??
+                                                                    0) /
+                                                                100)
+                                                    ? SizedBox()
+                                                    : null,
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderSide: BorderSide(
+                                                        color:
+                                                            const Color.fromARGB(
+                                                              255,
+                                                              219,
+                                                              217,
+                                                              217,
+                                                            ),
+                                                        width: 0.5,
+                                                      ),
+                                                    ),
+                                                border: OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                    width: 0.5,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.zero,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: TextFormField(
+                                              controller: c6,
+                                              focusNode: f6,
+                                              readOnly: true,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r'^\d*\.?\d{0,2}$'),
+                                                ),
+                                              ],
+                                              onTap: () {
+                                                x = index;
+                                                y = 5;
+                                                offsets[0] = x;
+                                                offsets[1] = y;
+                                              },
+                                              textInputAction:
+                                                  TextInputAction.none,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                hintText: '0.00',
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderSide: BorderSide(
+                                                        color:
+                                                            const Color.fromARGB(
+                                                              255,
+                                                              219,
+                                                              217,
+                                                              217,
+                                                            ),
+                                                        width: 0.5,
+                                                      ),
+                                                    ),
+                                                border: OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                    width: 0.5,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.zero,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: TextFormField(
+                                              controller: c7,
+                                              focusNode: f7,
+                                              readOnly: true,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r'^\d*\.?\d{0,2}$'),
+                                                ),
+                                              ],
+                                              onTap: () {
+                                                x = index;
+                                                y = 6;
+                                                offsets[0] = x;
+                                                offsets[1] = y;
+                                              },
+                                              textInputAction:
+                                                  TextInputAction.none,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                hintText: '0.00',
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderSide: BorderSide(
+                                                        color:
+                                                            const Color.fromARGB(
+                                                              255,
+                                                              219,
+                                                              217,
+                                                              217,
+                                                            ),
+                                                        width: 0.5,
+                                                      ),
+                                                    ),
+                                                border: OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                    width: 0.5,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.zero,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _focusCommands.requestFocus(),
+                    child: KeyboardListener(
+                      focusNode: _focusCommands,
+                      onKeyEvent:
+                          widget.editing || widget.generateNcfFromProforma
+                          ? null
+                          : _handlerCommands,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            left: BorderSide(
+                              width: 0.8,
+                              color: const Color.fromRGBO(220, 219, 219, 1),
+                            ),
+                          ),
+                        ),
+                        child: SingleChildScrollView(
+                          controller: _verticalScrollController,
+                          padding: EdgeInsets.all(kDefaultPadding),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              !isSale
+                                  ? Container(
+                                      margin: EdgeInsets.only(
+                                        bottom: kDefaultPadding,
+                                      ),
+                                      child: DropdownButtonFormField<int?>(
+                                        initialValue: currentOverrideCode,
+                                        isExpanded: true,
+                                        validator: (val) => val == null
+                                            ? 'CAMPO OBLIGATORIO'
+                                            : null,
+                                        decoration: InputDecoration(
+                                          labelText: 'CODIGO MODIFICACION',
+                                        ),
+                                        items: overrideCodes
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e.id,
+                                                child: Text(e.name ?? ''),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (option) {
+                                          setState(() {
+                                            currentOverrideCode = option;
+                                          });
+                                        },
+                                      ),
+                                    )
+                                  : SizedBox(),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding,
+                                ),
+                                child: Focus(
+                                  focusNode: _ncfSelectorFocus,
+                                  onKeyEvent: (focusNode, event) {
+                                    if (event is KeyDownEvent) {
+                                      if (event.logicalKey ==
+                                          LogicalKeyboardKey.enter) {
+                                        amountFocus.requestFocus();
+
+                                        return KeyEventResult.handled;
+                                      }
+                                    }
+
+                                    return KeyEventResult.ignored;
+                                  },
+                                  child: DropdownButtonFormField(
+                                    initialValue: currentNcfTypeId,
+                                    isExpanded: true,
+                                    isDense: true,
+                                    validator: (val) => val == null
+                                        ? 'CAMPO OBLIGATORIO'
+                                        : null,
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      hintText:
+                                          'SELECCIONA UN TIPO DE COMPROBANTE',
+                                      labelText: 'TIPO DE COMPROBANTE',
+                                    ),
+                                    items: _ncfs
+                                        .map(
+                                          (e) => DropdownMenuItem(
+                                            value: e.id,
+                                            child: Text(e.name ?? ''),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: widget.editing
+                                        ? null
+                                        : _onSelectedNcf,
+                                  ),
+                                ),
+                              ),
+                              RncQueryWidget(
+                                clientName: clientName,
+                                editingController: rncOrId,
+                                isDense: true,
+                                rncEditorFocus: _rncEditorFocus,
+                                editing: widget.editing,
+                                onChanged: (xtaxPayer, xclient, xisValid) {
+                                  taxPayer = xtaxPayer;
+                                  client = xclient;
+                                  isValid = xisValid;
+                                },
+                                onEnter: () {
+                                  amountFocus.requestFocus();
+                                },
+                              ),
+                              SizedBox(height: kDefaultPadding),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'TOTAL NETO',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        netString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'DECUENTO',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        discountString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'SUBTOTAL',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        subtotalString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'TOTAL ITBIS',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        taxString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'PROPINA LEGAL',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        law10String,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'TOTAL FACTURADO',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        totalString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'RETENTION ITBIS',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        retentionTaxString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'RETENTION ISR',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        retentionIsrString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 3,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'TOTAL PAGADO',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        totalPaidString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Divider(),
+                              enabledFullGeneratorTableInvoice == false
+                                  ? SizedBox()
+                                  : Row(
+                                      children: [
+                                        Expanded(
                                           child: Container(
-                                              margin: EdgeInsets.symmetric(
-                                                  vertical: kDefaultPadding /
-                                                      3),
-                                              child: DropdownButtonFormField(
+                                            margin: EdgeInsets.symmetric(
+                                              vertical: kDefaultPadding / 3,
+                                            ),
+                                            child:
+                                                DropdownButtonFormField<int?>(
                                                   focusNode: FocusNode(
-                                                      skipTraversal: true),
+                                                    skipTraversal: true,
+                                                  ),
                                                   initialValue:
-                                                      currentPaymentMethodId,
-                                                  isExpanded: true,
+                                                      currentCurrencyId,
                                                   validator: (val) =>
                                                       val == null
-                                                          ? 'CAMPO OBLIGATORIO'
-                                                          : null,
+                                                      ? 'CAMPO OBLIGATORIO'
+                                                      : null,
+                                                  isExpanded: true,
                                                   decoration: InputDecoration(
+                                                    isDense: true,
+                                                    labelText: 'MONEDA',
+                                                  ),
+                                                  items: List.generate(
+                                                    currencies.length,
+                                                    (index) {
+                                                      var currency =
+                                                          currencies[index];
+                                                      return DropdownMenuItem(
+                                                        value: currency.id,
+                                                        child: Text(
+                                                          currency.name ?? ' ',
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                  onChanged:
+                                                      widget.editing ||
+                                                          esNotaCredito
+                                                      ? null
+                                                      : (option) {
+                                                          rate.clear();
+                                                          currentCurrencyId =
+                                                              option;
+                                                          setState(() {});
+                                                        },
+                                                ),
+                                          ),
+                                        ),
+                                        currentCurrencyId == 2 &&
+                                                currentNcfTypeId != '50'
+                                            ? Expanded(
+                                                child: Container(
+                                                  margin: EdgeInsets.only(
+                                                    left: kDefaultPadding / 2,
+                                                  ),
+                                                  child: TextFormField(
+                                                    focusNode: FocusNode(
+                                                      skipTraversal: true,
+                                                    ),
+                                                    key: ValueKey(
+                                                      'editortext_rate',
+                                                    ),
+                                                    controller: rate,
+                                                    readOnly:
+                                                        widget.editing ||
+                                                        esNotaCredito,
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.bodyMedium,
+                                                    keyboardType:
+                                                        TextInputType.numberWithOptions(
+                                                          decimal: true,
+                                                        ),
+                                                    inputFormatters: [
+                                                      FilteringTextInputFormatter.allow(
+                                                        RegExp(
+                                                          r'^\d*\.?\d{0,2}$',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                    validator: (val) =>
+                                                        val!.isEmpty
+                                                        ? 'CAMPO OBLIGATORIO'
+                                                        : null,
+                                                    decoration: InputDecoration(
                                                       isDense: true,
                                                       labelText:
-                                                          'METODO DE PAGO'),
-                                                  items: paymentsMethods
-                                                      .map((e) =>
-                                                          DropdownMenuItem(
-                                                              value: e.id,
-                                                              child: Text(
-                                                                  e.name ??
-                                                                      '')))
-                                                      .toList(),
-                                                  onChanged: (option) {
-                                                    creditCardDescription
-                                                        .clear();
-                                                    transfRef.clear();
-                                                    amount.clear();
-                                                    amountInputFormatter
-                                                        .clear();
-                                                    currentPaymentMethodId =
-                                                        option;
-                                                    creditCardDescriptionFocus
-                                                        .requestFocus();
+                                                          'TASA DE CAMBIO',
+                                                      hintText: '0.00',
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                            : SizedBox(),
+                                      ],
+                                    ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      margin: EdgeInsets.symmetric(
+                                        vertical: kDefaultPadding / 3,
+                                      ),
+                                      child: DropdownButtonFormField(
+                                        focusNode: FocusNode(
+                                          skipTraversal: true,
+                                        ),
+                                        initialValue: currentPaymentMethodId,
+                                        isExpanded: true,
+                                        validator: (val) => val == null
+                                            ? 'CAMPO OBLIGATORIO'
+                                            : null,
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          labelText: 'METODO DE PAGO',
+                                        ),
+                                        items: paymentsMethods
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e.id,
+                                                child: Text(e.name ?? ''),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (option) {
+                                          creditCardDescription.clear();
+                                          transfRef.clear();
+                                          amount.clear();
+                                          amountInputFormatter.clear();
+                                          currentPaymentMethodId = option;
+                                          creditCardDescriptionFocus
+                                              .requestFocus();
 
-                                                    if (currentPaymentMethodId ==
-                                                        1) {
-                                                      amountFocus
-                                                          .requestFocus();
-                                                    }
+                                          if (currentPaymentMethodId == 1) {
+                                            amountFocus.requestFocus();
+                                          }
 
-                                                    if (currentPaymentMethodId ==
-                                                        4) {
-                                                      currentPaymentType = 2;
-                                                      currentPaymentModeId = 2;
-                                                    } else {
-                                                      currentPaymentType = 1;
-                                                      currentPaymentModeId = 3;
-                                                    }
+                                          if (currentPaymentMethodId == 4) {
+                                            currentPaymentType = 2;
+                                            currentPaymentModeId = 2;
+                                          } else {
+                                            currentPaymentType = 1;
+                                            currentPaymentModeId = 3;
+                                          }
 
-                                                    setState(() {});
-                                                  }))),
-                                      const SizedBox(width: kDefaultPadding),
-                                      Expanded(
-                                        child: Container(
-                                            margin: EdgeInsets.symmetric(
-                                                vertical: kDefaultPadding / 3),
-                                            child: DropdownButtonFormField(
-                                                focusNode: FocusNode(
-                                                    skipTraversal: true),
-                                                initialValue:
-                                                    currentPaymentType,
-                                                isExpanded: true,
-                                                isDense: true,
-                                                validator: (val) => val == null
-                                                    ? 'CAMPO OBLIGATORIO'
-                                                    : null,
-                                                decoration: InputDecoration(
-                                                    isDense: true,
-                                                    labelText: 'TIPO DE PAGO'),
-                                                items: paymentsTypes
-                                                    .map((e) =>
-                                                        DropdownMenuItem(
-                                                            value: e.id,
-                                                            child: Text(
-                                                                e.name ?? '')))
-                                                    .toList(),
-                                                onChanged: (option) {
-                                                  currentPaymentType = option;
-                                                  if (currentPaymentMethodId !=
-                                                      1) {
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: kDefaultPadding),
+                                  Expanded(
+                                    child: Container(
+                                      margin: EdgeInsets.symmetric(
+                                        vertical: kDefaultPadding / 3,
+                                      ),
+                                      child: DropdownButtonFormField(
+                                        focusNode: FocusNode(
+                                          skipTraversal: true,
+                                        ),
+                                        initialValue: currentPaymentType,
+                                        isExpanded: true,
+                                        isDense: true,
+                                        validator: (val) => val == null
+                                            ? 'CAMPO OBLIGATORIO'
+                                            : null,
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          labelText: 'TIPO DE PAGO',
+                                        ),
+                                        items: paymentsTypes
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e.id,
+                                                child: Text(e.name ?? ''),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (option) {
+                                          currentPaymentType = option;
+                                          if (currentPaymentMethodId != 1) {
+                                            amount.clear();
+                                            amountInputFormatter.clear();
+                                          }
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              esNotaCredito ||
+                                      enabledFullGeneratorTableInvoice == false
+                                  ? SizedBox()
+                                  : Container(
+                                      margin: EdgeInsets.symmetric(
+                                        vertical: kDefaultPadding,
+                                      ),
+                                      child: TextFormField(
+                                        focusNode: FocusNode(
+                                          skipTraversal: true,
+                                        ),
+                                        controller: paymentDateController,
+                                        readOnly: true,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium,
+                                        validator: (val) {
+                                          return paymentDate == null
+                                              ? 'CAMPO OBLIGATORIO'
+                                              : null;
+                                        },
+                                        decoration: InputDecoration(
+                                          labelText: 'FECHA DE PAGO',
+                                          hintText: 'DD/MM/YYYY',
+                                          isDense: true,
+                                          suffixIcon: IconButton(
+                                            focusNode: FocusNode(
+                                              skipTraversal: true,
+                                            ),
+                                            onPressed: _showDatePickerPayment,
+                                            icon: Icon(Icons.calendar_month),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                              currentPaymentMethodId == 2
+                                  ? Container(
+                                      margin: EdgeInsets.only(
+                                        top: kDefaultPadding / 2,
+                                        bottom: kDefaultPadding,
+                                      ),
+                                      child: TextFormField(
+                                        controller: creditCardDescription,
+                                        focusNode: creditCardDescriptionFocus,
+                                        validator: (val) => val!.isEmpty
+                                            ? 'CAMPO OBLIGATORIO'
+                                            : null,
+                                        onFieldSubmitted: (_) {
+                                          amountFocus.requestFocus();
+                                        },
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          labelText: 'REFERENCIA DE TARJETA',
+                                          hintText: 'VISA XXXX...',
+                                        ),
+                                      ),
+                                    )
+                                  : Container(),
+                              currentPaymentMethodId == 3
+                                  ? Column(
+                                      children: [
+                                        Container(
+                                          margin: EdgeInsets.only(
+                                            top: kDefaultPadding / 2,
+                                            bottom: kDefaultPadding,
+                                          ),
+                                          child: DropdownButtonFormField(
+                                            focusNode: FocusNode(
+                                              skipTraversal: true,
+                                            ),
+                                            isExpanded: true,
+                                            decoration: InputDecoration(
+                                              isDense: true,
+                                              labelText: 'BANCO',
+                                            ),
+                                            validator: (val) => val == null
+                                                ? 'CAMPO OBLIGATORIO'
+                                                : null,
+                                            items: List.generate(banks.length, (
+                                              index,
+                                            ) {
+                                              var bank = banks[index];
+                                              return DropdownMenuItem(
+                                                value: bank.id,
+                                                child: Text(bank.name ?? ''),
+                                              );
+                                            }),
+                                            onChanged: (option) {
+                                              currentBankId = option;
+                                            },
+                                          ),
+                                        ),
+                                        Container(
+                                          margin: EdgeInsets.only(
+                                            bottom: kDefaultPadding,
+                                          ),
+                                          child: TextFormField(
+                                            focusNode: FocusNode(
+                                              skipTraversal: false,
+                                            ),
+                                            onFieldSubmitted: (_) {
+                                              amountFocus.requestFocus();
+                                            },
+                                            key: ValueKey(
+                                              'editortext_bank_ref',
+                                            ),
+                                            controller: transfRef,
+                                            validator: (val) => val!.isEmpty
+                                                ? 'CAMPO OBLIGATORIO'
+                                                : null,
+                                            decoration: InputDecoration(
+                                              isDense: true,
+                                              hintText: 'Escribir algo...',
+                                              labelText:
+                                                  'NUMERO DE CHEQUE O REFERENCIA',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : SizedBox(),
+                              enabledInvoiceNotes
+                                  ? Container(
+                                      margin: EdgeInsets.only(
+                                        bottom: kDefaultPadding,
+                                      ),
+                                      child: TextFormField(
+                                        controller: description,
+                                        keyboardType: TextInputType.multiline,
+                                        maxLines: 3,
+                                        decoration: InputDecoration(
+                                          labelText: 'NOTAS',
+                                          hintText: 'Escribir algo...',
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    )
+                                  : SizedBox(),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      margin: EdgeInsets.symmetric(
+                                        vertical: kDefaultPadding / 3,
+                                      ),
+                                      child: DropdownButtonFormField<int?>(
+                                        focusNode: FocusNode(
+                                          skipTraversal: true,
+                                        ),
+                                        initialValue: currentPaymentModeId,
+                                        isExpanded: true,
+                                        isDense: true,
+                                        validator: (val) => val == null
+                                            ? 'CAMPO OBLIGATORIO'
+                                            : null,
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          labelText: 'MODO DE PAGO',
+                                        ),
+                                        items: paymentsModes
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e.id,
+                                                child: Text(e.name ?? ''),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged:
+                                            widget.editing || esNotaCredito
+                                            ? null
+                                            : (option) {
+                                                setState(() {
+                                                  currentPaymentModeId = option;
+                                                  if (currentPaymentModeId ==
+                                                          1 ||
+                                                      currentPaymentModeId ==
+                                                          2) {
                                                     amount.clear();
                                                     amountInputFormatter
                                                         .clear();
                                                   }
-                                                  setState(() {});
-                                                })),
-                                      )
-                                    ],
+                                                });
+                                              },
+                                      ),
+                                    ),
                                   ),
-                                  esNotaCredito ||
-                                          enabledFullGeneratorTableInvoice ==
-                                              false
+                                  currentPaymentModeId == 2 ||
+                                          currentPaymentModeId == 1
                                       ? SizedBox()
-                                      : Container(
-                                          margin: EdgeInsets.symmetric(
-                                              vertical: kDefaultPadding),
-                                          child: TextFormField(
-                                            focusNode:
-                                                FocusNode(skipTraversal: true),
-                                            controller: paymentDateController,
-                                            readOnly: true,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium,
-                                            validator: (val) {
-                                              return paymentDate == null
-                                                  ? 'CAMPO OBLIGATORIO'
-                                                  : null;
-                                            },
-                                            decoration: InputDecoration(
-                                                labelText: 'FECHA DE PAGO',
-                                                hintText: 'DD/MM/YYYY',
-                                                isDense: true,
-                                                suffixIcon: IconButton(
-                                                    focusNode: FocusNode(
-                                                        skipTraversal: true),
-                                                    onPressed:
-                                                        _showDatePickerPayment,
-                                                    icon: Icon(
-                                                        Icons.calendar_month))),
-                                          )),
-                                  currentPaymentMethodId == 2
-                                      ? Container(
-                                          margin: EdgeInsets.only(
-                                              top: kDefaultPadding / 2,
-                                              bottom: kDefaultPadding),
-                                          child: TextFormField(
-                                            controller: creditCardDescription,
-                                            focusNode:
-                                                creditCardDescriptionFocus,
-                                            validator: (val) => val!.isEmpty
-                                                ? 'CAMPO OBLIGATORIO'
-                                                : null,
-                                            onFieldSubmitted: (_) {
-                                              amountFocus.requestFocus();
-                                            },
-                                            decoration: InputDecoration(
-                                                isDense: true,
-                                                labelText:
-                                                    'REFERENCIA DE TARJETA',
-                                                hintText: 'VISA XXXX...'),
-                                          ))
-                                      : Container(),
-                                  currentPaymentMethodId == 3
-                                      ? Column(
-                                          children: [
-                                            Container(
-                                                margin: EdgeInsets.only(
-                                                    top: kDefaultPadding / 2,
-                                                    bottom: kDefaultPadding),
-                                                child: DropdownButtonFormField(
-                                                    focusNode: FocusNode(
-                                                        skipTraversal: true),
-                                                    isExpanded: true,
-                                                    decoration: InputDecoration(
-                                                        isDense: true,
-                                                        labelText: 'BANCO'),
-                                                    validator: (val) => val ==
-                                                            null
-                                                        ? 'CAMPO OBLIGATORIO'
-                                                        : null,
-                                                    items: List.generate(
-                                                        banks.length, (index) {
-                                                      var bank = banks[index];
-                                                      return DropdownMenuItem(
-                                                          value: bank.id,
-                                                          child: Text(
-                                                              bank.name ?? ''));
-                                                    }),
-                                                    onChanged: (option) {
-                                                      currentBankId = option;
-                                                    })),
-                                            Container(
-                                                margin: EdgeInsets.only(
-                                                    bottom: kDefaultPadding),
-                                                child: TextFormField(
-                                                  focusNode: FocusNode(
-                                                      skipTraversal: false),
-                                                  onFieldSubmitted: (_) {
-                                                    amountFocus.requestFocus();
-                                                  },
-                                                  key: ValueKey(
-                                                      'editortext_bank_ref'),
-                                                  controller: transfRef,
-                                                  validator: (val) =>
-                                                      val!.isEmpty
-                                                          ? 'CAMPO OBLIGATORIO'
-                                                          : null,
-                                                  decoration: InputDecoration(
-                                                      isDense: true,
-                                                      hintText:
-                                                          'Escribir algo...',
-                                                      labelText:
-                                                          'NUMERO DE CHEQUE O REFERENCIA'),
-                                                ))
-                                          ],
-                                        )
-                                      : SizedBox(),
-                                  enabledInvoiceNotes
-                                      ? Container(
-                                          margin: EdgeInsets.only(
-                                              bottom: kDefaultPadding),
-                                          child: TextFormField(
-                                            controller: description,
-                                            keyboardType:
-                                                TextInputType.multiline,
-                                            maxLines: 3,
-                                            decoration: InputDecoration(
-                                                labelText: 'NOTAS',
-                                                hintText: 'Escribir algo...',
-                                                isDense: true),
-                                          ),
-                                        )
-                                      : SizedBox(),
-                                  Row(
-                                    children: [
-                                      Expanded(
+                                      : Expanded(
                                           child: Container(
-                                              margin: EdgeInsets.symmetric(
-                                                  vertical: kDefaultPadding /
-                                                      3),
-                                              child: DropdownButtonFormField<
-                                                      int?>(
-                                                  focusNode: FocusNode(
-                                                      skipTraversal: true),
-                                                  initialValue:
-                                                      currentPaymentModeId,
-                                                  isExpanded: true,
-                                                  isDense: true,
-                                                  validator: (val) =>
-                                                      val == null
-                                                          ? 'CAMPO OBLIGATORIO'
-                                                          : null,
-                                                  decoration: InputDecoration(
-                                                      isDense: true,
-                                                      labelText:
-                                                          'MODO DE PAGO'),
-                                                  items: paymentsModes
-                                                      .map((e) =>
-                                                          DropdownMenuItem(
-                                                              value: e.id,
-                                                              child: Text(
-                                                                  e.name ??
-                                                                      '')))
-                                                      .toList(),
-                                                  onChanged: widget.editing ||
-                                                          esNotaCredito
-                                                      ? null
-                                                      : (option) {
-                                                          setState(() {
-                                                            currentPaymentModeId =
-                                                                option;
-                                                            if (currentPaymentModeId ==
-                                                                    1 ||
-                                                                currentPaymentModeId ==
-                                                                    2) {
-                                                              amount.clear();
-                                                              amountInputFormatter
-                                                                  .clear();
-                                                            }
-                                                          });
-                                                        }))),
-                                      currentPaymentModeId == 2 ||
-                                              currentPaymentModeId == 1
-                                          ? SizedBox()
-                                          : Expanded(
-                                              child: Container(
-                                                margin: EdgeInsets.only(
-                                                    left: kDefaultPadding / 2),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Focus(
-                                                        onKeyEvent:
-                                                            (focus, event) {
-                                                          if (event
-                                                              is KeyDownEvent) {
-                                                            if (event
-                                                                    .logicalKey ==
-                                                                LogicalKeyboardKey
-                                                                    .enter) {
-                                                              _preConfirm();
-                                                              return KeyEventResult
-                                                                  .handled;
-                                                            }
-                                                          }
-
-                                                          return KeyEventResult
-                                                              .ignored;
-                                                        },
-                                                        child: TextFormField(
-                                                          controller: amount,
-                                                          focusNode:
-                                                              amountFocus,
-                                                          autofocus: widget
-                                                              .generateNcfFromProforma,
-                                                          keyboardType:
-                                                              TextInputType
-                                                                  .number,
-                                                          style:
-                                                              Theme.of(context)
-                                                                  .textTheme
-                                                                  .bodyMedium,
-                                                          onChanged: (_) {
-                                                            setState(() {});
-                                                          },
-                                                          inputFormatters: [
-                                                            amountInputFormatter
-                                                          ],
-                                                          validator: (val) {
-                                                            if (esNotaCredito &&
-                                                                amountInputFormatter
-                                                                        .doubleValue >
-                                                                    debt) {
-                                                              return 'EL MONTO ES MAYOR';
-                                                            } else if (esNotaCredito &&
-                                                                debt == 0) {
-                                                              return 'NO TIENE PENDIENTE A DEVOLVER';
-                                                            }
-                                                            return null;
-                                                          },
-                                                          decoration:
-                                                              InputDecoration(
-                                                            isDense: true,
-                                                            labelText:
-                                                                'MONTO PAGADO',
-                                                            hintText: '0.00',
-                                                          ),
-                                                        ))
-                                                  ],
-                                                ),
-                                              ),
-                                            )
-                                    ],
-                                  ),
-                                  !enabledRestaurantMode
-                                      ? SizedBox()
-                                      : Container(
-                                          margin: EdgeInsets.symmetric(
-                                              vertical: kDefaultPadding / 3),
-                                          child: DropdownButtonFormField<int?>(
-                                              initialValue: currentLawMode,
-                                              isExpanded: true,
-                                              isDense: true,
-                                              decoration: InputDecoration(
-                                                  isDense: true,
-                                                  labelText:
-                                                      'MONTO PROPINA LEGAL'),
-                                              items: law10Modes
-                                                  .map((e) => DropdownMenuItem(
-                                                      value: e['id'] as int,
-                                                      child: Text(
-                                                          e['name'] ?? '')))
-                                                  .toList(),
-                                              onChanged: widget.editing
-                                                  ? null
-                                                  : (option) {
-                                                      currentLawMode = option!;
-                                                      if (option == 2) {
-                                                        for (int i = 0;
-                                                            i <
-                                                                widget.items
-                                                                    .length;
-                                                            i++) {
-                                                          var item =
-                                                              widget.items[i];
-                                                          var law10 =
-                                                              item.netFinal! *
-                                                                  0.10;
-                                                          item.law10 = law10;
-                                                          item.total =
-                                                              item.netFinal! +
-                                                                  item.tax! +
-                                                                  law10;
-
-                                                          var newItem = item.copyWith(
-                                                              serviceId: item
-                                                                  .serviceId,
-                                                              productId: item
-                                                                  .productId,
-                                                              tax: item.tax,
-                                                              tax16: item.tax16,
-                                                              tax18: item.tax18,
-                                                              net: item.net,
-                                                              net16: item.net16,
-                                                              net18: item.net18,
-                                                              netFinal:
-                                                                  item.netFinal,
-                                                              law10: law10,
-                                                              taxId: item.taxId,
-                                                              discount:
-                                                                  item.discount,
-                                                              retentionTaxId: item
-                                                                  .retentionTaxId,
-                                                              retentionTax: item
-                                                                  .retentionTax,
-                                                              retentionIsrId: item
-                                                                  .retentionIsrId,
-                                                              retentionIsr: item
-                                                                  .retentionIsr,
-                                                              price: item.price,
-                                                              priceItem: item
-                                                                  .priceItem,
-                                                              indicadorFacturacion:
-                                                                  item
-                                                                      .indicadorFacturacion,
-                                                              exemptAmount: item
-                                                                  .exemptAmount,
-                                                              total:
-                                                                  item.total);
-                                                          widget.items[i] =
-                                                              newItem;
-                                                        }
-                                                      } else {
-                                                        for (int i = 0;
-                                                            i <
-                                                                widget.items
-                                                                    .length;
-                                                            i++) {
-                                                          var item =
-                                                              widget.items[i];
-                                                          var law10 = 0.0;
-                                                          item.law10 = law10;
-                                                          item.total =
-                                                              item.netFinal! +
-                                                                  item.tax!;
-                                                          var newItem = item.copyWith(
-                                                              serviceId: item
-                                                                  .serviceId,
-                                                              productId: item
-                                                                  .productId,
-                                                              tax: item.tax,
-                                                              tax16: item.tax16,
-                                                              tax18: item.tax18,
-                                                              net: item.net,
-                                                              net16: item.net16,
-                                                              net18: item.net18,
-                                                              netFinal:
-                                                                  item.netFinal,
-                                                              law10: law10,
-                                                              taxId: item.taxId,
-                                                              discount:
-                                                                  item.discount,
-                                                              retentionTaxId: item
-                                                                  .retentionTaxId,
-                                                              retentionTax: item
-                                                                  .retentionTax,
-                                                              retentionIsrId: item
-                                                                  .retentionIsrId,
-                                                              retentionIsr: item
-                                                                  .retentionIsr,
-                                                              price: item.price,
-                                                              priceItem: item
-                                                                  .priceItem,
-                                                              indicadorFacturacion:
-                                                                  item
-                                                                      .indicadorFacturacion,
-                                                              exemptAmount: item
-                                                                  .exemptAmount,
-                                                              total:
-                                                                  item.total);
-                                                          widget.items[i] =
-                                                              newItem;
-                                                        }
+                                            margin: EdgeInsets.only(
+                                              left: kDefaultPadding / 2,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Focus(
+                                                  onKeyEvent: (focus, event) {
+                                                    if (event is KeyDownEvent) {
+                                                      if (event.logicalKey ==
+                                                          LogicalKeyboardKey
+                                                              .enter) {
+                                                        _preConfirm();
+                                                        return KeyEventResult
+                                                            .handled;
                                                       }
+                                                    }
 
+                                                    return KeyEventResult
+                                                        .ignored;
+                                                  },
+                                                  child: TextFormField(
+                                                    controller: amount,
+                                                    focusNode: amountFocus,
+                                                    autofocus: widget
+                                                        .generateNcfFromProforma,
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.bodyMedium,
+                                                    onChanged: (_) {
                                                       setState(() {});
-                                                    }),
-                                        ),
-                                  currentPaymentMethodId == 2 &&
-                                          currentPaymentType == 1
-                                      ? SizedBox()
-                                      : Container(
-                                          margin: EdgeInsets.symmetric(
-                                              vertical: kDefaultPadding / 3),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                  child: Text(
-                                                      isSale
-                                                          ? debt < 0
-                                                              ? 'DEVUELTA'
-                                                              : 'DEUDA'
-                                                          : 'PENDIENTE A DEVOLVER',
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .displayMedium
-                                                          ?.copyWith(
-                                                              fontSize: 15,
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .primaryColor,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500))),
-                                              Text(debtString,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .displayMedium
-                                                      ?.copyWith(
-                                                          fontSize: 15,
-                                                          fontWeight:
-                                                              FontWeight.w500))
-                                            ],
+                                                    },
+                                                    inputFormatters: [
+                                                      amountInputFormatter,
+                                                    ],
+                                                    validator: (val) {
+                                                      if (esNotaCredito &&
+                                                          amountInputFormatter
+                                                                  .doubleValue >
+                                                              debt) {
+                                                        return 'EL MONTO ES MAYOR';
+                                                      } else if (esNotaCredito &&
+                                                          debt == 0) {
+                                                        return 'NO TIENE PENDIENTE A DEVOLVER';
+                                                      }
+                                                      return null;
+                                                    },
+                                                    decoration: InputDecoration(
+                                                      isDense: true,
+                                                      labelText: 'MONTO PAGADO',
+                                                      hintText: '0.00',
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                        vertical: kDefaultPadding / 3),
-                                    width: double.infinity,
-                                    height: 40,
-                                    child: ElevatedButton(
-                                        onPressed: () async {
-                                          _preConfirm();
-                                        },
-                                        child: Text(widget.editing
-                                            ? 'EDITAR FACTURA'
-                                            : 'CREAR FACTURA')),
-                                  )
                                 ],
                               ),
-                            ),
-                          ))
+                              !enabledRestaurantMode
+                                  ? SizedBox()
+                                  : Container(
+                                      margin: EdgeInsets.symmetric(
+                                        vertical: kDefaultPadding / 3,
+                                      ),
+                                      child: DropdownButtonFormField<int?>(
+                                        initialValue: currentLawMode,
+                                        isExpanded: true,
+                                        isDense: true,
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          labelText: 'MONTO PROPINA LEGAL',
+                                        ),
+                                        items: law10Modes
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e['id'] as int,
+                                                child: Text(e['name'] ?? ''),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: widget.editing
+                                            ? null
+                                            : (option) {
+                                                currentLawMode = option!;
+                                                if (option == 2) {
+                                                  for (
+                                                    int i = 0;
+                                                    i < widget.items.length;
+                                                    i++
+                                                  ) {
+                                                    var item = widget.items[i];
+                                                    var law10 =
+                                                        item.netFinal! * 0.10;
+                                                    item.law10 = law10;
+                                                    item.total =
+                                                        item.netFinal! +
+                                                        item.tax! +
+                                                        law10;
+
+                                                    var newItem = item.copyWith(
+                                                      serviceId: item.serviceId,
+                                                      productId: item.productId,
+                                                      tax: item.tax,
+                                                      tax16: item.tax16,
+                                                      tax18: item.tax18,
+                                                      net: item.net,
+                                                      net16: item.net16,
+                                                      net18: item.net18,
+                                                      netFinal: item.netFinal,
+                                                      law10: law10,
+                                                      taxId: item.taxId,
+                                                      discount: item.discount,
+                                                      retentionTaxId:
+                                                          item.retentionTaxId,
+                                                      retentionTax:
+                                                          item.retentionTax,
+                                                      retentionIsrId:
+                                                          item.retentionIsrId,
+                                                      retentionIsr:
+                                                          item.retentionIsr,
+                                                      price: item.price,
+                                                      priceItem: item.priceItem,
+                                                      indicadorFacturacion: item
+                                                          .indicadorFacturacion,
+                                                      exemptAmount:
+                                                          item.exemptAmount,
+                                                      total: item.total,
+                                                    );
+                                                    widget.items[i] = newItem;
+                                                  }
+                                                } else {
+                                                  for (
+                                                    int i = 0;
+                                                    i < widget.items.length;
+                                                    i++
+                                                  ) {
+                                                    var item = widget.items[i];
+                                                    var law10 = 0.0;
+                                                    item.law10 = law10;
+                                                    item.total =
+                                                        item.netFinal! +
+                                                        item.tax!;
+                                                    var newItem = item.copyWith(
+                                                      serviceId: item.serviceId,
+                                                      productId: item.productId,
+                                                      tax: item.tax,
+                                                      tax16: item.tax16,
+                                                      tax18: item.tax18,
+                                                      net: item.net,
+                                                      net16: item.net16,
+                                                      net18: item.net18,
+                                                      netFinal: item.netFinal,
+                                                      law10: law10,
+                                                      taxId: item.taxId,
+                                                      discount: item.discount,
+                                                      retentionTaxId:
+                                                          item.retentionTaxId,
+                                                      retentionTax:
+                                                          item.retentionTax,
+                                                      retentionIsrId:
+                                                          item.retentionIsrId,
+                                                      retentionIsr:
+                                                          item.retentionIsr,
+                                                      price: item.price,
+                                                      priceItem: item.priceItem,
+                                                      indicadorFacturacion: item
+                                                          .indicadorFacturacion,
+                                                      exemptAmount:
+                                                          item.exemptAmount,
+                                                      total: item.total,
+                                                    );
+                                                    widget.items[i] = newItem;
+                                                  }
+                                                }
+
+                                                setState(() {});
+                                              },
+                                      ),
+                                    ),
+                              currentPaymentMethodId == 2 &&
+                                      currentPaymentType == 1
+                                  ? SizedBox()
+                                  : Container(
+                                      margin: EdgeInsets.symmetric(
+                                        vertical: kDefaultPadding / 3,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              isSale
+                                                  ? debt < 0
+                                                        ? 'DEVUELTA'
+                                                        : 'DEUDA'
+                                                  : 'PENDIENTE A DEVOLVER',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .displayMedium
+                                                  ?.copyWith(
+                                                    fontSize: 15,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).primaryColor,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                            ),
+                                          ),
+                                          Text(
+                                            debtString,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .displayMedium
+                                                ?.copyWith(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 3,
+                                ),
+                                width: double.infinity,
+                                height: 40,
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    _preConfirm();
+                                  },
+                                  child: Text(
+                                    widget.editing
+                                        ? 'EDITAR FACTURA'
+                                        : 'CREAR FACTURA',
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DialogCoinBack extends StatefulWidget {
+  final Sale? sale;
+  VoidCallback onPressed;
+  DialogCoinBack({super.key, required this.sale, required this.onPressed});
+
+  @override
+  State<DialogCoinBack> createState() => _DialogCoinBackState();
+}
+
+class _DialogCoinBackState extends State<DialogCoinBack> {
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      constraints: BoxConstraints(maxWidth: 500),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: (focus, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+              Navigator.pop(context, true);
+              return KeyEventResult.handled;
+            }
+          }
+
+          if (currentUser!.permissions!.contains('ALLOW_HIDE_PRINT_BUTTON') ==
+              false) {
+            if (event is KeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.f7) {
+              Navigator.pop(context, true);
+              widget.onPressed.call(); // ejecutar acción de imprimir
+              return KeyEventResult.handled;
+            }
+          }
+
+          return KeyEventResult.ignored;
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.shopping_cart_checkout, size: 80, color: Colors.green),
+              SizedBox(height: 20),
+              Text(
+                'FACTURADO: ${widget.sale?.total?.toCoin()}',
+                style: TextStyle(
+                  fontSize: 38,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 10),
+              Text(
+                'DEVUELTA: ${widget.sale?.coinBack?.abs().toCoin()}',
+                style: TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 20),
+              Text(
+                '¡Gracias por su compra!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey[700],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 30),
+              Row(
+                mainAxisAlignment:
+                    currentUser!.permissions!.contains(
+                      'ALLOW_HIDE_PRINT_BUTTON',
                     )
-                    
-                     
-                  ],
-                ))));
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.spaceEvenly,
+                children: [
+                  currentUser!.permissions!.contains('ALLOW_HIDE_PRINT_BUTTON')
+                      ? SizedBox()
+                      : ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            widget.onPressed.call();
+                          },
+                          icon: Icon(Icons.print),
+                          label: Text('IMPRIMIR'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    icon: Icon(Icons.print),
+                    label: Text('CONTINUAR'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -11,6 +11,7 @@ import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
 
 class ServicesPage extends StatefulWidget {
@@ -241,7 +242,7 @@ class _ServicesPageState extends State<ServicesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return  EscNavigationDemo(child:Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text('TUS SERVICIOS (${services.length})'),
@@ -341,6 +342,6 @@ class _ServicesPageState extends State<ServicesPage> {
                   child: Icon(Icons.restore)),
             )
           ],
-        ));
+        )));
   }
 }

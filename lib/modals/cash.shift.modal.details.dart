@@ -16,8 +16,11 @@ void showCashShiftDialog(BuildContext context, CashShiftModel shift) {
     try {
       var bytes = await createTicketCashShift(cashShiftModel: cashShiftModel);
       Navigator.pop(context);
-      await PrinterHandler.printBytes(
-          localStorage.getItem('devicePos') ?? '', bytes);
+          if(enabledSerialMode){
+                 await PrinterHandler.printBytesFromSerialPort(bytes: bytes);
+            }else{
+                await PrinterHandler.printBytes(devicePos, bytes);
+            }
     } catch (e) {
       Navigator.pop(context);
       showTopSnackBar(context, message: e.toString(), color: Colors.red);

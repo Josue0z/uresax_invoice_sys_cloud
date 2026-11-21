@@ -8,7 +8,6 @@ import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.service.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
-import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 
 class SaleService implements Sale {
@@ -147,7 +146,9 @@ class SaleService implements Sale {
       this.branchePhone1,
       this.branchePhone2,
       this.brancheAddress,
-      this.brancheEmail
+      this.brancheEmail,
+      this.boxId,
+      this.originCashShiftId
    });
 
   SaleService copyWith({
@@ -234,6 +235,7 @@ class SaleService implements Sale {
       'rate': rate,
       'maxSequence': maxSequence,
       'cashShiftId':cashShiftId,
+      'originCashShiftId':originCashShiftId,
       'creditCardDescription':creditCardDescription,
       'brancheId': brancheId
     };
@@ -318,14 +320,16 @@ class SaleService implements Sale {
       'transfRef':transfRef,
       'paymentDate':paymentDate?.toIso8601String(),
       'cashShiftId':cashShiftId,
+      'originCashShiftId':originCashShiftId,
       'creditCardDescription':creditCardDescription,
-      'brancheId': brancheId
+      'brancheId': brancheId,
+      'boxId': boxId
     };
   }
 
   factory SaleService.fromMap(Map<String, dynamic> map) {
 
- 
+
     return SaleService(
         id: map['id'],
         refInvoiceId: map['refInvoiceId'],
@@ -441,7 +445,10 @@ class SaleService implements Sale {
       branchePhone1: map['branchePhone1'],
       branchePhone2: map['branchePhone2'],
       brancheAddress: map['brancheAddress'],
-      brancheEmail: map['brancheEmail']
+      brancheEmail: map['brancheEmail'],
+      boxId: map['boxId'],
+      cashShiftId: map['cashShiftId'],
+      originCashShiftId: map['originCashShiftId']
       );
   }
 
@@ -517,7 +524,6 @@ class SaleService implements Sale {
       var res = await apiUresax.post('/sales/create-sale-service', data: {
         ...map,
         'ncfListId':ncfListId, 
-        'boxId': currentUser?.boxId,
         'items': items.map((e) => e.toMap()).toList()
       });
 
@@ -1085,4 +1091,10 @@ class SaleService implements Sale {
 
   @override
   String? branchePhone2;
+
+  @override
+  int? boxId;
+
+  @override
+  String? originCashShiftId;
 }

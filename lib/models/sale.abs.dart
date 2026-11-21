@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:dio/dio.dart';
-import 'package:excel/excel.dart';
+import 'package:excel_plus/excel_plus.dart';
 import 'package:flutter/material.dart' hide Border, BorderStyle;
 import 'package:flutter/services.dart';
 import 'package:moment_dart/moment_dart.dart';
@@ -176,6 +176,9 @@ abstract class Sale {
   String? branchePhone2;
   String? brancheAddress;
   String? brancheEmail;
+  String? originCashShiftId;
+
+  int? boxId;
   bool get isPaid {
     throw UnimplementedError();
   }
@@ -345,13 +348,24 @@ Future<List<Sale>> getSales(
 Future<List<Sale>> getCotizations(
     {required DateTime startDate,
     required DateTime endDate,
-    String? search}) async {
+    String? search,
+    String? mode = 'all'}) async {
   try {
     List<String> query = [];
     String params = '';
 
     if (search != null) {
       query.add('search=$search');
+    }
+    
+
+    if(currentUser!.permissions!.contains('ALLOW_VIEW_PRESALES_ONLY_ME')){
+       mode = 'me';
+       query.add('mode=$mode');     
+    }
+
+     if(currentUser!.permissions!.contains('ALLOW_VIEW_ONLY_PRESALES_WITH_LIMIT')){
+       query.add('limit=10');     
     }
 
     params = '&${query.join('&')}';
@@ -457,9 +471,13 @@ Future<Map<String, dynamic>> getSalesTypeIncomesReport({
 
     doc.addPage(
       pw.MultiPage(
+        
           pageFormat: PdfPageFormat.a4,
           orientation: pw.PageOrientation.landscape,
           theme: pw.ThemeData(defaultTextStyle: pw.TextStyle(fontSize: 5)),
+          margin: pw.EdgeInsets.symmetric(
+                   horizontal: kDefaultPadding * 2
+          ),
           header: (ctx) => pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -618,6 +636,9 @@ Future<Map<String, dynamic>> getSalesReportByTypeNcf(
     doc.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         orientation: pw.PageOrientation.landscape,
+        margin: pw.EdgeInsets.symmetric(
+          horizontal: kDefaultPadding * 2
+        ),
         theme: pw.ThemeData(defaultTextStyle: pw.TextStyle(fontSize: 5)),
         header: (ctx) {
           return pw.Column(
@@ -1450,7 +1471,7 @@ Future<Map<String, dynamic>> getSalesReportBoxes(
           pageFormat: PdfPageFormat.a4,
           orientation: pw.PageOrientation.landscape,
           margin: pw.EdgeInsets.symmetric(
-              vertical: kDefaultPadding, horizontal: kDefaultPadding * 0.8),
+              vertical: kDefaultPadding, horizontal: kDefaultPadding * 2),
           theme: pw.ThemeData(defaultTextStyle: pw.TextStyle(fontSize: 8)),
           header: (ctx) {
             return pw.Column(
@@ -1896,6 +1917,7 @@ Future<Map<String, dynamic>> getSalesReportByConcepts(
     PdfColor color = PdfColor.fromHex('#CECECE');
     doc.addPage(
       pw.MultiPage(
+        
           pageFormat: PdfPageFormat.a4,
           orientation: pw.PageOrientation.landscape,
           margin: pw.EdgeInsets.symmetric(

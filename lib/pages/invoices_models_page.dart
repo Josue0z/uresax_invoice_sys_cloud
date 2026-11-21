@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:localstorage/localstorage.dart';
 import 'package:uresax_invoice_sys_cloud/models/invoice.model.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class InvoicesModelsPage extends StatefulWidget {
   const InvoicesModelsPage({super.key});
@@ -65,7 +65,7 @@ class _InvoicesModelsPageState extends State<InvoicesModelsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('FACTURAS (${invoices.length})'),
       ),
@@ -117,6 +117,6 @@ class _InvoicesModelsPageState extends State<InvoicesModelsPage> {
               ),
             );
           }),
-    );
+    ));
   }
 }

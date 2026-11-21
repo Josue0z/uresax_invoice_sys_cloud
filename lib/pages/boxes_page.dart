@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uresax_invoice_sys_cloud/modals/box.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/box.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class BoxesPage extends StatefulWidget {
   const BoxesPage({super.key});
@@ -41,7 +42,7 @@ class _BoxesPageState extends State<BoxesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('CAJAS (${xboxes.length})'),
         actions: [
@@ -100,6 +101,6 @@ class _BoxesPageState extends State<BoxesPage> {
           },
           separatorBuilder: (ctx, index) => Divider(),
           itemCount: xboxes.length),
-    );
+    ));
   }
 }

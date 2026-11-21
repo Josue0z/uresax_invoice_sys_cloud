@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:uresax_invoice_sys_cloud/apis/api.uresax.dart';
+import 'package:uresax_invoice_sys_cloud/models/ncftype.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 
@@ -84,7 +85,7 @@ class NcfsList {
 
       return null;
     } on DioException catch (e) {
-          throw e.response?.data['message'] ?? e.error.toString();
+          throw e.response?.data['message'] ?? 'NO SE PUDO OBTENER EL ESTADO DEL NCF (VERIFIQUE SU CONEXION A INTERNET)';
     }
   }
 
@@ -98,6 +99,8 @@ class NcfsList {
       });
 
       if(res.statusCode == 200){
+
+        ncfs = await NcfType.get();
         return NcfsList.fromMap(res.data);
       }
       

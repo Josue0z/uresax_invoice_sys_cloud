@@ -59,6 +59,9 @@ class Company {
   final bool enabledHideComercialName;
   final bool notAllowAutoPrint;
   final bool allowOnlyFiltersSales;
+  final bool allowOpenPdfWithInternalApp;
+  final bool allowSaveUsername;
+  final bool removePreSalesHeader;
   int? currentInvoiceIndex;
   int? currentWorkdayId;
   double? defaultCashShiftAmount;
@@ -119,7 +122,10 @@ class Company {
     this.defaultCashShiftAmount = 0.00,
     this.currentWorkdayId,
     this.allowCloseCashShift = true,
-    this.allowOnlyFiltersSales = false
+    this.allowOnlyFiltersSales = false,
+    this.allowOpenPdfWithInternalApp = false,
+    this.allowSaveUsername = true,
+    this.removePreSalesHeader = false
   });
 
   static Future<Company?> get() async {
@@ -222,6 +228,7 @@ class Company {
       rncOrId: map['rncOrId'],
       currentWorkdayId: map['URESAX_INVOICE_CURRENT_WORKDAY'],
       allowOnlyFiltersSales: map['URESAX_INVOICE_ALLOW_ONLY_FILTERS_SALES'],
+      removePreSalesHeader: map['URESAX_INVOICE_REMOVE_PRESALES_HEADER'],
       phone1:  localStorage.getItem('URESAX_INVOICE_BRANCHE_PHONE1_${map['id']}') ?? Platform.environment['URESAX_INVOICE_COMPANY_PHONE1'] ??
           map['phone1'],
       phone2: localStorage.getItem('URESAX_INVOICE_BRANCHE_PHONE2_${map['id']}') ?? Platform.environment['URESAX_INVOICE_COMPANY_PHONE2'] ??
@@ -232,6 +239,7 @@ class Company {
       address: localStorage.getItem('URESAX_INVOICE_BRANCHE_ADDRESS_${map['id']}') ?? Platform.environment['URESAX_INVOICE_COMPANY_ADDRESS_NAME'] ??
           map['address'],
       logo: map['logo'],
+      allowSaveUsername: map['URESAX_INVOICE_ALLOW_SAVE_USERNAME'],
       allowCloseCashShift: map['URESAX_INVOICE_ALLOW_CLOSE_CASH_SHIFT'],
       message: Platform.environment['URESAX_INVOICE_COMPANY_MESSAGE'] ??
           map['message'],
@@ -241,6 +249,7 @@ class Company {
       defaultCashShiftAmount: map['defaultCashShiftAmount'] != null ? double.tryParse(map['defaultCashShiftAmount']) : 0.00,
       enabledHideComercialName: map['URESAX_INVOICE_ENABLED_HIDE_COMERCIAL_NAME'],
       enabledLabelWhatsApp: map['URESAX_INVOICE_ENABLED_LABEL_WHATSAPP'],
+      allowOpenPdfWithInternalApp: map['URESAX_INVOICE_ALLOW_OPEN_PDF_WITH_INTERNAL_WIDGET'],
       enabledFirstComercialName: bool.tryParse(Platform
                   .environment['URESAX_INVOICE_ENABLED_FIRST_COMERCIAL_NAME'] ??
               (map['URESAX_INVOICE_ENABLED_FIRST_COMERCIAL_NAME']?.toString() ?? 'false')) ??

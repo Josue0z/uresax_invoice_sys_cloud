@@ -9,6 +9,7 @@ import 'package:uresax_invoice_sys_cloud/models/sale.service.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:path/path.dart' as path;
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class Sales607FormPage extends StatefulWidget {
   const Sales607FormPage({super.key});
@@ -159,7 +160,7 @@ class _Sales607FormPageState extends State<Sales607FormPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
         appBar: AppBar(
           title: Text('GENERADOR DE 607'),
           actions: [
@@ -207,6 +208,6 @@ class _Sales607FormPageState extends State<Sales607FormPage> {
                 ),
                 content
               ],
-            )));
+            ))));
   }
 }

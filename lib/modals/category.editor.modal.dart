@@ -40,19 +40,20 @@ class _CategoryEditorModalState extends State<CategoryEditorModal> {
 
         if (!widget.editing) {
           await widget.category.create();
-          await LogHandler.printEvent(
-              'CATEGORIA: ${widget.category.name} CREADA');
+ 
         } else {
           await widget.category.update();
-          await LogHandler.printEvent(
-              'CATEGORIA: ${widget.category.name} ACTUALIZADA');
         }
         Navigator.pop(context);
         Navigator.pop(context, widget.editing ? 'UPDATE' : 'CREATE');
+
+        await LogHandler.printEvent(widget.editing ? 'CATEGORIA: ${widget.category.name} ACTUALIZADA':
+              'CATEGORIA: ${widget.category.name} CREADA');
       } catch (e) {
-        await LogHandler.printError(e.toString());
+
         Navigator.pop(context);
         showTopSnackBar(context, message: e.toString(), color: Colors.red);
+        await LogHandler.printError(e.toString());
       }
     }
   }

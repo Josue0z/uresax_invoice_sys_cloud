@@ -13,10 +13,16 @@ class NcfType {
   int? maxLimit;
   NcfType({this.id, this.name, this.minLimit, this.maxLimit});
 
-  static Future<List<NcfType>> get() async {
+  static Future<List<NcfType>> get({bool all = false}) async {
     try {
       await User.authClient();
-      var res = await apiUresax.get('/ncfs/all');
+
+      var query = [];
+      if (all) {
+        query.add('mode=all');
+      }
+      var params = '?${query.join('&')}';
+      var res = await apiUresax.get('/ncfs/all$params');
 
       if (res.statusCode == 200) {
         var data = res.data;

@@ -100,27 +100,27 @@ class _CustomLatinEncoder extends Converter<String, List<int>> {
     final bytes = <int>[];
     for (var rune in input.runes) {
       switch (rune) {
-        case 0x00F1: // ñ
-          bytes.add(0xA4); // código que tu impresora espera
-          break;
-        case 0x00E1: // á
-          bytes.add(0xA0);
-          break;
-        case 0x00E9: // é
-          bytes.add(0x82);
-          break;
-        case 0x00ED: // í
-          bytes.add(0xA1);
-          break;
-        case 0x00F3: // ó
-          bytes.add(0xA2);
-          break;
-        case 0x00FA: // ú
-          bytes.add(0xA3);
-          break;
-        default:
-          bytes.add(rune < 256 ? rune : 63); // 63 = '?'
-      }
+  case 0x00E1: // á
+    bytes.add(0xA0);
+    break;
+  case 0x00E9: // é
+    bytes.add(0x82);
+    break;
+  case 0x00ED: // í
+    bytes.add(0xA1);
+    break;
+  case 0x00F3: // ó
+    bytes.add(0xA2);
+    break;
+  case 0x00FA: // ú
+    bytes.add(0xA3);
+    break;
+  case 0x00F1: // ñ
+    bytes.add(63); // no existe en PC437, usar '?' o 'n~'
+    break;
+  default:
+    bytes.add(rune < 256 ? rune : 63);
+}
     }
     return Uint8List.fromList(bytes);
   }

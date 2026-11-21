@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uresax_invoice_sys_cloud/modals/unit.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/unit.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class UnitsPage extends StatefulWidget {
     bool selectedMode;
@@ -42,7 +43,7 @@ class _UnitsPageState extends State<UnitsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('UNIDADES (${units.length})'),
         actions: [
@@ -107,6 +108,6 @@ class _UnitsPageState extends State<UnitsPage> {
           },
           separatorBuilder: (ctx, index) => Divider(),
           itemCount: units.length),
-    );
+    ));
   }
 }

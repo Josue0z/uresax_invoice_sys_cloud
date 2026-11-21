@@ -4,6 +4,7 @@ import 'package:uresax_invoice_sys_cloud/modals/drivers.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/drivers.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class DriversPage extends StatefulWidget {
   bool selectedMode;
@@ -99,7 +100,7 @@ class _DriversPageState extends State<DriversPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text('CONDUCTORES (${drivers.length})'),
         actions: [
@@ -166,6 +167,6 @@ class _DriversPageState extends State<DriversPage> {
 
             return contentEmpty;
           }),
-    );
+    ));
   }
 }

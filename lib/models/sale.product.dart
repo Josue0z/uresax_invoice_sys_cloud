@@ -8,7 +8,6 @@ import 'package:uresax_invoice_sys_cloud/models/sale.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.abs.dart';
 import 'package:uresax_invoice_sys_cloud/models/sale.item.product.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
-import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/extensions.dart';
 
 class SaleProduct implements Sale {
@@ -56,6 +55,7 @@ class SaleProduct implements Sale {
   String? saleId;
   @override
   String? message;
+  
   SaleProduct(
       {this.id,
       this.clientId,
@@ -149,7 +149,9 @@ class SaleProduct implements Sale {
       this.branchePhone1,
       this.branchePhone2,
       this.brancheAddress,
-      this.brancheEmail});
+      this.brancheEmail,
+      this.boxId,
+      this.originCashShiftId});
 
   SaleProduct copyWith({
     String? id,
@@ -234,6 +236,7 @@ class SaleProduct implements Sale {
       'rate': rate,
       'maxSequence': maxSequence,
       'cashShiftId':cashShiftId,
+      'originCashShiftId':originCashShiftId,
       'creditCardDescription':creditCardDescription,
       'brancheId': brancheId
     };
@@ -287,8 +290,10 @@ class SaleProduct implements Sale {
       'transfRef':transfRef,
       'paymentDate':paymentDate?.toIso8601String(),
       'cashShiftId':cashShiftId,
+      'originCashShiftId':originCashShiftId,
       'creditCardDescription':creditCardDescription,
-      'brancheId': brancheId
+      'brancheId': brancheId,
+      'boxId': boxId
     };
   }
 
@@ -408,7 +413,10 @@ class SaleProduct implements Sale {
         branchePhone1: map['branchePhone1'],
         branchePhone2: map['branchePhone2'],
         brancheAddress: map['brancheAddress'],
-        brancheEmail: map['brancheEmail']);
+        brancheEmail: map['brancheEmail'],
+        boxId: map['boxId'],
+        cashShiftId: map['cashShiftId'],
+        originCashShiftId: map['originCashShiftId']);
   }
 
   String toJson() => json.encode(toMap());
@@ -481,7 +489,7 @@ class SaleProduct implements Sale {
       var map = toMapInsert();
 
       var res = await apiUresax.post('/sales/create-sale-product',
-          data: {...map,'ncfListId':ncfListId, 'boxId': currentUser?.boxId, 'items': items.map((e) => e.toMap()).toList()});
+          data: {...map,'ncfListId':ncfListId, 'items': items.map((e) => e.toMap()).toList()});
 
       if (res.statusCode == 200) {
         return SaleProduct.fromMap(res.data);
@@ -1079,4 +1087,10 @@ class SaleProduct implements Sale {
 
   @override
   String? branchePhone2;
+
+  @override
+  int? boxId;
+
+  @override
+  String? originCashShiftId;
 }

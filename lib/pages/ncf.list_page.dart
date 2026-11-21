@@ -5,6 +5,7 @@ import 'package:uresax_invoice_sys_cloud/modals/ncf.list.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/ncfList.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 
 class NcfListPage extends StatefulWidget {
   const NcfListPage({super.key});
@@ -112,7 +113,7 @@ class _NcfListPageState extends State<NcfListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('LISTA DE NCFS (${ncfsList.length})'),
@@ -166,6 +167,6 @@ class _NcfListPageState extends State<NcfListPage> {
               });
             }
           }),
-    );
+    ));
   }
 }

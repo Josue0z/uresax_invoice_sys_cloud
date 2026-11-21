@@ -7,8 +7,8 @@ class LogHandler {
   static late File logs;
   static Future<void> init() async {
     try {
-      var dir = Directory.current;
-      logs = File(path.join(dir.path, 'logs', 'logs.txt'));
+      var dir = Directory.systemTemp;
+      logs = File(path.join(dir.path, 'uresax_logs', 'logs.txt'));
       await logs.create(recursive: true);
     } catch (e) {
       print(e);
@@ -16,14 +16,22 @@ class LogHandler {
   }
 
   static Future<void> printEvent(String message) async {
-    var now = DateTime.now();
+    try{
+          var now = DateTime.now();
     var oldData = await logs.readAsString();
-    logs.writeAsString('[${now.toIso8601String()}] - EVENT: $message\n$oldData');
+    await logs.writeAsString('[${now.toIso8601String()}] - EVENT: $message\n$oldData');
+    }catch(e){
+      print(e);
+    }
   }
 
   static Future<void> printError(String error) async {
-    var now = DateTime.now();
+    try{
+       var now = DateTime.now();
     var oldData = await logs.readAsString();
-    logs.writeAsString('[${now.toIso8601String()}] - ERROR: $error\n$oldData');
+    await logs.writeAsString('[${now.toIso8601String()}] - ERROR: $error\n$oldData');
+    }catch(e){
+      print(e);
+    }
   }
 }

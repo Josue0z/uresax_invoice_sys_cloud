@@ -4,11 +4,14 @@ import 'package:uresax_invoice_sys_cloud/modals/category.editor.modal.dart';
 import 'package:uresax_invoice_sys_cloud/models/categorie.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/scrollmove.event.widget.dart';
+  List<Category>? subCategoriesElements = [];
 
 class CategoriesPage extends StatefulWidget {
   bool selectorMode;
   Category? parentCategory;
+
   bool subCategories;
   CategoriesPage(
       {super.key,
@@ -29,14 +32,17 @@ class _CategoriesPageState extends State<CategoriesPage> {
 
   _onSelected(Category? category) {
     if (widget.subCategories) {
-      Navigator.pop(context);
-      Navigator.pop(context, category);
+      for(int i = 0; i < (subCategoriesElements!.length+1); i++){
+         Navigator.pop(context,category);
+         print(i);
+      }
     } else {
       Navigator.pop(context, category);
     }
   }
 
   _showModal({bool editing = false, required Category category}) async {
+
     var res = await showDialog(
         context: context,
         barrierDismissible: false,
@@ -66,6 +72,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
         _showModal(editing: true, category: category);
         break;
       case 2:
+          subCategoriesElements?.add(category);
         await Navigator.push(
             context,
             MaterialPageRoute(
@@ -73,6 +80,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
                     selectorMode: widget.selectorMode,
                     parentCategory: category,
                     subCategories: true)));
+            subCategoriesElements?.removeLast();
+
+          setState((){});
 
         break;
     }
@@ -90,9 +100,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
                 {'id': 1, 'name': 'EDITAR CATEGORIA'},
               ];
 
-              if (!widget.subCategories) {
-                options.add({'id': 2, 'name': 'VER SUBCATEGORIAS'});
-              }
+          
+             options.add({'id': 2, 'name': 'VER SUBCATEGORIAS'});
+              
               return ListTile(
                 minVerticalPadding: kDefaultPadding,
                 leading: Container(
@@ -163,7 +173,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
 
   String get title {
     if (widget.subCategories) {
-      return 'SUBCATEGORIAS - ${widget.parentCategory?.name ?? ''}';
+
+      var list = subCategoriesElements?.map((x) => x.name?.toUpperCase() ?? '').join(' >');
+      return '$list';
     }
     return 'CATEGORIAS';
   }
@@ -189,7 +201,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text('TUS $title (${categories.length})'),
@@ -232,7 +244,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
                 CircleAvatar(
                   child: IconButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                                 Navigator.pop(context);
                       },
                       icon: Icon(Icons.close)),
                 ),
@@ -280,6 +292,6 @@ class _CategoriesPageState extends State<CategoriesPage> {
                   child: Icon(Icons.restore)),
             )
           ],
-        ));
+        )));
   }
 }

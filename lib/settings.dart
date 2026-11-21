@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:localstorage/localstorage.dart';
+import 'package:material_color_generator/material_color_generator.dart';
 import 'package:paypal_sdk/subscriptions.dart' show PlanCollection;
 import 'package:uresax_invoice_sys_cloud/models/bank.dart'; 
 import 'package:uresax_invoice_sys_cloud/models/box.dart';
@@ -30,13 +31,13 @@ import 'package:uresax_invoice_sys_cloud/models/type.income.dart';
 import 'package:uresax_invoice_sys_cloud/models/user.dart';
 import 'package:uresax_invoice_sys_cloud/models/warehouse.dart';
 import 'package:uresax_invoice_sys_cloud/models/workday.dart';
-
+import 'package:hexcolor/hexcolor.dart';
 
 
 Company? company;
 
 List<NcfType> ncfs = [];
-
+List<NcfType> ncfsAll = [];
 List<PaymentMethod> paymentsMethods = [];
 
 List<TypeIncome> typesIncomes = [];
@@ -277,3 +278,21 @@ bool enabledMultiplyBranches = false;
 List<BrancheModel> branches = [];
 
 List<NcfsList> ncfsLists = [];
+
+
+String currentPaperSize = localStorage.getItem('currentPaperSize') ?? 'mm80';
+
+bool enabledSerialMode = bool.tryParse(localStorage.getItem('enabledSerialMode') ??  'false') ?? false;
+
+String currentSerialPort = localStorage.getItem('currentSerialPort') ?? 'COM1';
+
+int currentBaudRate = int.parse(localStorage.getItem('currentBaudRate') ?? '9600');
+
+
+
+String primaryColor = Colors.blue.toHex();
+
+String currentHexColor = primaryColor;
+
+MaterialColor  currentThemeColor = generateMaterialColor(color:  HexColor(currentHexColor));
+

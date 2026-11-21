@@ -4,6 +4,7 @@ import 'package:uresax_invoice_sys_cloud/models/workday.dart';
 import 'package:uresax_invoice_sys_cloud/settings.dart';
 import 'package:uresax_invoice_sys_cloud/utils/functions.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/content.error.widget.dart';
+import 'package:uresax_invoice_sys_cloud/widgets/escape.widget.dart';
 import 'package:uresax_invoice_sys_cloud/widgets/toolbutton.widget.dart';
 
 class WorkdayListPage extends StatefulWidget {
@@ -85,7 +86,7 @@ class _WorkdayListPageState extends State<WorkdayListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return EscNavigationDemo(child: Scaffold(
       appBar: AppBar(
         title: Text("Jornadas de trabajo (${workdays.length})"),
         automaticallyImplyLeading: false,
@@ -168,7 +169,7 @@ class _WorkdayListPageState extends State<WorkdayListPage> {
         onPressed: () => _addOrEditWorkday(),
         child: const Icon(Icons.add),
       ),
-    );
+    ));
   }
 }
 
