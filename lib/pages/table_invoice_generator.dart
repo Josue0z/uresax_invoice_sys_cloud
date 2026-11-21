@@ -773,15 +773,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
   Future<void> _onHandlerKeyboard(KeyEvent event) async {
     if (event is KeyDownEvent) {
-      if (currentUser!.permissions!.contains('ALLOW_HIDE_PRINT_BUTTON') ==
-          false) {
-        if (event.logicalKey == LogicalKeyboardKey.f7) {
-          if (sale != null && loading == false) {
-            printPos();
-          }
-        }
-      }
-
+      
             if (HardwareKeyboard.instance.isControlPressed) {
         if (event.logicalKey == LogicalKeyboardKey.keyR) {
           var res = await showRetentionEditorModal(
@@ -827,8 +819,20 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         }
       }
 
+      if( widget.editing || widget.generateNcfFromProforma){
 
-      if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      }else{
+
+        if (currentUser!.permissions!.contains('ALLOW_HIDE_PRINT_BUTTON') ==
+          false) {
+        if (event.logicalKey == LogicalKeyboardKey.f7) {
+          if (sale != null && loading == false) {
+            printPos();
+          }
+        }
+      }
+
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         x = offsets[0];
         y = offsets[1];
         y = (y <= 0) ? columns.length - 1 : y - 1;
@@ -941,6 +945,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         currentNcfTypeId = '60';
         _onSelectedNcf(currentNcfTypeId);
       }
+      }
+    
     }
   }
 
@@ -1426,7 +1432,11 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
 
   _handlerCommands(KeyEvent event) async {
     if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.f1) {
+
+        if( widget.editing || widget.generateNcfFromProforma){
+
+        }else{
+       if (event.logicalKey == LogicalKeyboardKey.f1) {
         _reset();
       }
 
@@ -1451,6 +1461,8 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
         currentNcfTypeId = '60';
         _onSelectedNcf(currentNcfTypeId);
       }
+        }
+   
     }
   }
 
@@ -1761,7 +1773,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                 builder: (ctx) => PaymentEditorModal(sale: sale!),
               );
 
-              if (widget.sale.prefix == 'E') {
+              if (widget.sale.prefix == 'E'  && !widget.editing) {
                 if (xsale != null) {
                   showLoader(context);
                   await enviarEcf(xsale);
@@ -2014,12 +2026,28 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
     return _calc['net']?.toUS();
   }
 
+  
+
+  bool get hasRetencionesAplicadas {
+    return (widget.sale.retentionTax ?? 0) > 0 ||
+        (widget.sale.retentionIsr ?? 0) > 0;
+  }
+
   double get debt {
     if (esNotaCredito && _currentSale != null) {
       return _currentSale!.amountPaid! - creditNoteTotal;
     }
-    if (widget.sale.amountPaid != null && widget.editing) {
-      return (widget.sale.debt! - (amountInputFormatter.doubleValue));
+       if (widget.sale.amountPaid != null && widget.editing) {
+      double retenciones = (_calc['retentionTax'] ?? 0) + (_calc['retentionIsr'] ?? 0);
+ 
+      if (hasRetencionesAplicadas == true) {
+        // Ya se aplicaron las retenciones en la deuda original
+        return (widget.sale.debt! - amountInputFormatter.doubleValue);
+      } else {
+        // Retenciones se aplican ahora junto con el pago
+        return ((widget.sale.debt!  - retenciones) -
+            amountInputFormatter.doubleValue);
+      }
     }
 
     return (paidAmount - (amountInputFormatter.doubleValue));
@@ -2610,9 +2638,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                   flex: 2,
                   child: KeyboardListener(
                     focusNode: _focusKeyboard,
-                    onKeyEvent: widget.editing || widget.generateNcfFromProforma
-                        ? null
-                        : _onHandlerKeyboard,
+                    onKeyEvent:  _onHandlerKeyboard,
                     child: Container(
                       width: double.infinity,
                       height: MediaQuery.of(context).size.height,
@@ -3238,10 +3264,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                     onTap: () => _focusCommands.requestFocus(),
                     child: KeyboardListener(
                       focusNode: _focusCommands,
-                      onKeyEvent:
-                          widget.editing || widget.generateNcfFromProforma
-                          ? null
-                          : _handlerCommands,
+                      onKeyEvent: _handlerCommands,
                       child: Container(
                         decoration: BoxDecoration(
                           border: Border(
@@ -3468,6 +3491,68 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                                   ],
                                 ),
                               ),
+
+                                 Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'RETENTION ITBIS',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        retentionTaxString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  vertical: kDefaultPadding / 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'RETENTION ISR',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        retentionIsrString,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                               Container(
                                 margin: EdgeInsets.symmetric(
                                   vertical: kDefaultPadding / 2,
@@ -3529,67 +3614,7 @@ class _TableInvoiceGeneratorState extends State<TableInvoiceGenerator>
                                 ),
                               ),
 
-                              Container(
-                                margin: EdgeInsets.symmetric(
-                                  vertical: kDefaultPadding / 2,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        'RETENTION ITBIS',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        retentionTaxString,
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        textAlign: TextAlign.right,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Container(
-                                margin: EdgeInsets.symmetric(
-                                  vertical: kDefaultPadding / 2,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        'RETENTION ISR',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        retentionIsrString,
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        textAlign: TextAlign.right,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                           
                               Container(
                                 margin: EdgeInsets.symmetric(
                                   vertical: kDefaultPadding / 3,
